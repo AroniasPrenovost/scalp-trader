@@ -1,0 +1,28 @@
+{
+  "assets": [
+      {
+        "enabled": true,
+        "symbol": "CRO-USD",
+        "support": 0.1,
+        "resistance": 4,
+        "buy_limit_3": 0,
+        "buy_limit_2": 0,
+        "buy_limit_1": 0,
+        "sell_limit_1": 0.12,
+        "sell_limit_2": 0.18,
+        "sell_limit_3": 0
+      },
+      {
+        "enabled": false,
+        "symbol": "AVAX-USD",
+        "support": 3,
+        "resistance": 4,
+        "buy_limit_3": 0,
+        "buy_limit_2": 0,
+        "buy_limit_1": 0,
+        "sell_limit_1": 3.8,
+        "sell_limit_2": 3.87,
+        "sell_limit_3": 0
+      }
+    ]
+}
