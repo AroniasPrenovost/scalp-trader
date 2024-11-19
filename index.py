@@ -111,11 +111,11 @@ def get_open_scalp_order(symbol, action):
         if orders:
             matching_orders = []
             for order in orders['orders']:
-                # if action == 'sell': # TEMPORARY HACK UNTIL WE TEST IN PROD
-                #     matching_orders.append(order) # TEMPORARY HACK UNTIL WE TEST IN PROD
+                if action == 'sell': # TEMPORARY HACK UNTIL WE TEST IN PROD
+                    matching_orders.append(order) # TEMPORARY HACK UNTIL WE TEST IN PROD
                 # match with custom order_id so we know it is the corresponding buy/sell order
-                if order['order_id'] == generate_client_order_id(symbol, action):
-                    matching_orders.append(order)
+                # if order['order_id'] == generate_client_order_id(symbol, action):
+                #     matching_orders.append(order)
             if matching_orders:
                 return matching_orders
             else:
@@ -138,9 +138,9 @@ def get_corresponding_buy_order(symbol, action):
         orders = client.list_orders(product_id=symbol, order_status="FILLED")
         if orders:
             for order in orders['orders']:
-                # return order # TEMPORARY HACK UNTIL WE TEST IN PROD
-                if order['order_id'] == generate_client_order_id(symbol, action):
-                    return order
+                return order # TEMPORARY HACK UNTIL WE TEST IN PROD
+                # if order['order_id'] == generate_client_order_id(symbol, action):
+                #     return order
         print(f"No filled orders found for {symbol}.")
         return None
     except Exception as e:
@@ -250,6 +250,9 @@ def iterate_assets(config, interval):
                 # START BUSINESS LOGIC
                 #
                 #
+
+                trade_range_percentage = calculate_trade_range_percentage(support, resistance)
+                print('trade_range_percentage', trade_range_percentage)
 
                 current_price = get_asset_price(symbol)
 
