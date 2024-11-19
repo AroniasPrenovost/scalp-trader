@@ -36,7 +36,7 @@ This project is a simple trading bot that interacts with the Coinbase API to aut
    pip install
    ```
 
-3. Create a `.env` file in the root directory and add your Coinbase API credentials and other configurations:
+3. Copy the `.env.sample` file and create an `.env` file in the root directory. Add your Coinbase API credentials and other configurations to the `.env` file:
 
    ```plaintext
    COINBASE_API_KEY=your_api_key
@@ -46,7 +46,7 @@ This project is a simple trading bot that interacts with the Coinbase API to aut
    FEDERAL_TAX_RATE=15
    ```
 
-4. Create a `config.json` file to define the assets and trading parameters:
+4. Copy the `example-config.json` file and create a `config.json` file to define the assets and trading parameters:
 
    ```json
    {
