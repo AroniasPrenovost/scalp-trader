@@ -253,13 +253,13 @@ def iterate_assets(config, interval):
 
                 current_price = get_asset_price(symbol)
 
-                # check if we have any holdings
                 asset_position = get_asset_position(symbol, client_accounts)
                 asset_shares = float(asset_position['hold']['value'])
+                # print('double_check_shares_are_same_as_below_will_eventually_remove: ', asset_shares)
 
                 open_buy_order = get_open_scalp_order(symbol, 'buy')
                 open_sell_order = get_open_scalp_order(symbol, 'sell')
-                print('open_buy order: ', len(open_buy_order) == 1)
+                print('open_buy_order: ', len(open_buy_order) == 1)
                 print('open_sell_order: ', len(open_sell_order) == 1)
 
                 # Support + Resistance trend breaks
