@@ -104,18 +104,18 @@ def place_market_order(symbol, base_size, action):
 # Check current open orders for a given symbol
 #
 
-def get_open_scalp_order(symbol, action):
+def get_open_order(symbol, action):
     try:
         orders = client.list_orders(product_id=symbol, order_status="OPEN")
         # pprint(orders)
         if orders:
             matching_orders = []
             for order in orders['orders']:
-                if action == 'sell': # TEMPORARY HACK UNTIL WE TEST IN PROD
-                    matching_orders.append(order) # TEMPORARY HACK UNTIL WE TEST IN PROD
+                # if action == 'sell': # TEMPORARY HACK UNTIL WE TEST IN PROD
+                #     matching_orders.append(order) # TEMPORARY HACK UNTIL WE TEST IN PROD
                 # match with custom order_id so we know it is the corresponding buy/sell order
-                # if order['order_id'] == generate_client_order_id(symbol, action):
-                #     matching_orders.append(order)
+                if order['order_id'] == generate_client_order_id(symbol, action):
+                    matching_orders.append(order)
             if matching_orders:
                 return matching_orders
             else:
@@ -138,9 +138,9 @@ def get_corresponding_buy_order(symbol, action):
         orders = client.list_orders(product_id=symbol, order_status="FILLED")
         if orders:
             for order in orders['orders']:
-                return order # TEMPORARY HACK UNTIL WE TEST IN PROD
-                # if order['order_id'] == generate_client_order_id(symbol, action):
-                #     return order
+                # return order # TEMPORARY HACK UNTIL WE TEST IN PROD
+                if order['order_id'] == generate_client_order_id(symbol, action):
+                    return order
         print(f"No filled orders found for {symbol}.")
         return None
     except Exception as e:
@@ -218,7 +218,7 @@ def calculate_trade_range_percentage(num1, num2):
 # print(current_asset_price)
 # print(client_order_id)
 
-# y = get_open_scalp_order(symbol)
+# y = get_open_order(symbol)
 # print(y)
 
 
@@ -260,8 +260,8 @@ def iterate_assets(config, interval):
                 asset_shares = float(asset_position['hold']['value'])
                 # print('double_check_shares_are_same_as_below_will_eventually_remove: ', asset_shares)
 
-                open_buy_order = get_open_scalp_order(symbol, 'buy')
-                open_sell_order = get_open_scalp_order(symbol, 'sell')
+                open_buy_order = get_open_order(symbol, 'buy')
+                open_sell_order = get_open_order(symbol, 'sell')
                 print('open_buy_order: ', len(open_buy_order) == 1)
                 print('open_sell_order: ', len(open_sell_order) == 1)
 
@@ -310,9 +310,8 @@ def iterate_assets(config, interval):
                         print(f"sell_now_exchange_fee: {exchange_fee}")
 
                         #
-                        federal_tax_rate_float = float(federal_tax_rate)
                         profit = (current_price - entry_price) * number_of_shares
-                        tax_owed = (federal_tax_rate_float / 100) * profit
+                        tax_owed = (federal_tax_rate / 100) * profit
                         print(f"sell_now_taxes_owed: {tax_owed}")
 
                         #
@@ -328,7 +327,7 @@ def iterate_assets(config, interval):
 
                     # create order
                     if open_sell_order == []:
-                        if current_price >= resistance or current_price >= sell_limit:
+                        if current_price >= resistance or current_price >= sell_limit or sell_now_post_tax_profit_percentage > 1.5:
                             print('current price higher than resistance, might be good time to sell')
                             #  place_market_order(symbol, asset_shares, 'sell')
 
