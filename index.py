@@ -27,10 +27,6 @@ client = RESTClient(api_key=coinbase_api_key, api_secret=coinbase_api_secret)
 # Initialize a dictionary to store price data for each asset
 price_data = {}
 
-# Define the interval and calculate the number of data points needed for 5 minutes
-INTERVAL_SECONDS = 10
-DATA_POINTS_FOR_5_MINUTES = int((60 / INTERVAL_SECONDS) * 5)
-
 #
 #
 # Get the current price of an asset
@@ -313,11 +309,11 @@ def iterate_assets(config, interval):
 
 if __name__ == "__main__":
     config = load_config('config.json')
-    interval = INTERVAL_SECONDS
+    # Define the interval and calculate the number of data points needed for 5 minute interval
+    interval = 10
+    DATA_POINTS_FOR_5_MINUTES = int((60 / interval) * 5)
     iterate_assets(config, interval)
 
-
-# quit()
 
 # place_market_order(symbol, base_size, 'buy')
 
