@@ -256,11 +256,6 @@ def iterate_assets(config, interval):
                 print('open_buy_order: ', len(open_buy_order) == 1)
                 print('open_sell_order: ', len(open_sell_order) == 1)
 
-                # if current_price <= support:
-                #     print('ALERT: price dropped below support, may need to adjust SUPPORT level')
-                # if current_price >= resistance:
-                #     print('ALERT: price hit or broke above resistance, may need to adjust RESISTANCE level')
-
                 if asset_shares == 0:
                     if open_buy_order == []:
                         if current_price <= support or current_price <= asset['buy_limit_1']:
