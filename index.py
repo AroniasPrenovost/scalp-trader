@@ -223,7 +223,7 @@ def iterate_assets(config, interval):
             symbol = asset['symbol']
 
             if enabled:
-                print(f"\n____ {symbol}")
+
                 print(price_data)
                 print(' ')
 
@@ -243,11 +243,8 @@ def iterate_assets(config, interval):
                 # Calculate support and resistance
                 support, resistance = determine_support_resistance(price_data[symbol])
                 trade_range_percentage = calculate_trade_range_percentage(support, resistance)
-                # Update asset configuration with new support and resistance
-                asset['support'] = support
-                asset['resistance'] = resistance
-                print(f"Support: {asset['support']}")
-                print(f"Resistance: {asset['resistance']}")
+                print(f"Support: {support}")
+                print(f"Resistance: {resistance}")
                 print(f"trade_range_percentage: {trade_range_percentage}")
                 print(f"current_price: {current_price}")
 
@@ -262,14 +259,14 @@ def iterate_assets(config, interval):
                 print('open_buy_order: ', len(open_buy_order) == 1)
                 print('open_sell_order: ', len(open_sell_order) == 1)
 
-                # if current_price <= asset['support']:
+                # if current_price <= support:
                 #     print('ALERT: price dropped below support, may need to adjust SUPPORT level')
-                # if current_price >= asset['resistance']:
+                # if current_price >= resistance:
                 #     print('ALERT: price hit or broke above resistance, may need to adjust RESISTANCE level')
 
                 if asset_shares == 0:
                     if open_buy_order == []:
-                        if current_price <= asset['support'] or current_price <= asset['buy_limit_1']:
+                        if current_price <= support or current_price <= asset['buy_limit_1']:
                             print('price lower than support price or buy limit - time to buy')
                             # place_market_order(symbol, 1, 'buy')
 
@@ -307,7 +304,7 @@ def iterate_assets(config, interval):
                         print('\n')
 
                         if open_sell_order == []:
-                            if current_price >= asset['resistance'] or current_price >= asset['sell_limit_1']:
+                            if current_price >= resistance or current_price >= asset['sell_limit_1']:
                                 print('current price higher than resistance, might be good time to sell')
                                 # place_market_order(symbol, asset_shares, 'sell')
 
