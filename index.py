@@ -187,14 +187,6 @@ def calculate_transaction_cost(entry_price, number_of_shares, fee_type):
     cost = base_cost + exchange_fee
     return cost
 
-def calculate_trade_range_percentage(num1, num2):
-    if num1 == 0 and num2 == 0:
-        return "0.00%"
-    difference = abs(num1 - num2)
-    average = (num1 + num2) / 2
-    percentage_difference = (difference / average) * 100
-    return f"{percentage_difference:.2f}%"
-
 #
 #
 # Determine support and resistance levels
@@ -204,6 +196,15 @@ def determine_support_resistance(prices):
     support = min(prices)
     resistance = max(prices)
     return support, resistance
+
+
+def calculate_trade_range_percentage(num1, num2):
+    if num1 == 0 and num2 == 0:
+        return "0.00%"
+    difference = abs(num1 - num2)
+    average = (num1 + num2) / 2
+    percentage_difference = (difference / average) * 100
+    return f"{percentage_difference:.2f}%"
 
 #
 #
