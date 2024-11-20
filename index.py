@@ -289,7 +289,7 @@ def iterate_assets(config, interval):
 
                     if open_buy_order == []:
                         if current_price <= support or current_price <= optimal_buy_price:
-                            print('price lower than support price or optimal buy price - time to buy')
+                            print('price lower than support price or optimal buy price - time to buy!')
                             # place_market_order(symbol, 1, 'buy')
 
                 elif asset_shares > 0:
