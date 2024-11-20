@@ -208,25 +208,6 @@ def calculate_trade_range_percentage(num1, num2):
 # main logic loop
 #
 
-
-# Example usage
-# symbol = "CRO"
-# base_size = "1"
-# client_order_id = generate_client_order_id("CRO-USD", "buy")
-#
-# current_asset_price = get_asset_price(symbol)
-# print(current_asset_price)
-# print(client_order_id)
-
-# y = get_open_order(symbol)
-# print(y)
-
-
-#
-#
-#
-#
-
 def load_config(file_path):
     with open(file_path, 'r') as file:
         return load(file)
@@ -327,7 +308,7 @@ def iterate_assets(config, interval):
 
                     # create order
                     if open_sell_order == []:
-                        if current_price >= resistance or current_price >= sell_limit or sell_now_post_tax_profit_percentage > 1.5:
+                        if current_price >= resistance or current_price >= sell_limit:
                             print('current price higher than resistance, might be good time to sell')
                             #  place_market_order(symbol, asset_shares, 'sell')
 
