@@ -183,6 +183,34 @@ def calculate_transaction_cost(entry_price, number_of_shares, fee_type):
     cost = base_cost + exchange_fee
     return cost
 
+
+
+def calculate_optimal_buy_price(support, resistance, trade_range_percentage, buffer_percentage=0.5):
+    """
+    Calculate the optimal buy price based on support, resistance, and trade range percentage.
+    A buffer percentage is applied below the resistance to ensure a profitable trade within the range.
+
+    :param support: The support level price
+    :param resistance: The resistance level price
+    :param trade_range_percentage: The percentage range between support and resistance
+    :param buffer_percentage: The percentage buffer below resistance to set the buy price
+    :return: The optimal buy price
+    """
+    # Convert trade range percentage to a decimal
+    trade_range_decimal = float(trade_range_percentage.strip('%')) / 100
+
+    # Calculate the buffer amount
+    buffer_amount = resistance * (buffer_percentage / 100)
+
+    # Calculate the optimal buy price
+    optimal_buy_price = resistance - buffer_amount
+
+    # Ensure the buy price is within the trade range
+    if optimal_buy_price < support:
+        optimal_buy_price = support + (resistance - support) * 0.1  # 10% above support as a fallback
+
+    return optimal_buy_price
+
 #
 #
 # Determine support and resistance levels
@@ -222,7 +250,6 @@ def iterate_assets(config, interval):
             if enabled:
 
                 print(price_data)
-                print(' ')
 
                 # Initialize price data storage if not already done
                 if symbol not in price_data:
@@ -234,7 +261,7 @@ def iterate_assets(config, interval):
 
                 # Only proceed if we have enough data
                 if len(price_data[symbol]) < DATA_POINTS_FOR_5_MINUTES:
-                    print(f"Not enough data for {symbol}. Waiting for more data...")
+                    print(f"Not enough data for {symbol}. Waiting for more data...\n")
                     continue
 
                 # Calculate support and resistance
@@ -245,11 +272,10 @@ def iterate_assets(config, interval):
                 print(f"trade_range_percentage: {trade_range_percentage}")
                 print(f"current_price: {current_price}")
 
-
                 # Continue with existing business logic
                 asset_position = get_asset_position(symbol, client_accounts)
                 asset_shares = float(asset_position['hold']['value'])
-                print(asset_shares)
+                print('asset_shares: ', asset_shares)
 
                 open_buy_order = get_open_order(symbol, 'buy')
                 open_sell_order = get_open_order(symbol, 'sell')
@@ -257,9 +283,13 @@ def iterate_assets(config, interval):
                 print('open_sell_order: ', len(open_sell_order) == 1)
 
                 if asset_shares == 0:
+
+                    optimal_buy_price = calculate_optimal_buy_price(support, resistance, trade_range_percentage)
+                    print(f"Optimal Buy Price: {optimal_buy_price}")
+
                     if open_buy_order == []:
-                        if current_price <= support or current_price <= asset['buy_limit_1']:
-                            print('price lower than support price or buy limit - time to buy')
+                        if current_price <= support or current_price <= optimal_buy_price:
+                            print('price lower than support price or optimal buy price - time to buy')
                             # place_market_order(symbol, 1, 'buy')
 
                 elif asset_shares > 0:
