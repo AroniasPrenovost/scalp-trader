@@ -5,6 +5,7 @@ from json import dumps, load
 import math
 import time
 from pprint import pprint
+from collections import deque
 # coinbase api
 from coinbase.rest import RESTClient
 
@@ -23,6 +24,13 @@ federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
 
 client = RESTClient(api_key=coinbase_api_key, api_secret=coinbase_api_secret)
 
+# Initialize a dictionary to store price data for each asset
+price_data = {}
+
+# Define the interval and calculate the number of data points needed for 5 minutes
+INTERVAL_SECONDS = 10
+DATA_POINTS_FOR_5_MINUTES = int((60 / INTERVAL_SECONDS) * 5)
+
 #
 #
 # Get the current price of an asset
@@ -32,7 +40,6 @@ def get_asset_price(symbol):
     try:
         product = client.get_product(symbol)
         price = float(product["price"])
-        # print(f"Current {symbol} price: {price}")
         return price
     except Exception as e:
         print(f"Error fetching product price for {symbol}: {e}")
@@ -45,21 +52,10 @@ def get_asset_price(symbol):
 
 def get_asset_position(symbol, accounts):
     try:
-        # accounts object
-        # [{'uuid': 'some_uuid', 'name': 'ARB Wallet', 'currency': 'ARB',
-        #     'available_balance': {'value': '0.0031831259076048', 'currency': 'ARB'}, 'default': True,
-        #     'active': True, 'created_at': '2024-11-14T02:11:40.374Z', 'updated_at': '2024-11-14T02:12:34.556Z',
-        #     'deleted_at': None, 'type': 'ACCOUNT_TYPE_CRYPTO', 'ready': True,
-        #     'hold': {'value': '0', 'currency': 'ARB'}, 'retail_portfolio_id': 'some_id'
-        # }, ...]
-
-        #  pprint(accounts)
         modified_symbol = symbol.split('-')[0]
 
-        # Iterate through accounts to find the specified asset
         for account in accounts['accounts']:
             if account['currency'] == modified_symbol:
-                # print(account)
                 balance = account['balance']
                 available = account['available']
                 hold = account['hold']
@@ -86,7 +82,7 @@ def place_market_order(symbol, base_size, action):
     try:
         client_order_id = generate_client_order_id(symbol, action)
         order = client.market_order_buy(
-            client_order_id=client_order_id,  # must be unique
+            client_order_id=client_order_id,
             product_id=symbol,
             base_size=base_size
         )
@@ -107,7 +103,6 @@ def place_market_order(symbol, base_size, action):
 def get_open_order(symbol, action):
     try:
         orders = client.list_orders(product_id=symbol, order_status="OPEN")
-        # pprint(orders)
         if orders:
             matching_orders = []
             for order in orders['orders']:
@@ -119,7 +114,6 @@ def get_open_order(symbol, action):
             if matching_orders:
                 return matching_orders
             else:
-                # print(f"No matching open {action.upper()} orders found for {symbol}.")
                 return []
         else:
             print(f"No open orders found for {symbol}.")
@@ -130,7 +124,7 @@ def get_open_order(symbol, action):
 
 #
 #
-#
+# Get existing buy order (if it exists)
 #
 
 def get_corresponding_buy_order(symbol, action):
@@ -155,8 +149,7 @@ def get_corresponding_buy_order(symbol, action):
 def generate_client_order_id(symbol, action):
     symbol = symbol.lower()
     action = action.lower()
-    # unix_timestamp = int(time.time())
-    custom_id = f"custom_scalp_{action}_{symbol}" # "custom_scalp_buy_cro"
+    custom_id = f"custom_scalp_{action}_{symbol}"
     return custom_id
 
 #
@@ -202,6 +195,15 @@ def calculate_trade_range_percentage(num1, num2):
     percentage_difference = (difference / average) * 100
     return f"{percentage_difference:.2f}%"
 
+#
+#
+# Determine support and resistance levels
+#
+
+def determine_support_resistance(prices):
+    support = min(prices)
+    resistance = max(prices)
+    return support, resistance
 
 #
 #
@@ -214,113 +216,106 @@ def load_config(file_path):
 
 def iterate_assets(config, interval):
     while True:
-
         client_accounts = client.get_accounts()
 
         for asset in config['assets']:
             enabled = asset['enabled']
             symbol = asset['symbol']
-            support = asset['support']
-            resistance = asset['resistance']
-            buy_limit = asset['buy_limit_1']
-            sell_limit = asset['sell_limit_1']
 
             if enabled:
                 print(f"\n____ {symbol}")
+                print(price_data)
+                print(' ')
 
-                # START BUSINESS LOGIC
-                #
-                #
-
-                trade_range_percentage = calculate_trade_range_percentage(support, resistance)
-                print('trade_range_percentage', trade_range_percentage)
+                # Initialize price data storage if not already done
+                if symbol not in price_data:
+                    price_data[symbol] = deque(maxlen=DATA_POINTS_FOR_5_MINUTES)
 
                 current_price = get_asset_price(symbol)
+                if current_price is not None:
+                    price_data[symbol].append(current_price)
 
+                # Only proceed if we have enough data
+                if len(price_data[symbol]) < DATA_POINTS_FOR_5_MINUTES:
+                    print(f"Not enough data for {symbol}. Waiting for more data...")
+                    continue
+
+                # Calculate support and resistance
+                support, resistance = determine_support_resistance(price_data[symbol])
+                trade_range_percentage = calculate_trade_range_percentage(support, resistance)
+                # Update asset configuration with new support and resistance
+                asset['support'] = support
+                asset['resistance'] = resistance
+                print(f"Support: {asset['support']}")
+                print(f"Resistance: {asset['resistance']}")
+                print(f"trade_range_percentage: {trade_range_percentage}")
+                print(f"current_price: {current_price}")
+
+
+                # Continue with existing business logic
                 asset_position = get_asset_position(symbol, client_accounts)
                 asset_shares = float(asset_position['hold']['value'])
-                # print('double_check_shares_are_same_as_below_will_eventually_remove: ', asset_shares)
+                print(asset_shares)
 
                 open_buy_order = get_open_order(symbol, 'buy')
                 open_sell_order = get_open_order(symbol, 'sell')
                 print('open_buy_order: ', len(open_buy_order) == 1)
                 print('open_sell_order: ', len(open_sell_order) == 1)
 
-                # Support + Resistance trend breaks
-                if current_price <= support:
-                    print('ALERT: price dropped below support, may need to adjust SUPPORT level')
-                if current_price >= resistance:
-                    print('ALERT: price hit or broke above support, may need to adjust RESISTANCE level')
+                # if current_price <= asset['support']:
+                #     print('ALERT: price dropped below support, may need to adjust SUPPORT level')
+                # if current_price >= asset['resistance']:
+                #     print('ALERT: price hit or broke above resistance, may need to adjust RESISTANCE level')
 
-                # **BUY** triggers
                 if asset_shares == 0:
-                    # create order
                     if open_buy_order == []:
-                        if current_price <= support or current_price <= buy_limit:
+                        if current_price <= asset['support'] or current_price <= asset['buy_limit_1']:
                             print('price lower than support price or buy limit - time to buy')
-                            #  place_market_order(symbol, 1, 'buy')
+                            # place_market_order(symbol, 1, 'buy')
 
-                # **SELL** triggers
                 elif asset_shares > 0:
-
-                    # get corresponding buy order
                     corresponding_buy_order = get_corresponding_buy_order(symbol, 'buy')
-                    # print(corresponding_buy_order)
                     if corresponding_buy_order:
-                        #
                         entry_price = float(corresponding_buy_order['average_filled_price'])
                         print(f"entry_price: {entry_price}")
 
-                        #
                         number_of_shares = float(corresponding_buy_order['filled_size'])
-                        print('shares_purchased: ',number_of_shares)
+                        print('shares_purchased: ', number_of_shares)
 
-                        #
                         position_value_at_purchase = entry_price * number_of_shares
                         print(f"purchase_position_value: {position_value_at_purchase}")
 
-                        #
-                        print(f"current_price: {current_price}")
+                        # print(f"current_price: {current_price}")
 
-                        #
                         current_position_value = current_price * number_of_shares
                         print(f"current_position_value: {current_position_value}")
 
-                        #
-                        exchange_fee = calculate_exchange_fee(current_price, number_of_shares, 'taker') # Assuming taker fee for simplicity
+                        exchange_fee = calculate_exchange_fee(current_price, number_of_shares, 'taker')
                         print(f"sell_now_exchange_fee: {exchange_fee}")
 
-                        #
                         profit = (current_price - entry_price) * number_of_shares
                         tax_owed = (federal_tax_rate / 100) * profit
                         print(f"sell_now_taxes_owed: {tax_owed}")
 
-                        #
                         potential_profit = profit - exchange_fee - tax_owed
                         print(f"sell_now_post_tax_profit: {potential_profit}")
 
-                        #
                         investment = entry_price * number_of_shares
                         potential_profit_percentage = (potential_profit / investment) * 100
                         print(f"sell_now_post_tax_profit_percentage: {potential_profit_percentage:.2f}%")
 
-                    print('\n')
+                        print('\n')
 
-                    # create order
-                    if open_sell_order == []:
-                        if current_price >= resistance or current_price >= sell_limit:
-                            print('current price higher than resistance, might be good time to sell')
-                            #  place_market_order(symbol, asset_shares, 'sell')
+                        if open_sell_order == []:
+                            if current_price >= asset['resistance'] or current_price >= asset['sell_limit_1']:
+                                print('current price higher than resistance, might be good time to sell')
+                                # place_market_order(symbol, asset_shares, 'sell')
 
-
-                #
-                #
-                # END BUSINESS LOGIC
         time.sleep(interval)
 
 if __name__ == "__main__":
     config = load_config('config.json')
-    interval = 60  # Set your desired interval in seconds
+    interval = INTERVAL_SECONDS
     iterate_assets(config, interval)
 
 
