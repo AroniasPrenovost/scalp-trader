@@ -185,19 +185,58 @@ def calculate_transaction_cost(entry_price, number_of_shares, fee_type):
 
 
 
+# def calculate_optimal_buy_price(support, resistance, trade_range_percentage, buffer_percentage=0.5):
+#     """
+#     Calculate the optimal buy price based on support, resistance, and trade range percentage.
+#     A buffer percentage is applied below the resistance to ensure a profitable trade within the range.
+#
+#     :param support: The support level price
+#     :param resistance: The resistance level price
+#     :param trade_range_percentage: The percentage range between support and resistance
+#     :param buffer_percentage: The percentage buffer below resistance to set the buy price
+#     :return: The optimal buy price
+#     """
+#     # Convert trade range percentage to a decimal
+#     trade_range_decimal = float(trade_range_percentage) / 100
+#
+#     # Calculate the buffer amount
+#     buffer_amount = resistance * (buffer_percentage / 100)
+#
+#     # Calculate the optimal buy price
+#     optimal_buy_price = resistance - buffer_amount
+#
+#     # Ensure the buy price is within the trade range
+#     if optimal_buy_price < support:
+#         optimal_buy_price = support + (resistance - support) * 0.1  # 10% above support as a fallback
+#
+#     return optimal_buy_price
+
 def calculate_optimal_buy_price(support, resistance, trade_range_percentage, buffer_percentage=0.5):
+    """
+    Calculate the optimal buy price based on support, resistance, and trade range percentage.
+    A buffer percentage is applied below the resistance to ensure a profitable trade within the range.
+
+    :param support: The support level price
+    :param resistance: The resistance level price
+    :param trade_range_percentage: The percentage range between support and resistance
+    :param buffer_percentage: The percentage buffer below resistance to set the buy price
+    :return: The optimal buy price
+    """
     # Convert trade range percentage to a decimal
-    trade_range_decimal = float(trade_range_percentage.strip('%')) / 100
+    trade_range_decimal = float(trade_range_percentage) / 100
+
+    # Calculate the trade range
+    trade_range = resistance - support
 
     # Calculate the buffer amount
-    buffer_amount = resistance * (buffer_percentage / 100)
+    buffer_amount = trade_range * (buffer_percentage / 100)
 
     # Calculate the optimal buy price
-    optimal_buy_price = resistance - buffer_amount
+    optimal_buy_price = support + buffer_amount
 
-    # Ensure the buy price is within the trade range
-    if optimal_buy_price < support:
-        optimal_buy_price = support + (resistance - support) * 0.1  # 10% above support as a fallback
+    # Ensure the buy price is within the lower x percent of the trade range
+    if optimal_buy_price > support + trade_range * trade_range_decimal:
+        optimal_buy_price = support + trade_range * trade_range_decimal
 
     return optimal_buy_price
 
@@ -214,11 +253,11 @@ def determine_support_resistance(prices):
 
 def calculate_trade_range_percentage(num1, num2):
     if num1 == 0 and num2 == 0:
-        return "0.00%"
+        return "0.00"
     difference = abs(num1 - num2)
     average = (num1 + num2) / 2
     percentage_difference = (difference / average) * 100
-    return f"{percentage_difference:.2f}%"
+    return f"{percentage_difference:.2f}"
 
 #
 #
@@ -259,7 +298,7 @@ def iterate_assets(config, interval):
                 trade_range_percentage = calculate_trade_range_percentage(support, resistance)
                 print(f"Support: {support}")
                 print(f"Resistance: {resistance}")
-                print(f"trade_range_percentage: {trade_range_percentage}")
+                print(f"trade_range_percentage: {trade_range_percentage}%")
                 print(f"current_price: {current_price}")
 
                 # Continue with existing business logic
@@ -313,12 +352,12 @@ def iterate_assets(config, interval):
                         potential_profit_percentage = (potential_profit / investment) * 100
                         print(f"sell_now_post_tax_profit_percentage: {potential_profit_percentage:.2f}%")
 
-                        print('\n')
-
                         if open_sell_order == []:
                             if current_price >= resistance or current_price >= asset['sell_limit_1']:
                                 print('current price higher than resistance, might be good time to sell')
                                 # place_market_order(symbol, asset_shares, 'sell')
+
+                print('\n')
 
         time.sleep(interval)
 
