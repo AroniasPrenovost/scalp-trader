@@ -192,7 +192,7 @@ def calculate_optimal_buy_price(support, resistance, trade_range_percentage, buf
     :param resistance: The resistance level price
     :param trade_range_percentage: The percentage range between support and resistance
     :param buffer_percentage: The percentage buffer below resistance to set the buy price
-    :return: The optimal buy price
+    :return: A dictionary containing the optimal buy price, anticipated sell price, and price position within trade range
     """
     # Convert trade range percentage to a decimal
     trade_range_decimal = float(trade_range_percentage) / 100
@@ -210,7 +210,13 @@ def calculate_optimal_buy_price(support, resistance, trade_range_percentage, buf
     if optimal_buy_price > support + trade_range * trade_range_decimal:
         optimal_buy_price = support + trade_range * trade_range_decimal
 
-    return optimal_buy_price
+    # Calculate anticipated sell price
+    anticipated_sell_price = optimal_buy_price + (trade_range * (1 - buffer_percentage / 100))
+
+    # Calculate price position within trade range
+    price_position_within_trade_range = ((optimal_buy_price - support) / trade_range) * 100
+
+    return optimal_buy_price, anticipated_sell_price, price_position_within_trade_range
 
 #
 #
@@ -240,7 +246,7 @@ def load_config(file_path):
     with open(file_path, 'r') as file:
         return load(file)
 
-def iterate_assets(config, interval):
+def iterate_assets(config, INTERVAL_SECONDS):
     while True:
         client_accounts = client.get_accounts()
 
@@ -254,14 +260,14 @@ def iterate_assets(config, interval):
 
                 # Initialize price data storage if not already done
                 if symbol not in price_data:
-                    price_data[symbol] = deque(maxlen=DATA_POINTS_FOR_5_MINUTES)
+                    price_data[symbol] = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
 
                 current_price = get_asset_price(symbol)
                 if current_price is not None:
                     price_data[symbol].append(current_price)
 
                 # Only proceed if we have enough data
-                if len(price_data[symbol]) < DATA_POINTS_FOR_5_MINUTES:
+                if len(price_data[symbol]) < DATA_POINTS_FOR_X_MINUTES:
                     print(f"Not enough data for {symbol}. Waiting for more data...\n")
                     continue
 
@@ -285,12 +291,34 @@ def iterate_assets(config, interval):
 
                 if asset_shares == 0:
 
-                    optimal_buy_price = calculate_optimal_buy_price(support, resistance, trade_range_percentage)
-                    print(f"Optimal Buy Price: {optimal_buy_price}")
+                    optimal_buy_price, anticipated_sell_price, price_position_within_trade_range = calculate_optimal_buy_price(support, resistance, trade_range_percentage)
+                    print(f"optimal_buy_price: {optimal_buy_price}")
+                    print(f"anticipated_sell_price: {anticipated_sell_price}")
+                    print(f"price_position_within_trade_range: {price_position_within_trade_range}")
+
+                    #
+                    number_of_shares = 1
+
+                    exchange_fee = calculate_exchange_fee(anticipated_sell_price, number_of_shares, 'taker')
+                    print(f"anticipated_sell_exchange_fee: {exchange_fee}")
+
+                    profit = (anticipated_sell_price - optimal_buy_price) * number_of_shares
+                    tax_owed = (federal_tax_rate / 100) * profit
+                    print(f"anticipated_sell_taxes_owed: {tax_owed}")
+
+                    potential_profit = profit - exchange_fee - tax_owed
+                    print(f"anticipated_sell_post_tax_profit: {potential_profit}")
+
+                    investment = optimal_buy_price * number_of_shares
+                    potential_profit_percentage = (potential_profit / investment) * 100
+                    print(f"anticipated_sell_post_tax_profit_percentage: {potential_profit_percentage:.2f}%")
+                    #
 
                     if open_buy_order == []:
-                        if current_price <= support or current_price <= optimal_buy_price:
-                            print('price lower than support price or optimal buy price - time to buy!')
+                        # if current_price <= support or (
+                        # if current_price <= optimal_buy_price and
+                        if potential_profit_percentage >= 0.2:
+                            print('BUY OPPORTUNITY')
                             # place_market_order(symbol, 1, 'buy')
 
                 elif asset_shares > 0:
@@ -304,8 +332,6 @@ def iterate_assets(config, interval):
 
                         position_value_at_purchase = entry_price * number_of_shares
                         print(f"purchase_position_value: {position_value_at_purchase}")
-
-                        # print(f"current_price: {current_price}")
 
                         current_position_value = current_price * number_of_shares
                         print(f"current_position_value: {current_position_value}")
@@ -331,14 +357,15 @@ def iterate_assets(config, interval):
 
                 print('\n')
 
-        time.sleep(interval)
+        time.sleep(INTERVAL_SECONDS)
 
 if __name__ == "__main__":
     config = load_config('config.json')
     # Define the interval and calculate the number of data points needed for 5 minute interval
-    interval = 10
-    DATA_POINTS_FOR_5_MINUTES = int((60 / interval) * 5)
-    iterate_assets(config, interval)
+    INTERVAL_SECONDS = 10
+    MINUTES = 5
+    DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * MINUTES)
+    iterate_assets(config, INTERVAL_SECONDS)
 
 
 # place_market_order(symbol, base_size, 'buy')
