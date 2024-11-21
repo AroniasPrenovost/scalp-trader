@@ -295,14 +295,13 @@ def iterate_assets(config, INTERVAL_SECONDS):
                 if asset_shares == 0:
 
                     optimal_buy_price, anticipated_sell_price, price_position_within_trade_range = calculate_optimal_buy_price(support, resistance, trade_range_percentage)
+                    # 'ideal' trade setup
                     print('IDEAL SETUP')
                     print(f"optimal_buy_price: {optimal_buy_price}")
                     print(f"price_position_within_trade_range: {price_position_within_trade_range}")
                     print(f"anticipated_sell_price: {anticipated_sell_price}")
 
-                    #
                     number_of_shares = 1
-
                     exchange_fee = calculate_exchange_fee(anticipated_sell_price, number_of_shares, 'taker')
                     print(f"anticipated_sell_exchange_fee: {exchange_fee}")
 
@@ -316,11 +315,9 @@ def iterate_assets(config, INTERVAL_SECONDS):
                     investment = optimal_buy_price * number_of_shares
                     potential_profit_percentage = (potential_profit / investment) * 100
                     print(f"anticipated_sell_post_tax_profit_percentage: {potential_profit_percentage:.2f}%")
-                    #
 
-                    if open_buy_order == []:
-                        if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
-                        #  or current_price <= optimal_buy_price:
+                    if open_buy_order == [] and open_sell_order == []:
+                        if current_price <= optimal_buy_price and (potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE):
                             print('BUY OPPORTUNITY')
                             # place_market_order(symbol, 1, 'buy')
 
