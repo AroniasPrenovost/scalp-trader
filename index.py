@@ -186,16 +186,6 @@ def calculate_transaction_cost(entry_price, number_of_shares, fee_type):
 
 
 def calculate_optimal_buy_price(support, resistance, trade_range_percentage, buffer_percentage=0.5):
-    """
-    Calculate the optimal buy price based on support, resistance, and trade range percentage.
-    A buffer percentage is applied below the resistance to ensure a profitable trade within the range.
-
-    :param support: The support level price
-    :param resistance: The resistance level price
-    :param trade_range_percentage: The percentage range between support and resistance
-    :param buffer_percentage: The percentage buffer below resistance to set the buy price
-    :return: The optimal buy price
-    """
     # Convert trade range percentage to a decimal
     trade_range_decimal = float(trade_range_percentage.strip('%')) / 100
 
