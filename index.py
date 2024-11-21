@@ -25,7 +25,8 @@ federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
 client = RESTClient(api_key=coinbase_api_key, api_secret=coinbase_api_secret)
 
 # Initialize a dictionary to store price data for each asset
-price_data = {}
+LOCAL_PRICE_DATA = {}
+TARGET_PROFIT_PERCENTAGE = 0.2
 
 #
 #
@@ -48,7 +49,7 @@ def get_asset_price(symbol):
 
 def get_asset_position(symbol, accounts):
     try:
-        modified_symbol = symbol.split('-')[0]
+        modified_symbol = symbol.split('-')[0] # DOUBLECHECK THIS WORKS FOR ALL ACCOUNTS
 
         for account in accounts['accounts']:
             if account['currency'] == modified_symbol:
@@ -256,24 +257,26 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
             if enabled:
 
-                print(price_data)
+                print(LOCAL_PRICE_DATA) # for debugging
+
+                print(symbol)
 
                 # Initialize price data storage if not already done
-                if symbol not in price_data:
-                    price_data[symbol] = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
+                if symbol not in LOCAL_PRICE_DATA:
+                    LOCAL_PRICE_DATA[symbol] = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
 
                 current_price = get_asset_price(symbol)
-                print(f"{symbol} current_price: {current_price}")
+                print(f"current_price: {current_price}")
                 if current_price is not None:
-                    price_data[symbol].append(current_price)
+                    LOCAL_PRICE_DATA[symbol].append(current_price)
 
                 # Only proceed if we have enough data
-                if len(price_data[symbol]) < DATA_POINTS_FOR_X_MINUTES:
+                if len(LOCAL_PRICE_DATA[symbol]) < DATA_POINTS_FOR_X_MINUTES:
                     print(f"Waiting for more data...\n")
                     continue
 
                 # Calculate support and resistance
-                support, resistance = determine_support_resistance(price_data[symbol])
+                support, resistance = determine_support_resistance(LOCAL_PRICE_DATA[symbol])
                 print(f"Support: {support}")
                 print(f"Resistance: {resistance}")
                 trade_range_percentage = calculate_trade_range_percentage(support, resistance)
@@ -315,7 +318,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
                     #
 
                     if open_buy_order == []:
-                        if potential_profit_percentage >= 0.2:
+                        if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
                         #  or current_price <= optimal_buy_price:
                             print('BUY OPPORTUNITY')
                             # place_market_order(symbol, 1, 'buy')
@@ -349,7 +352,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
                         potential_profit_percentage = (potential_profit / investment) * 100
                         print(f"sell_now_post_tax_profit_percentage: {potential_profit_percentage:.2f}%")
 
-                        if open_sell_order == [] and potential_profit_percentage >= 0.2:
+                        if open_sell_order == [] and potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
                             print('SELL OPPORTUNITY')
                             # place_market_order(symbol, asset_shares, 'sell')
 
