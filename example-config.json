@@ -1,16 +1,16 @@
 {
   "assets": [
       {
+        "enabled": false,
+        "symbol": "CRO-USD"
+      },
+      {
+        "enabled": false,
+        "symbol": "ADA-USD"
+      },
+      {
         "enabled": true,
-        "symbol": "CRO-USD",
-        "support": 0.1,
-        "resistance": 4,
-        "buy_limit_3": 0,
-        "buy_limit_2": 0,
-        "buy_limit_1": 0,
-        "sell_limit_1": 0.12,
-        "sell_limit_2": 0.18,
-        "sell_limit_3": 0
+        "symbol": "ARB-USD"
       }
     ]
 }

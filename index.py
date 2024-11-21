@@ -263,21 +263,21 @@ def iterate_assets(config, INTERVAL_SECONDS):
                     price_data[symbol] = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
 
                 current_price = get_asset_price(symbol)
+                print(f"{symbol} current_price: {current_price}")
                 if current_price is not None:
                     price_data[symbol].append(current_price)
 
                 # Only proceed if we have enough data
                 if len(price_data[symbol]) < DATA_POINTS_FOR_X_MINUTES:
-                    print(f"Not enough data for {symbol}. Waiting for more data...\n")
+                    print(f"Waiting for more data...\n")
                     continue
 
                 # Calculate support and resistance
                 support, resistance = determine_support_resistance(price_data[symbol])
-                trade_range_percentage = calculate_trade_range_percentage(support, resistance)
                 print(f"Support: {support}")
                 print(f"Resistance: {resistance}")
+                trade_range_percentage = calculate_trade_range_percentage(support, resistance)
                 print(f"trade_range_percentage: {trade_range_percentage}%")
-                print(f"current_price: {current_price}")
 
                 # Continue with existing business logic
                 asset_position = get_asset_position(symbol, client_accounts)
@@ -315,9 +315,8 @@ def iterate_assets(config, INTERVAL_SECONDS):
                     #
 
                     if open_buy_order == []:
-                        # if current_price <= support or (
-                        # if current_price <= optimal_buy_price and
                         if potential_profit_percentage >= 0.2:
+                        #  or current_price <= optimal_buy_price:
                             print('BUY OPPORTUNITY')
                             # place_market_order(symbol, 1, 'buy')
 
@@ -350,10 +349,9 @@ def iterate_assets(config, INTERVAL_SECONDS):
                         potential_profit_percentage = (potential_profit / investment) * 100
                         print(f"sell_now_post_tax_profit_percentage: {potential_profit_percentage:.2f}%")
 
-                        if open_sell_order == []:
-                            if current_price >= resistance or current_price >= asset['sell_limit_1']:
-                                print('current price higher than resistance, might be good time to sell')
-                                # place_market_order(symbol, asset_shares, 'sell')
+                        if open_sell_order == [] and potential_profit_percentage >= 0.2:
+                            print('SELL OPPORTUNITY')
+                            # place_market_order(symbol, asset_shares, 'sell')
 
                 print('\n')
 
