@@ -350,9 +350,10 @@ def iterate_assets(config, INTERVAL_SECONDS):
                         potential_profit_percentage = (potential_profit / investment) * 100
                         print(f"sell_now_post_tax_profit_percentage: {potential_profit_percentage:.2f}%")
 
-                        if open_sell_order == [] and potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
-                            print('SELL OPPORTUNITY')
-                            # place_market_order(symbol, asset_shares, 'sell')
+                        if open_sell_order == []:
+                            if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
+                                print('SELL OPPORTUNITY')
+                                # place_market_order(symbol, asset_shares, 'sell')
 
                 print('\n')
 
