@@ -295,9 +295,10 @@ def iterate_assets(config, INTERVAL_SECONDS):
                 if asset_shares == 0:
 
                     optimal_buy_price, anticipated_sell_price, price_position_within_trade_range = calculate_optimal_buy_price(support, resistance, trade_range_percentage)
+                    print('IDEAL SETUP')
                     print(f"optimal_buy_price: {optimal_buy_price}")
-                    print(f"anticipated_sell_price: {anticipated_sell_price}")
                     print(f"price_position_within_trade_range: {price_position_within_trade_range}")
+                    print(f"anticipated_sell_price: {anticipated_sell_price}")
 
                     #
                     number_of_shares = 1
