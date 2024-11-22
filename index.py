@@ -329,7 +329,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
                         net_expected_profit = expected_profit - exchange_fee - tax_owed
 
-                        investment = current_price * 1
+                        investment = current_price * 0.00001 if symbol == 'BTC-USD' else 1
                         expected_profit_percentage = (net_expected_profit / investment) * 100
 
                         print(f"anticipated_sell_price: {anticipated_sell_price}")
