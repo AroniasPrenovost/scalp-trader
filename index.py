@@ -383,7 +383,7 @@ if __name__ == "__main__":
     config = load_config('config.json')
     # Define the interval and calculate the number of data points needed for 5 minute interval
     INTERVAL_SECONDS = 10
-    MINUTES = 15
+    MINUTES = 10
     DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * MINUTES)
     iterate_assets(config, INTERVAL_SECONDS)
 
