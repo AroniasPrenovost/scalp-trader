@@ -26,7 +26,7 @@ client = RESTClient(api_key=coinbase_api_key, api_secret=coinbase_api_secret)
 
 # Initialize a dictionary to store price data for each asset
 LOCAL_PRICE_DATA = {}
-TARGET_PROFIT_PERCENTAGE = 0.3
+TARGET_PROFIT_PERCENTAGE = 0.4
 
 #
 #
@@ -184,41 +184,6 @@ def calculate_transaction_cost(entry_price, number_of_shares, fee_type):
     cost = base_cost + exchange_fee
     return cost
 
-# def calculate_optimal_buy_price(support, resistance, trading_range_percentage, buffer_percentage=0.5):
-#     """
-#     Calculate the optimal buy price based on support, resistance, and trade range percentage.
-#     A buffer percentage is applied below the resistance to ensure a profitable trade within the range.
-#
-#     :param support: The support level price
-#     :param resistance: The resistance level price
-#     :param trading_range_percentage: The percentage range between support and resistance
-#     :param buffer_percentage: The percentage buffer below resistance to set the buy price
-#     :return: A dictionary containing the optimal buy price, anticipated sell price, and price position within trade range
-#     """
-#     # Convert trade range percentage to a decimal
-#     trade_range_decimal = float(trading_range_percentage) / 100
-#
-#     # Calculate the trade range
-#     trade_range = resistance - support
-#
-#     # Calculate the buffer amount
-#     buffer_amount = trade_range * (buffer_percentage / 100)
-#
-#     # Calculate the optimal buy price
-#     optimal_buy_price = support + buffer_amount
-#
-#     # Ensure the buy price is within the lower x percent of the trade range
-#     if optimal_buy_price > support + trade_range * trade_range_decimal:
-#         optimal_buy_price = support + trade_range * trade_range_decimal
-#
-#     # Calculate anticipated sell price
-#     anticipated_sell_price = optimal_buy_price + (trade_range * (1 - buffer_percentage / 100))
-#
-#     # Calculate price position within trade range
-#     price_position_within_trade_range = ((optimal_buy_price - support) / trade_range) * 100
-#
-#     return optimal_buy_price, anticipated_sell_price, price_position_within_trade_range
-
 #
 #
 # Determine support and resistance levels
@@ -307,7 +272,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
                 # Continue with existing business logic
                 asset_position = get_asset_position(symbol, client_accounts)
-                asset_shares = float(asset_position['hold']['value'])
+                asset_shares = float(asset_position['hold']['value']) if asset_position else 0
                 print('asset_shares: ', asset_shares)
 
                 open_buy_order = get_open_order(symbol, 'buy')
@@ -329,7 +294,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
                         net_expected_profit = expected_profit - exchange_fee - tax_owed
 
-                        investment = current_price * 0.00001 if symbol == 'BTC-USD' else 1
+                        investment = 1
                         expected_profit_percentage = (net_expected_profit / investment) * 100
 
                         print(f"anticipated_sell_price: {anticipated_sell_price}")
@@ -337,7 +302,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
                         print(f"net_expected_profit: {net_expected_profit}")
                         print(f"expected_profit_percentage: {expected_profit_percentage:.2f}%")
 
-                        if expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE and current_price_position_within_trading_rang <= 30:
+                        if expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE and current_price_position_within_trading_range <= 30:
                             print('~ BUY OPPORTUNITY ~')
                             # place_market_order(symbol, 1, 'buy')
 
@@ -383,7 +348,7 @@ if __name__ == "__main__":
     config = load_config('config.json')
     # Define the interval and calculate the number of data points needed for 5 minute interval
     INTERVAL_SECONDS = 10
-    MINUTES = 5
+    MINUTES = 10
     DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * MINUTES)
     iterate_assets(config, INTERVAL_SECONDS)
 

@@ -11,6 +11,10 @@
       {
         "enabled": true,
         "symbol": "ARB-USD"
+      },
+      {
+        "enabled": true,
+        "symbol": "SUI-USD"
       }
     ]
 }
