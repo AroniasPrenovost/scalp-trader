@@ -26,7 +26,7 @@ client = RESTClient(api_key=coinbase_api_key, api_secret=coinbase_api_secret)
 
 # Initialize a dictionary to store price data for each asset
 LOCAL_PRICE_DATA = {}
-TARGET_PROFIT_PERCENTAGE = 0.2
+TARGET_PROFIT_PERCENTAGE = 0.3
 
 #
 #
@@ -337,8 +337,8 @@ def iterate_assets(config, INTERVAL_SECONDS):
                         print(f"net_expected_profit: {net_expected_profit}")
                         print(f"expected_profit_percentage: {expected_profit_percentage:.2f}%")
 
-                        if expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
-                            print('BUY OPPORTUNITY')
+                        if expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE and current_price_position_within_trading_rang <= 30:
+                            print('~ BUY OPPORTUNITY ~')
                             # place_market_order(symbol, 1, 'buy')
 
                 elif asset_shares > 0:
@@ -372,7 +372,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
                         if open_sell_order == []:
                             if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
-                                print('SELL OPPORTUNITY')
+                                print('~ SELL OPPORTUNITY ~')
                                 # place_market_order(symbol, asset_shares, 'sell')
 
                 print('\n')
@@ -383,7 +383,7 @@ if __name__ == "__main__":
     config = load_config('config.json')
     # Define the interval and calculate the number of data points needed for 5 minute interval
     INTERVAL_SECONDS = 10
-    MINUTES = 10
+    MINUTES = 15
     DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * MINUTES)
     iterate_assets(config, INTERVAL_SECONDS)
 
