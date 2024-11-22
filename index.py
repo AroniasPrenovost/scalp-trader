@@ -26,7 +26,7 @@ client = RESTClient(api_key=coinbase_api_key, api_secret=coinbase_api_secret)
 
 # Initialize a dictionary to store price data for each asset
 LOCAL_PRICE_DATA = {}
-TARGET_PROFIT_PERCENTAGE = 0.4
+TARGET_PROFIT_PERCENTAGE = 0.3
 
 #
 #
@@ -220,7 +220,7 @@ def calculate_current_price_position_within_trading_range(current_price, support
     trading_range = resistance - support
     position_within_range = ((current_price - support) / trading_range) * 100
 
-    return position_within_range
+    return round(position_within_range, 2)
 
 #
 #
