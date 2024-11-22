@@ -184,59 +184,78 @@ def calculate_transaction_cost(entry_price, number_of_shares, fee_type):
     cost = base_cost + exchange_fee
     return cost
 
-def calculate_optimal_buy_price(support, resistance, trade_range_percentage, buffer_percentage=0.5):
-    """
-    Calculate the optimal buy price based on support, resistance, and trade range percentage.
-    A buffer percentage is applied below the resistance to ensure a profitable trade within the range.
-
-    :param support: The support level price
-    :param resistance: The resistance level price
-    :param trade_range_percentage: The percentage range between support and resistance
-    :param buffer_percentage: The percentage buffer below resistance to set the buy price
-    :return: A dictionary containing the optimal buy price, anticipated sell price, and price position within trade range
-    """
-    # Convert trade range percentage to a decimal
-    trade_range_decimal = float(trade_range_percentage) / 100
-
-    # Calculate the trade range
-    trade_range = resistance - support
-
-    # Calculate the buffer amount
-    buffer_amount = trade_range * (buffer_percentage / 100)
-
-    # Calculate the optimal buy price
-    optimal_buy_price = support + buffer_amount
-
-    # Ensure the buy price is within the lower x percent of the trade range
-    if optimal_buy_price > support + trade_range * trade_range_decimal:
-        optimal_buy_price = support + trade_range * trade_range_decimal
-
-    # Calculate anticipated sell price
-    anticipated_sell_price = optimal_buy_price + (trade_range * (1 - buffer_percentage / 100))
-
-    # Calculate price position within trade range
-    price_position_within_trade_range = ((optimal_buy_price - support) / trade_range) * 100
-
-    return optimal_buy_price, anticipated_sell_price, price_position_within_trade_range
+# def calculate_optimal_buy_price(support, resistance, trading_range_percentage, buffer_percentage=0.5):
+#     """
+#     Calculate the optimal buy price based on support, resistance, and trade range percentage.
+#     A buffer percentage is applied below the resistance to ensure a profitable trade within the range.
+#
+#     :param support: The support level price
+#     :param resistance: The resistance level price
+#     :param trading_range_percentage: The percentage range between support and resistance
+#     :param buffer_percentage: The percentage buffer below resistance to set the buy price
+#     :return: A dictionary containing the optimal buy price, anticipated sell price, and price position within trade range
+#     """
+#     # Convert trade range percentage to a decimal
+#     trade_range_decimal = float(trading_range_percentage) / 100
+#
+#     # Calculate the trade range
+#     trade_range = resistance - support
+#
+#     # Calculate the buffer amount
+#     buffer_amount = trade_range * (buffer_percentage / 100)
+#
+#     # Calculate the optimal buy price
+#     optimal_buy_price = support + buffer_amount
+#
+#     # Ensure the buy price is within the lower x percent of the trade range
+#     if optimal_buy_price > support + trade_range * trade_range_decimal:
+#         optimal_buy_price = support + trade_range * trade_range_decimal
+#
+#     # Calculate anticipated sell price
+#     anticipated_sell_price = optimal_buy_price + (trade_range * (1 - buffer_percentage / 100))
+#
+#     # Calculate price position within trade range
+#     price_position_within_trade_range = ((optimal_buy_price - support) / trade_range) * 100
+#
+#     return optimal_buy_price, anticipated_sell_price, price_position_within_trade_range
 
 #
 #
 # Determine support and resistance levels
 #
 
-def determine_support_resistance(prices):
+def calculate_support_avg_resistance(prices):
     support = min(prices)
+    average = sum(prices) / len(prices)
     resistance = max(prices)
-    return support, resistance
+    return support, average, resistance
 
 
-def calculate_trade_range_percentage(num1, num2):
+def calculate_trading_range_percentage(num1, num2):
     if num1 == 0 and num2 == 0:
         return "0.00"
     difference = abs(num1 - num2)
     average = (num1 + num2) / 2
     percentage_difference = (difference / average) * 100
     return f"{percentage_difference:.2f}"
+
+
+def calculate_current_price_position_within_trading_range(current_price, support, resistance):
+    """
+    Calculate the position of the current price within the trading range.
+
+    :param current_price: The current price of the asset
+    :param support: The support level price
+    :param resistance: The resistance level price
+    :return: The position of the current price within the trading range as a percentage
+    """
+    if resistance == support:
+        return 0.0  # Avoid division by zero
+
+    trading_range = resistance - support
+    position_within_range = ((current_price - support) / trading_range) * 100
+
+    return position_within_range
 
 #
 #
@@ -275,12 +294,16 @@ def iterate_assets(config, INTERVAL_SECONDS):
                     print(f"Waiting for more data...\n")
                     continue
 
-                # Calculate support and resistance
-                support, resistance = determine_support_resistance(LOCAL_PRICE_DATA[symbol])
-                print(f"Support: {support}")
-                print(f"Resistance: {resistance}")
-                trade_range_percentage = calculate_trade_range_percentage(support, resistance)
-                print(f"trade_range_percentage: {trade_range_percentage}%")
+                support, average, resistance = calculate_support_avg_resistance(LOCAL_PRICE_DATA[symbol])
+                print(f"support: {support}")
+                print(f"resistance: {resistance}")
+                print(f"average: {average}")
+
+                trading_range_percentage = calculate_trading_range_percentage(support, resistance)
+                print(f"trading_range_percentage: {trading_range_percentage}%")
+
+                current_price_position_within_trading_range = calculate_current_price_position_within_trading_range(current_price, support, resistance)
+                print(f"current_price_position_within_trading_range: {current_price_position_within_trading_range}%")
 
                 # Continue with existing business logic
                 asset_position = get_asset_position(symbol, client_accounts)
@@ -293,48 +316,28 @@ def iterate_assets(config, INTERVAL_SECONDS):
                 print('open_sell_order: ', len(open_sell_order) == 1)
 
                 if asset_shares == 0:
-
-                    optimal_buy_price, anticipated_sell_price, price_position_within_trade_range = calculate_optimal_buy_price(support, resistance, trade_range_percentage)
-                    # 'ideal' trade setup
-                    print('IDEAL SETUP')
-                    print(f"optimal_buy_price: {optimal_buy_price}")
-                    print(f"price_position_within_trade_range: {price_position_within_trade_range}")
-                    print(f"anticipated_sell_price: {anticipated_sell_price}")
-
-                    number_of_shares = 1
-                    exchange_fee = calculate_exchange_fee(anticipated_sell_price, number_of_shares, 'taker')
-                    print(f"anticipated_sell_exchange_fee: {exchange_fee}")
-
-                    profit = (anticipated_sell_price - optimal_buy_price) * number_of_shares
-                    tax_owed = (federal_tax_rate / 100) * profit
-                    print(f"anticipated_sell_taxes_owed: {tax_owed}")
-
-                    potential_profit = profit - exchange_fee - tax_owed
-                    print(f"anticipated_sell_post_tax_profit: {potential_profit}")
-
-                    investment = optimal_buy_price * number_of_shares
-                    potential_profit_percentage = (potential_profit / investment) * 100
-                    print(f"anticipated_sell_post_tax_profit_percentage: {potential_profit_percentage:.2f}%")
-
-                    # 'current scenario' trade setup
-                    print('CURRENT SCENARIO')
-                    print(f"current_price: {current_price}")
-                    current_exchange_fee = calculate_exchange_fee(current_price, number_of_shares, 'taker')
-                    print(f"current_exchange_fee: {current_exchange_fee}")
-
-                    current_profit = (anticipated_sell_price - current_price) * number_of_shares
-                    current_tax_owed = (federal_tax_rate / 100) * current_profit
-                    print(f"current_taxes_owed: {current_tax_owed}")
-
-                    current_potential_profit = current_profit - current_exchange_fee - current_tax_owed
-                    print(f"current_post_tax_profit: {current_potential_profit}")
-
-                    current_investment = current_price * number_of_shares
-                    current_potential_profit_percentage = (current_potential_profit / current_investment) * 100
-                    print(f"current_post_tax_profit_percentage: {current_potential_profit_percentage:.2f}%")
-
                     if open_buy_order == [] and open_sell_order == []:
-                        if current_potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
+                        # Calculate a buffer zone below the resistance
+                        buffer_zone = (resistance - support) * 0.05  # 5% below resistance
+                        anticipated_sell_price = resistance - buffer_zone
+
+                        # Calculate expected profit and profit percentage
+                        expected_profit = (anticipated_sell_price - current_price) * 1  # Assuming buying 1 share
+                        exchange_fee = calculate_exchange_fee(anticipated_sell_price, 1, 'taker')
+                        tax_owed = (federal_tax_rate / 100) * expected_profit
+                        print(f"anticipated_tax_owed: {tax_owed}")
+
+                        net_expected_profit = expected_profit - exchange_fee - tax_owed
+
+                        investment = current_price * 1
+                        expected_profit_percentage = (net_expected_profit / investment) * 100
+
+                        print(f"anticipated_sell_price: {anticipated_sell_price}")
+                        print(f"expected_profit: {expected_profit}")
+                        print(f"net_expected_profit: {net_expected_profit}")
+                        print(f"expected_profit_percentage: {expected_profit_percentage:.2f}%")
+
+                        if expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
                             print('BUY OPPORTUNITY')
                             # place_market_order(symbol, 1, 'buy')
 
