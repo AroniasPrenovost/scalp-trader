@@ -316,8 +316,25 @@ def iterate_assets(config, INTERVAL_SECONDS):
                     potential_profit_percentage = (potential_profit / investment) * 100
                     print(f"anticipated_sell_post_tax_profit_percentage: {potential_profit_percentage:.2f}%")
 
+                    # 'current scenario' trade setup
+                    print('CURRENT SCENARIO')
+                    print(f"current_price: {current_price}")
+                    current_exchange_fee = calculate_exchange_fee(current_price, number_of_shares, 'taker')
+                    print(f"current_exchange_fee: {current_exchange_fee}")
+
+                    current_profit = (anticipated_sell_price - current_price) * number_of_shares
+                    current_tax_owed = (federal_tax_rate / 100) * current_profit
+                    print(f"current_taxes_owed: {current_tax_owed}")
+
+                    current_potential_profit = current_profit - current_exchange_fee - current_tax_owed
+                    print(f"current_post_tax_profit: {current_potential_profit}")
+
+                    current_investment = current_price * number_of_shares
+                    current_potential_profit_percentage = (current_potential_profit / current_investment) * 100
+                    print(f"current_post_tax_profit_percentage: {current_potential_profit_percentage:.2f}%")
+
                     if open_buy_order == [] and open_sell_order == []:
-                        if current_price <= optimal_buy_price and (potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE):
+                        if current_potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
                             print('BUY OPPORTUNITY')
                             # place_market_order(symbol, 1, 'buy')
 
