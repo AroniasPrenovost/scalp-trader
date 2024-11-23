@@ -54,7 +54,9 @@ def get_current_asset_position(symbol, accounts):
         for account in accounts['accounts']:
             if account['currency'] == modified_symbol:
                 balance = account['balance']
-                available_balance = float(account['available_balance']['value'])
+                # round to nearest whole number to ignore 0.0000000564....
+                available_balance = round(float((account['available_balance']['value'])))
+                print(account)
 
                 return {
                     'currency': modified_symbol,
@@ -70,10 +72,10 @@ def get_current_asset_position(symbol, accounts):
 
 #
 #
-# Create a market order
+# Create a market BUY order
 #
 
-def place_market_order(symbol, base_size, action):
+def place_market_buy_order(symbol, base_size, action):
     try:
         client_order_id = generate_client_order_id(symbol, action)
         order = client.market_order_buy(
@@ -228,7 +230,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
                 # Only proceed if we have enough data
                 if len(LOCAL_PRICE_DATA[symbol]) < DATA_POINTS_FOR_X_MINUTES:
                     print(f"Waiting for more data...\n")
-                    # continue
+                    continue
 
                 support, average, resistance = calculate_support_avg_resistance(LOCAL_PRICE_DATA[symbol])
                 print(f"support: {support}")
@@ -276,7 +278,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
                     if expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE and current_price_position_within_trading_range <= 45:
                         print('~ BUY OPPORTUNITY ~')
-                        # place_market_order(symbol, 1, 'buy')
+                        # place_market_buy_order(symbol, 1, 'buy')
 
                 elif owned_shares > 0:
 
@@ -320,7 +322,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
                         if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
                             print('~ SELL OPPORTUNITY ~')
-                            # place_market_order(symbol, owned_shares, 'sell')
+                            # place_market_buy_order(symbol, owned_shares, 'sell')
 
                 print('\n')
 
