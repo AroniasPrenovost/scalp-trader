@@ -75,9 +75,9 @@ def get_current_asset_position(symbol, accounts):
 # Create a market BUY order
 #
 
-def place_market_buy_order(symbol, base_size, action):
+def place_market_buy_order(symbol, base_size):
     try:
-        client_order_id = generate_client_order_id(symbol, action)
+        client_order_id = generate_client_order_id(symbol, 'buy')
         order = client.market_order_buy(
             client_order_id=client_order_id,
             product_id=symbol,
@@ -86,12 +86,35 @@ def place_market_buy_order(symbol, base_size, action):
 
         if 'order_id' in order['response']:
             order_id = order['response']['order_id']
-            print(f"Order placed successfully. Order ID: {order_id}")
+            print(f"BUY ORDER placed successfully. Order ID: {order_id}")
             # TODO: store this order id in a dictionary
         else:
             print(f"Unexpected response: {dumps(order)}")
     except Exception as e:
-        print(f"Error placing order for {symbol}: {e}")
+        print(f"Error placing BUY order for {symbol}: {e}")
+
+#
+#
+# Create a market SELL order
+#
+
+def place_market_sell_order(symbol, base_size):
+    try:
+        client_order_id = generate_client_order_id(symbol, 'sell')
+        order = client.market_order_sell(
+            client_order_id=client_order_id,
+            product_id=symbol,
+            base_size=str(base_size)  # Convert base_size to string
+        )
+
+        if 'order_id' in order['response']:
+            order_id = order['response']['order_id']
+            print(f"SELL ORDER placed successfully. Order ID: {order_id}")
+            # TODO: store this order id in a dictionary
+        else:
+            print(f"Unexpected response: {dumps(order)}")
+    except Exception as e:
+        print(f"Error placing SELL order for {symbol}: {e}")
 
 #
 #
@@ -278,7 +301,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
                     if expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE and current_price_position_within_trading_range <= 45:
                         print('~ BUY OPPORTUNITY ~')
-                        # place_market_buy_order(symbol, 1, 'buy')
+                        place_market_buy_order(symbol, 1)
 
                 elif owned_shares > 0:
 
@@ -322,7 +345,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
                         if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
                             print('~ SELL OPPORTUNITY ~')
-                            # place_market_buy_order(symbol, owned_shares, 'sell')
+                            place_market_sell_order(symbol, owned_shares)
 
                 print('\n')
 
