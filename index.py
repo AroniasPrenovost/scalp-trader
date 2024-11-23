@@ -77,9 +77,8 @@ def get_current_asset_position(symbol, accounts):
 
 def place_market_buy_order(symbol, base_size):
     try:
-        client_order_id = generate_client_order_id(symbol, 'buy')
         order = client.market_order_buy(
-            client_order_id=client_order_id,
+            client_order_id=generate_client_order_id(symbol, 'buy'),
             product_id=symbol,
             base_size=str(base_size)  # Convert base_size to string
         )
@@ -100,9 +99,8 @@ def place_market_buy_order(symbol, base_size):
 
 def place_market_sell_order(symbol, base_size):
     try:
-        client_order_id = generate_client_order_id(symbol, 'sell')
         order = client.market_order_sell(
-            client_order_id=client_order_id,
+            client_order_id=generate_client_order_id(symbol, 'sell'),
             product_id=symbol,
             base_size=str(base_size)  # Convert base_size to string
         )
