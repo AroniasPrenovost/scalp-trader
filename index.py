@@ -247,11 +247,11 @@ def iterate_assets(config, INTERVAL_SECONDS):
                 # Continue with existing business logic
                 asset_position = get_asset_position(symbol, client_accounts)
                 print('asset_position: ', asset_position)
-                owned_asset_shares = float(asset_position['hold']['value']) if asset_position else 0
-                print('owned_asset_shares: ', owned_asset_shares)
+                owned_shares = float(asset_position['hold']['value']) if asset_position else 0
+                print('owned_shares: ', owned_shares)
 
-                if owned_asset_shares == 0:
-                    print('DEBUG: owned_asset_shares == 0')
+                if owned_shares == 0:
+                    print('DEBUG: owned_shares == 0')
                     # quit()
 
                     # Calculate a buffer zone below the resistance
@@ -280,9 +280,9 @@ def iterate_assets(config, INTERVAL_SECONDS):
                         print('~ BUY OPPORTUNITY ~')
                         # place_market_order(symbol, 1, 'buy')
 
-                elif owned_asset_shares > 0:
+                elif owned_shares > 0:
 
-                    print('DEBUG: owned_asset_shares > 0')
+                    print('DEBUG: owned_shares > 0')
                     # quit()
 
                     corresponding_buy_order = get_corresponding_buy_order(symbol, 'buy')
@@ -318,7 +318,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
                         if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
                             print('~ SELL OPPORTUNITY ~')
-                            # place_market_order(symbol, owned_asset_shares, 'sell')
+                            # place_market_order(symbol, owned_shares, 'sell')
 
                 print('\n')
 
