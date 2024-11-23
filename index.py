@@ -26,11 +26,11 @@ client = RESTClient(api_key=coinbase_api_key, api_secret=coinbase_api_secret)
 
 # Initialize a dictionary to store price data for each asset
 LOCAL_PRICE_DATA = {}
-# TODO: declare dictionary to store order ID
 TARGET_PROFIT_PERCENTAGE = 0.3
+
 #
 #
-# Get the current price of an asset
+# Get current price
 #
 
 def get_asset_price(symbol):
@@ -47,7 +47,7 @@ def get_asset_price(symbol):
 #
 #
 
-def get_asset_position(symbol, accounts):
+def get_current_asset_position(symbol, accounts):
     try:
         modified_symbol = symbol.split('-')[0] # DOUBLECHECK THIS WORKS FOR ALL ACCOUNTS
 
@@ -96,17 +96,17 @@ def place_market_order(symbol, base_size, action):
 
 #
 #
-# Get existing buy order (if it exists)
+# Get the last buy order for the asset
 #
 
-def get_corresponding_buy_order(symbol, action):
+def get_most_recent_buy_order_for_asset(symbol):
     try:
         orders = client.list_orders(product_id=symbol, order_status="FILLED")
         if orders:
             for order in orders['orders']:
-                if order['order_id'] == generate_client_order_id(symbol, action):
+                if order['side'] == 'BUY':
                     return order
-        print(f"No filled orders found for {symbol}.")
+        print(f"No filled buy orders found for {symbol}.")
         return None
     except Exception as e:
         print(f"Error fetching filled orders for {symbol}: {e}")
@@ -125,7 +125,7 @@ def generate_client_order_id(symbol, action):
 
 #
 #
-# Tax utils
+# Trade info utils
 #
 
 def calculate_exchange_fee(price, number_of_shares, fee_type):
@@ -245,14 +245,12 @@ def iterate_assets(config, INTERVAL_SECONDS):
                 print(f"current_price_position_within_trading_range: {current_price_position_within_trading_range}%")
 
                 # Continue with existing business logic
-                asset_position = get_asset_position(symbol, client_accounts)
+                asset_position = get_current_asset_position(symbol, client_accounts)
                 print('asset_position: ', asset_position)
                 owned_shares = float(asset_position['hold']['value']) if asset_position else 0
                 print('owned_shares: ', owned_shares)
 
                 if owned_shares == 0:
-                    print('DEBUG: owned_shares == 0')
-                    # quit()
 
                     # Calculate a buffer zone below the resistance
                     buffer_zone = (resistance - support) * 0.05  # 5% below resistance
@@ -282,10 +280,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
                 elif owned_shares > 0:
 
-                    print('DEBUG: owned_shares > 0')
-                    # quit()
-
-                    corresponding_buy_order = get_corresponding_buy_order(symbol, 'buy')
+                    corresponding_buy_order = get_most_recent_buy_order_for_asset(symbol)
                     if corresponding_buy_order:
 
                         print('DEBUG: has corresponding_buy_order')
