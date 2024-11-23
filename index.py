@@ -54,14 +54,12 @@ def get_current_asset_position(symbol, accounts):
         for account in accounts['accounts']:
             if account['currency'] == modified_symbol:
                 balance = account['balance']
-                available = account['available']
-                hold = account['hold']
+                available_balance = float(account['available_balance']['value'])
 
                 return {
                     'currency': modified_symbol,
                     'balance': balance,
-                    'available': available,
-                    'hold': hold
+                    'available_balance': available_balance
                 }
 
         print(f"No holdings found for asset: {symbol}.")
@@ -230,7 +228,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
                 # Only proceed if we have enough data
                 if len(LOCAL_PRICE_DATA[symbol]) < DATA_POINTS_FOR_X_MINUTES:
                     print(f"Waiting for more data...\n")
-                    continue
+                    # continue
 
                 support, average, resistance = calculate_support_avg_resistance(LOCAL_PRICE_DATA[symbol])
                 print(f"support: {support}")
@@ -246,10 +244,13 @@ def iterate_assets(config, INTERVAL_SECONDS):
                 # Continue with existing business logic
                 asset_position = get_current_asset_position(symbol, client_accounts)
                 print('asset_position: ', asset_position)
-                owned_shares = float(asset_position['hold']['value']) if asset_position else 0
+                owned_shares = asset_position['available_balance'] if asset_position else 0
                 print('owned_shares: ', owned_shares)
 
                 if owned_shares == 0:
+
+                    print('quit - owned = 0')
+                    # quit()
 
                     # Calculate a buffer zone below the resistance
                     buffer_zone = (resistance - support) * 0.05  # 5% below resistance
@@ -275,9 +276,12 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
                     if expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE and current_price_position_within_trading_range <= 45:
                         print('~ BUY OPPORTUNITY ~')
-                        place_market_order(symbol, 1, 'buy')
+                        # place_market_order(symbol, 1, 'buy')
 
                 elif owned_shares > 0:
+
+                    print('quit - owned > 0')
+                    # quit()
 
                     corresponding_buy_order = get_most_recent_buy_order_for_asset(symbol)
                     if corresponding_buy_order:
@@ -316,7 +320,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
                         if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
                             print('~ SELL OPPORTUNITY ~')
-                            place_market_order(symbol, owned_shares, 'sell')
+                            # place_market_order(symbol, owned_shares, 'sell')
 
                 print('\n')
 
