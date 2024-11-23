@@ -93,6 +93,16 @@ def place_market_order(symbol, base_size, action):
     except Exception as e:
         print(f"Error placing order for {symbol}: {e}")
 
+#
+#
+# Generate (arbitrary) custom order id
+#
+
+def generate_client_order_id(symbol, action):
+    symbol = symbol.lower()
+    action = action.lower()
+    custom_id = f"{symbol}_{action}_{time.time()}"
+    return custom_id
 
 #
 #
@@ -111,17 +121,6 @@ def get_most_recent_buy_order_for_asset(symbol):
     except Exception as e:
         print(f"Error fetching filled orders for {symbol}: {e}")
         return None
-
-#
-#
-# Generate (arbitrary) custom order id
-#
-
-def generate_client_order_id(symbol, action):
-    symbol = symbol.lower()
-    action = action.lower()
-    custom_id = f"custom_scalp_{action}_{symbol}"
-    return custom_id
 
 #
 #
@@ -276,7 +275,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
                     if expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE and current_price_position_within_trading_range <= 45:
                         print('~ BUY OPPORTUNITY ~')
-                        # place_market_order(symbol, 1, 'buy')
+                        place_market_order(symbol, 1, 'buy')
 
                 elif owned_shares > 0:
 
@@ -290,6 +289,10 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
                         number_of_shares = float(corresponding_buy_order['filled_size'])
                         print('shares_purchased: ', number_of_shares)
+
+                        if number_of_shares != owned_shares:
+                            print('Something went wrong. number_of_shares should match owned_shares')
+                            quit()
 
                         position_value_at_purchase = entry_price * number_of_shares
                         print(f"purchase_position_value: {position_value_at_purchase}")
@@ -313,7 +316,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
                         if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
                             print('~ SELL OPPORTUNITY ~')
-                            # place_market_order(symbol, owned_shares, 'sell')
+                            place_market_order(symbol, owned_shares, 'sell')
 
                 print('\n')
 
