@@ -247,27 +247,29 @@ def iterate_assets(config, INTERVAL_SECONDS):
                 # Continue with existing business logic
                 asset_position = get_asset_position(symbol, client_accounts)
                 print('asset_position: ', asset_position)
-                asset_shares = float(asset_position['hold']['value']) if asset_position else 0
-                print('asset_shares: ', asset_shares)
+                owned_asset_shares = float(asset_position['hold']['value']) if asset_position else 0
+                print('owned_asset_shares: ', owned_asset_shares)
 
-                if asset_shares == 0:
-                    print('DEBUG: asset_shares == 0')
+                if owned_asset_shares == 0:
+                    print('DEBUG: owned_asset_shares == 0')
                     # quit()
 
                     # Calculate a buffer zone below the resistance
                     buffer_zone = (resistance - support) * 0.05  # 5% below resistance
                     anticipated_sell_price = resistance - buffer_zone
 
+                    # Assuming buying 1 share
+                    shares_to_acquire = 1
+
                     # Calculate expected profit and profit percentage
-                    expected_profit = (anticipated_sell_price - current_price) * 1  # Assuming buying 1 share
-                    exchange_fee = calculate_exchange_fee(anticipated_sell_price, 1, 'taker')
+                    expected_profit = (anticipated_sell_price - current_price) * shares_to_acquire
+                    exchange_fee = calculate_exchange_fee(anticipated_sell_price, shares_to_acquire, 'taker')
                     tax_owed = (federal_tax_rate / 100) * expected_profit
                     print(f"anticipated_tax_owed: {tax_owed}")
 
                     net_expected_profit = expected_profit - exchange_fee - tax_owed
 
-                    investment = 1
-                    expected_profit_percentage = (net_expected_profit / investment) * 100
+                    expected_profit_percentage = (net_expected_profit / shares_to_acquire) * 100
 
                     print(f"anticipated_sell_price: {anticipated_sell_price}")
                     print(f"expected_profit: {expected_profit}")
@@ -276,11 +278,11 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
                     if expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE and current_price_position_within_trading_range <= 45:
                         print('~ BUY OPPORTUNITY ~')
-                        place_market_order(symbol, 1, 'buy')
+                        # place_market_order(symbol, 1, 'buy')
 
-                elif asset_shares > 0:
+                elif owned_asset_shares > 0:
 
-                    print('DEBUG: asset_shares > 0')
+                    print('DEBUG: owned_asset_shares > 0')
                     # quit()
 
                     corresponding_buy_order = get_corresponding_buy_order(symbol, 'buy')
@@ -316,7 +318,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
                         if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
                             print('~ SELL OPPORTUNITY ~')
-                            place_market_order(symbol, asset_shares, 'sell')
+                            # place_market_order(symbol, owned_asset_shares, 'sell')
 
                 print('\n')
 
