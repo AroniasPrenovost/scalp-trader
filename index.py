@@ -299,7 +299,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
                     if expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE and current_price_position_within_trading_range <= 45:
                         print('~ BUY OPPORTUNITY ~')
-                        place_market_buy_order(symbol, 1)
+                        place_market_buy_order(symbol, shares_to_acquire)
 
                 elif owned_shares > 0:
 
