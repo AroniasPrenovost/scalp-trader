@@ -26,8 +26,8 @@ client = RESTClient(api_key=coinbase_api_key, api_secret=coinbase_api_secret)
 
 # Initialize a dictionary to store price data for each asset
 LOCAL_PRICE_DATA = {}
+# TODO: declare dictionary to store order ID
 TARGET_PROFIT_PERCENTAGE = 0.3
-
 #
 #
 # Get the current price of an asset
@@ -81,43 +81,18 @@ def place_market_order(symbol, base_size, action):
         order = client.market_order_buy(
             client_order_id=client_order_id,
             product_id=symbol,
-            base_size=base_size
+            base_size=str(base_size)  # Convert base_size to string
         )
 
         if 'order_id' in order['response']:
             order_id = order['response']['order_id']
             print(f"Order placed successfully. Order ID: {order_id}")
+            # TODO: store this order id in a dictionary
         else:
             print(f"Unexpected response: {dumps(order)}")
     except Exception as e:
         print(f"Error placing order for {symbol}: {e}")
 
-#
-#
-# Check current open orders for a given symbol
-#
-
-def get_open_order(symbol, action):
-    try:
-        orders = client.list_orders(product_id=symbol, order_status="OPEN")
-        if orders:
-            matching_orders = []
-            for order in orders['orders']:
-                # if action == 'sell': # TEMPORARY HACK UNTIL WE TEST IN PROD
-                #     matching_orders.append(order) # TEMPORARY HACK UNTIL WE TEST IN PROD
-                # match with custom order_id so we know it is the corresponding buy/sell order
-                if order['order_id'] == generate_client_order_id(symbol, action):
-                    matching_orders.append(order)
-            if matching_orders:
-                return matching_orders
-            else:
-                return []
-        else:
-            print(f"No open orders found for {symbol}.")
-            return []
-    except Exception as e:
-        print(f"Error fetching orders for {symbol}: {e}")
-        return []
 
 #
 #
@@ -129,7 +104,6 @@ def get_corresponding_buy_order(symbol, action):
         orders = client.list_orders(product_id=symbol, order_status="FILLED")
         if orders:
             for order in orders['orders']:
-                # return order # TEMPORARY HACK UNTIL WE TEST IN PROD
                 if order['order_id'] == generate_client_order_id(symbol, action):
                     return order
         print(f"No filled orders found for {symbol}.")
@@ -272,43 +246,48 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
                 # Continue with existing business logic
                 asset_position = get_asset_position(symbol, client_accounts)
+                print('asset_position: ', asset_position)
                 asset_shares = float(asset_position['hold']['value']) if asset_position else 0
                 print('asset_shares: ', asset_shares)
 
-                open_buy_order = get_open_order(symbol, 'buy')
-                open_sell_order = get_open_order(symbol, 'sell')
-                print('open_buy_order: ', len(open_buy_order) == 1)
-                print('open_sell_order: ', len(open_sell_order) == 1)
-
                 if asset_shares == 0:
-                    if open_buy_order == [] and open_sell_order == []:
-                        # Calculate a buffer zone below the resistance
-                        buffer_zone = (resistance - support) * 0.05  # 5% below resistance
-                        anticipated_sell_price = resistance - buffer_zone
+                    print('DEBUG: asset_shares == 0')
+                    # quit()
 
-                        # Calculate expected profit and profit percentage
-                        expected_profit = (anticipated_sell_price - current_price) * 1  # Assuming buying 1 share
-                        exchange_fee = calculate_exchange_fee(anticipated_sell_price, 1, 'taker')
-                        tax_owed = (federal_tax_rate / 100) * expected_profit
-                        print(f"anticipated_tax_owed: {tax_owed}")
+                    # Calculate a buffer zone below the resistance
+                    buffer_zone = (resistance - support) * 0.05  # 5% below resistance
+                    anticipated_sell_price = resistance - buffer_zone
 
-                        net_expected_profit = expected_profit - exchange_fee - tax_owed
+                    # Calculate expected profit and profit percentage
+                    expected_profit = (anticipated_sell_price - current_price) * 1  # Assuming buying 1 share
+                    exchange_fee = calculate_exchange_fee(anticipated_sell_price, 1, 'taker')
+                    tax_owed = (federal_tax_rate / 100) * expected_profit
+                    print(f"anticipated_tax_owed: {tax_owed}")
 
-                        investment = 1
-                        expected_profit_percentage = (net_expected_profit / investment) * 100
+                    net_expected_profit = expected_profit - exchange_fee - tax_owed
 
-                        print(f"anticipated_sell_price: {anticipated_sell_price}")
-                        print(f"expected_profit: {expected_profit}")
-                        print(f"net_expected_profit: {net_expected_profit}")
-                        print(f"expected_profit_percentage: {expected_profit_percentage:.2f}%")
+                    investment = 1
+                    expected_profit_percentage = (net_expected_profit / investment) * 100
 
-                        if expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE and current_price_position_within_trading_range <= 30:
-                            print('~ BUY OPPORTUNITY ~')
-                            # place_market_order(symbol, 1, 'buy')
+                    print(f"anticipated_sell_price: {anticipated_sell_price}")
+                    print(f"expected_profit: {expected_profit}")
+                    print(f"net_expected_profit: {net_expected_profit}")
+                    print(f"expected_profit_percentage: {expected_profit_percentage:.2f}%")
+
+                    if expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE and current_price_position_within_trading_range <= 45:
+                        print('~ BUY OPPORTUNITY ~')
+                        place_market_order(symbol, 1, 'buy')
 
                 elif asset_shares > 0:
+
+                    print('DEBUG: asset_shares > 0')
+                    # quit()
+
                     corresponding_buy_order = get_corresponding_buy_order(symbol, 'buy')
                     if corresponding_buy_order:
+
+                        print('DEBUG: has corresponding_buy_order')
+
                         entry_price = float(corresponding_buy_order['average_filled_price'])
                         print(f"entry_price: {entry_price}")
 
@@ -335,10 +314,9 @@ def iterate_assets(config, INTERVAL_SECONDS):
                         potential_profit_percentage = (potential_profit / investment) * 100
                         print(f"sell_now_post_tax_profit_percentage: {potential_profit_percentage:.2f}%")
 
-                        if open_sell_order == []:
-                            if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
-                                print('~ SELL OPPORTUNITY ~')
-                                # place_market_order(symbol, asset_shares, 'sell')
+                        if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
+                            print('~ SELL OPPORTUNITY ~')
+                            place_market_order(symbol, asset_shares, 'sell')
 
                 print('\n')
 
@@ -351,29 +329,3 @@ if __name__ == "__main__":
     MINUTES = 10
     DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * MINUTES)
     iterate_assets(config, INTERVAL_SECONDS)
-
-
-# place_market_order(symbol, base_size, 'buy')
-
-
-
-
-# try:
-#     print('price - cro')
-#     print(cro_usd_price)
-#     order = client.market_order_buy(
-#         client_order_id=generate_client_order_id("CRO-USD", "buy")
-#         product_id="CRO-USD",
-#         base_size="1"
-#     )
-#     # print(order);
-#     # {'success': True, 'response': {'order_id': '64684d63-1108-464f-95ea-395ae1aab674', 'product_id': 'CRO-USD', 'side': 'BUY', 'client_order_id': '00000003', 'attached_order_id': ''}, 'order_configuration': {'market_market_ioc': {'base_size': '1', 'rfq_enabled': False, 'rfq_disabled': False}}}
-#
-#
-#     if 'order_id' in order['response']:
-#         order_id = order['response']['order_id']
-#         print(f"Order placed successfully. Order ID: {order_id}")
-#     else:
-#         print(f"Unexpected response: {json.dumps(order)}")
-# except Exception as e:
-#     print(f"Error placing order: {e}")
