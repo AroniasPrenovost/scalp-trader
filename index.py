@@ -47,7 +47,7 @@ def get_asset_price(symbol):
 
 #
 #
-#
+# Get your current position
 #
 
 def get_current_asset_holdings(symbol, accounts):
@@ -81,7 +81,7 @@ def get_current_asset_holdings(symbol, accounts):
 def place_market_buy_order(symbol, base_size):
     try:
         order = client.market_order_buy(
-            client_order_id=generate_client_order_id(symbol, 'buy'),
+            client_order_id=generate_client_order_id(symbol, 'buy'), # id must be unique
             product_id=symbol,
             base_size=str(base_size)  # Convert base_size to string
         )
@@ -89,7 +89,6 @@ def place_market_buy_order(symbol, base_size):
         if 'order_id' in order['response']:
             order_id = order['response']['order_id']
             print(f"BUY ORDER placed successfully. Order ID: {order_id}")
-            # TODO: store this order id in a dictionary
         else:
             print(f"Unexpected response: {dumps(order)}")
     except Exception as e:
@@ -103,7 +102,7 @@ def place_market_buy_order(symbol, base_size):
 def place_market_sell_order(symbol, base_size):
     try:
         order = client.market_order_sell(
-            client_order_id=generate_client_order_id(symbol, 'sell'),
+            client_order_id=generate_client_order_id(symbol, 'sell'), # id must be unique
             product_id=symbol,
             base_size=str(base_size)  # Convert base_size to string
         )
@@ -111,7 +110,6 @@ def place_market_sell_order(symbol, base_size):
         if 'order_id' in order['response']:
             order_id = order['response']['order_id']
             print(f"SELL ORDER placed successfully. Order ID: {order_id}")
-            # TODO: store this order id in a dictionary
         else:
             print(f"Unexpected response: {dumps(order)}")
     except Exception as e:
