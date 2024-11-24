@@ -50,7 +50,7 @@ def get_asset_price(symbol):
 #
 #
 
-def get_current_asset_position(symbol, accounts):
+def get_current_asset_holdings(symbol, accounts):
     try:
         modified_symbol = symbol.split('-')[0] # DOUBLECHECK THIS WORKS FOR ALL ACCOUNTS
 
@@ -239,7 +239,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
             if enabled:
 
                 print(symbol)
-                
+
                 if LOCAL_PRICE_DATA and LOCAL_PRICE_DATA[symbol]:
                     print(LOCAL_PRICE_DATA[symbol])
 
@@ -269,9 +269,9 @@ def iterate_assets(config, INTERVAL_SECONDS):
                 print(f"current_price_position_within_trading_range: {current_price_position_within_trading_range}%")
 
                 # Continue with existing business logic
-                asset_position = get_current_asset_position(symbol, client_accounts)
-                print('asset_position: ', asset_position)
-                owned_shares = asset_position['available_balance'] if asset_position else 0
+                asset_holdings = get_current_asset_holdings(symbol, client_accounts)
+                print('asset_holdings: ', asset_holdings)
+                owned_shares = asset_holdings['available_balance'] if asset_holdings else 0
                 print('owned_shares: ', owned_shares)
 
                 if owned_shares == 0:
