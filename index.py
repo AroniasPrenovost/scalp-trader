@@ -238,9 +238,10 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
             if enabled:
 
-                print(LOCAL_PRICE_DATA) # for debugging
-
                 print(symbol)
+                
+                if LOCAL_PRICE_DATA and LOCAL_PRICE_DATA[symbol]:
+                    print(LOCAL_PRICE_DATA[symbol])
 
                 # Initialize price data storage if not already done
                 if symbol not in LOCAL_PRICE_DATA:
