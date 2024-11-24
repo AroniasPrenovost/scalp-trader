@@ -26,7 +26,10 @@ client = RESTClient(api_key=coinbase_api_key, api_secret=coinbase_api_secret)
 
 # Initialize a dictionary to store price data for each asset
 LOCAL_PRICE_DATA = {}
-TARGET_PROFIT_PERCENTAGE = .35
+TARGET_PROFIT_PERCENTAGE = .65
+
+# Assuming buying 1 share
+SHARES_TO_ACQUIRE = 1
 
 #
 #
@@ -279,18 +282,15 @@ def iterate_assets(config, INTERVAL_SECONDS):
                     buffer_zone = (resistance - support) * 0.05  # 5% below resistance
                     anticipated_sell_price = resistance - buffer_zone
 
-                    # Assuming buying 1 share
-                    shares_to_acquire = 1
-
                     # Calculate expected profit and profit percentage
-                    expected_profit = (anticipated_sell_price - current_price) * shares_to_acquire
-                    exchange_fee = calculate_exchange_fee(anticipated_sell_price, shares_to_acquire, 'taker')
+                    expected_profit = (anticipated_sell_price - current_price) * SHARES_TO_ACQUIRE
+                    exchange_fee = calculate_exchange_fee(anticipated_sell_price, SHARES_TO_ACQUIRE, 'taker')
                     tax_owed = (federal_tax_rate / 100) * expected_profit
                     print(f"anticipated_tax_owed: {tax_owed}")
 
                     net_expected_profit = expected_profit - exchange_fee - tax_owed
 
-                    expected_profit_percentage = (net_expected_profit / shares_to_acquire) * 100
+                    expected_profit_percentage = (net_expected_profit / SHARES_TO_ACQUIRE) * 100
 
                     print(f"anticipated_sell_price: {anticipated_sell_price}")
                     print(f"expected_profit: {expected_profit}")
@@ -299,7 +299,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
                     if expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE and current_price_position_within_trading_range <= 45:
                         print('~ BUY OPPORTUNITY ~')
-                        place_market_buy_order(symbol, shares_to_acquire)
+                        place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
 
                 elif owned_shares > 0:
 
@@ -353,6 +353,6 @@ if __name__ == "__main__":
     config = load_config('config.json')
     # Define the interval and calculate the number of data points needed for 5 minute interval
     INTERVAL_SECONDS = 10
-    MINUTES = 10
+    MINUTES = 20
     DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * MINUTES)
     iterate_assets(config, INTERVAL_SECONDS)
