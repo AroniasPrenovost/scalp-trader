@@ -28,10 +28,10 @@ client = RESTClient(api_key=coinbase_api_key, api_secret=coinbase_api_secret)
 
 # Initialize a dictionary to store price data for each asset
 LOCAL_PRICE_DATA = {}
-TARGET_PROFIT_PERCENTAGE = .6
+TARGET_PROFIT_PERCENTAGE = 0.7
 
 # Assuming buying 1 share
-SHARES_TO_ACQUIRE = 8
+SHARES_TO_ACQUIRE = 16
 
 #
 #
@@ -211,12 +211,10 @@ def calculate_support_resistance(prices):
     pivot = (high + low + close) / 3
 
     # Calculate support and resistance levels
-    resistance1 = (2 * pivot) - low
-    support1 = (2 * pivot) - high
-    resistance2 = pivot + (high - low)
-    support2 = pivot - (high - low)
+    resistance = (2 * pivot) - low
+    support = (2 * pivot) - high
 
-    return pivot, support1, resistance1, support2, resistance2
+    return pivot, support, resistance
 
 
 def calculate_trading_range_percentage(num1, num2):
@@ -250,14 +248,12 @@ def calculate_current_price_position_within_trading_range(current_price, support
 # Create chart
 #
 
-def plot_graph(symbol, price_data, pivot, support1, resistance1, trading_range_percentage, current_price_position_within_trading_range, entry_price):
+def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price):
     plt.figure()
     plt.plot(list(price_data), marker='o', label='Price Data')
     plt.axhline(y=pivot, color='r', linewidth= 1, linestyle=':', label='Pivot')
-    plt.axhline(y=support1, color='gray', linewidth= 1.5, linestyle='--', label='Support 1')
-    # plt.axhline(y=support2, color='g', linewidth': 2.0, linestyle=':', label='Support2')
-    plt.axhline(y=resistance1, color='y', linewidth= 1.5, linestyle='--', label='Resistance 1')
-    # plt.axhline(y=resistance2, color='b', linewidth': 2.0, linestyle='--', label='Resistance2')
+    plt.axhline(y=support, color='gray', linewidth= 1.5, linestyle='--', label='Support')
+    plt.axhline(y=resistance, color='y', linewidth= 1.5, linestyle='--', label='Resistance')
 
     if entry_price == 0:
         entry_price = pivot
@@ -331,19 +327,14 @@ def iterate_assets(config, INTERVAL_SECONDS):
                     continue
 
                 # pass all these into the graph
-                pivot, support1, resistance1, support2, resistance2 = calculate_support_resistance(LOCAL_PRICE_DATA[symbol])
-                # print('pivot: ', pivot)
-                # print(support1)
-                # print('sup 2', support2)
-                # print(resistance1)
-                # print('res 2', resistance2)
-                print(f"support1: {support1}")
-                print(f"resistance1: {resistance1}")
+                pivot, support, resistance = calculate_support_resistance(LOCAL_PRICE_DATA[symbol])
+                print(f"support: {support}")
+                print(f"resistance: {resistance}")
 
-                trading_range_percentage = calculate_trading_range_percentage(support1, resistance1)
+                trading_range_percentage = calculate_trading_range_percentage(support, resistance)
                 print(f"trading_range_percentage: {trading_range_percentage}%")
 
-                current_price_position_within_trading_range = calculate_current_price_position_within_trading_range(current_price, support1, resistance1)
+                current_price_position_within_trading_range = calculate_current_price_position_within_trading_range(current_price, support, resistance)
                 print(f"current_price_position_within_trading_range: {current_price_position_within_trading_range}%")
 
                 # Continue with existing business logic
@@ -356,12 +347,9 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
                 if owned_shares == 0:
 
-                    print('quit - owned = 0')
-                    # quit()
-
                     # Calculate a buffer zone below the resistance
-                    buffer_zone = (resistance1 - support1) * 0.05  # 5% below resistance
-                    anticipated_sell_price = resistance1 - buffer_zone
+                    buffer_zone = (resistance - support) * 0.05  # 5% below resistance
+                    anticipated_sell_price = resistance - buffer_zone
 
                     # Calculate expected profit and profit percentage
                     expected_profit = (anticipated_sell_price - current_price) * SHARES_TO_ACQUIRE
@@ -383,9 +371,6 @@ def iterate_assets(config, INTERVAL_SECONDS):
                         place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
 
                 elif owned_shares > 0:
-
-                    print('quit - owned > 0')
-                    # quit()
 
                     corresponding_buy_order = get_most_recent_buy_order_for_asset(symbol)
                     if corresponding_buy_order:
@@ -426,7 +411,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
                             print('~ SELL OPPORTUNITY ~')
                             place_market_sell_order(symbol, owned_shares)
 
-                plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support1, resistance1, trading_range_percentage, current_price_position_within_trading_range, entry_price)  # Plot the graph each time data is updated
+                plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price)  # Plot the graph each time data is updated
 
                 print('\n')
 
@@ -436,6 +421,6 @@ if __name__ == "__main__":
     config = load_config('config.json')
     # Define the interval and calculate the number of data points needed for 5 minute interval
     INTERVAL_SECONDS = 15
-    MINUTES = 30
+    MINUTES = 60
     DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * MINUTES)
     iterate_assets(config, INTERVAL_SECONDS)
