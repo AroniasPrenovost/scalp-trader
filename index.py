@@ -250,15 +250,18 @@ def calculate_current_price_position_within_trading_range(current_price, support
 
 def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price):
     plt.figure()
+    # price data
     plt.plot(list(price_data), marker='o', label='Price Data')
-    plt.axhline(y=pivot, color='r', linewidth= 1, linestyle=':', label='Pivot')
-    plt.axhline(y=support, color='gray', linewidth= 1.5, linestyle='--', label='Support')
-    plt.axhline(y=resistance, color='y', linewidth= 1.5, linestyle='--', label='Resistance')
+    # support + resistance levels
+    plt.axhline(y=support, color='y', linewidth=1.5, linestyle='--', label='Support')
+    plt.axhline(y=resistance, color='y', linewidth=1.5, linestyle='--', label='Resistance')
+    # etc...
+    plt.axhline(y=pivot, color='r', linewidth=1, linestyle=':', label='Pivot')
 
     if entry_price == 0:
         entry_price = pivot
 
-    plt.axhline(y=entry_price, color='g', linewidth= 1.2, linestyle='-', label='Entry Price')
+    plt.axhline(y=entry_price, color='g', linewidth=1.2, linestyle='-', label='Entry Price')
 
     plt.title(f"Price Data for {symbol}")
     plt.xlabel("Time")
@@ -421,6 +424,6 @@ if __name__ == "__main__":
     config = load_config('config.json')
     # Define the interval and calculate the number of data points needed for 5 minute interval
     INTERVAL_SECONDS = 15
-    MINUTES = 240
+    MINUTES = 1
     DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * MINUTES)
     iterate_assets(config, INTERVAL_SECONDS)
