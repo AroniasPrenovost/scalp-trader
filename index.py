@@ -28,10 +28,10 @@ client = RESTClient(api_key=coinbase_api_key, api_secret=coinbase_api_secret)
 
 # Initialize a dictionary to store price data for each asset
 LOCAL_PRICE_DATA = {}
-TARGET_PROFIT_PERCENTAGE = .65
+TARGET_PROFIT_PERCENTAGE = 7
 
 # Assuming buying 1 share
-SHARES_TO_ACQUIRE = 1
+SHARES_TO_ACQUIRE = 8
 
 #
 #
@@ -432,6 +432,6 @@ if __name__ == "__main__":
     config = load_config('config.json')
     # Define the interval and calculate the number of data points needed for 5 minute interval
     INTERVAL_SECONDS = 10
-    MINUTES = 30
+    MINUTES = 60
     DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * MINUTES)
     iterate_assets(config, INTERVAL_SECONDS)
