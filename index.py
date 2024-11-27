@@ -28,10 +28,10 @@ client = RESTClient(api_key=coinbase_api_key, api_secret=coinbase_api_secret)
 
 # Initialize a dictionary to store price data for each asset
 LOCAL_PRICE_DATA = {}
-TARGET_PROFIT_PERCENTAGE = 1.25
+TARGET_PROFIT_PERCENTAGE = 0.5
 
 # Assuming buying 1 share
-SHARES_TO_ACQUIRE = 4
+SHARES_TO_ACQUIRE = 100
 
 #
 #
@@ -378,13 +378,11 @@ def iterate_assets(config, INTERVAL_SECONDS):
                     corresponding_buy_order = get_most_recent_buy_order_for_asset(symbol)
                     if corresponding_buy_order:
 
-                        print('DEBUG: has corresponding_buy_order')
-
                         entry_price = float(corresponding_buy_order['average_filled_price'])
                         print(f"entry_price: {entry_price}")
 
                         number_of_shares = float(corresponding_buy_order['filled_size'])
-                        print('shares_purchased: ', number_of_shares)
+                        # print('number_of_shares: ', number_of_shares)
 
                         if number_of_shares != owned_shares:
                             print('Something went wrong. number_of_shares should match owned_shares')
@@ -423,7 +421,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
 if __name__ == "__main__":
     config = load_config('config.json')
     # Define time intervals
-    INTERVAL_SECONDS = 10
-    MINUTES = 180
+    INTERVAL_SECONDS = 15
+    MINUTES = 240 # 4 hours
     DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * MINUTES)
     iterate_assets(config, INTERVAL_SECONDS)
