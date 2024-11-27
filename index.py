@@ -186,12 +186,6 @@ def calculate_transaction_cost(entry_price, number_of_shares, fee_type):
 # Determine support and resistance levels
 #
 
-# def calculate_support_avg_resistance(prices):
-#     support = min(prices)
-#     average = sum(prices) / len(prices)
-#     resistance = max(prices)
-#     return support, average, resistance
-
 def calculate_support_resistance(prices):
     """
     Calculate support and resistance levels using pivot points for a given set of stock prices.
