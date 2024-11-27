@@ -28,10 +28,10 @@ client = RESTClient(api_key=coinbase_api_key, api_secret=coinbase_api_secret)
 
 # Initialize a dictionary to store price data for each asset
 LOCAL_PRICE_DATA = {}
-TARGET_PROFIT_PERCENTAGE = 1.5
+TARGET_PROFIT_PERCENTAGE = 1.25
 
 # Assuming buying 1 share
-SHARES_TO_ACQUIRE = 16
+SHARES_TO_ACQUIRE = 4
 
 #
 #
@@ -254,7 +254,7 @@ def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_per
     plt.plot(list(price_data), marker='o', label='Price Data')
     # support + resistance levels
     plt.axhline(y=support, color='y', linewidth=1.5, linestyle='--', label='Support')
-    plt.axhline(y=resistance, color='y', linewidth=1.5, linestyle='--', label='Resistance')
+    plt.axhline(y=resistance, color='r', linewidth=1.5, linestyle='--', label='Resistance')
     # etc...
     plt.axhline(y=pivot, color='r', linewidth=1, linestyle=':', label='Pivot')
 
@@ -312,8 +312,8 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
                 print(symbol)
 
-                if LOCAL_PRICE_DATA and LOCAL_PRICE_DATA[symbol]:
-                    print(LOCAL_PRICE_DATA[symbol])
+                # if LOCAL_PRICE_DATA and LOCAL_PRICE_DATA[symbol]:
+                #     print(LOCAL_PRICE_DATA[symbol])
 
                 # Initialize price data storage if not already done
                 if symbol not in LOCAL_PRICE_DATA:
@@ -422,8 +422,8 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
 if __name__ == "__main__":
     config = load_config('config.json')
-    # Define the interval and calculate the number of data points needed for 5 minute interval
-    INTERVAL_SECONDS = 15
-    MINUTES = 1
+    # Define time intervals
+    INTERVAL_SECONDS = 10
+    MINUTES = 180
     DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * MINUTES)
     iterate_assets(config, INTERVAL_SECONDS)
