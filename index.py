@@ -61,7 +61,7 @@ def get_current_asset_holdings(symbol, accounts):
                 balance = account['balance']
                 # round to nearest whole number to ignore 0.0000000564....
                 available_balance = round(float((account['available_balance']['value'])))
-                print(account)
+                # print(account)
 
                 return {
                     'currency': modified_symbol,
