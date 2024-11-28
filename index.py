@@ -30,9 +30,6 @@ client = RESTClient(api_key=coinbase_api_key, api_secret=coinbase_api_secret)
 LOCAL_PRICE_DATA = {}
 TARGET_PROFIT_PERCENTAGE = 1.15
 
-# Assuming buying 1 share
-SHARES_TO_ACQUIRE = 1
-
 #
 #
 # Get current price
@@ -301,6 +298,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
         for asset in config['assets']:
             enabled = asset['enabled']
             symbol = asset['symbol']
+            SHARES_TO_ACQUIRE = asset['shares_to_acquire']
 
             if enabled:
 
@@ -413,9 +411,14 @@ def iterate_assets(config, INTERVAL_SECONDS):
         time.sleep(INTERVAL_SECONDS)
 
 if __name__ == "__main__":
-    config = load_config('config.json')
-    # Define time intervals
-    INTERVAL_SECONDS = 15
-    MINUTES = 240 # 4 hours
-    DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * MINUTES)
-    iterate_assets(config, INTERVAL_SECONDS)
+    while True:
+        try:
+            config = load_config('config.json')
+            # Define time intervals
+            INTERVAL_SECONDS = 30
+            MINUTES = 240 # 4 hours
+            DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * MINUTES)
+            iterate_assets(config, INTERVAL_SECONDS)
+        except Exception as e:
+            print(f"An error occurred: {e}. Restarting the program...")
+            time.sleep(10)  # Wait 10 seconds before restarting

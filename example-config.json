@@ -1,20 +1,14 @@
 {
   "assets": [
       {
-        "enabled": false,
-        "symbol": "CRO-USD"
-      },
-      {
-        "enabled": false,
-        "symbol": "ADA-USD"
-      },
-      {
         "enabled": true,
-        "symbol": "ARB-USD"
+        "symbol": "XRP-USD",
+        "shares_to_acquire": 125
       },
       {
-        "enabled": true,
-        "symbol": "SUI-USD"
+        "enabled": false,
+        "symbol": "ADA-USD",
+        "shares_to_acquire": 1
       }
     ]
 }
