@@ -10,13 +10,75 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 # coinbase api
 from coinbase.rest import RESTClient
-
-#
-#
-# Load environment variables from .env file and connect to coinbase api
-#
+from mailjet_rest import Client
 
 load_dotenv()
+
+def load_config(file_path):
+    with open(file_path, 'r') as file:
+        return load(file)
+
+config = load_config('config.json')
+
+#
+#
+# Initialize a dictionary to store price data for each asset
+#
+
+LOCAL_PRICE_DATA = {}
+
+#
+#
+# Mailjet configuration
+#
+
+mailjet_api_key = os.environ.get('MAILJET_API_KEY')
+mailjet_secret_key = os.environ.get('MAILJET_SECRET_KEY')
+mailjet_from_email = os.environ.get('MAILJET_FROM_EMAIL')
+mailjet_from_name = os.environ.get('MAILJET_FROM_NAME')
+mailjet_to_email = os.environ.get('MAILJET_TO_EMAIL')
+mailjet_to_name = os.environ.get('MAILJET_TO_NAME')
+
+mailjet = Client(auth=(mailjet_api_key, mailjet_secret_key), version='v3.1')
+
+def send_email_notification(subject, text_content, html_content):
+    data = {
+        'Messages': [
+            {
+                "From": {
+                    "Email": mailjet_from_email,
+                    "Name": mailjet_from_name
+                },
+                "To": [
+                    {
+                        "Email": mailjet_to_email,
+                        "Name": mailjet_to_name
+                    }
+                ],
+                "Subject": subject,
+                "TextPart": text_content,
+                "HTMLPart": html_content
+            }
+        ]
+    }
+    result = mailjet.send.create(data=data)
+    if result.status_code == 200:
+        print("Email sent successfully.")
+    else:
+        print(f"Failed to send email. Status code: {result.status_code}, Error: {result.json()}")
+
+
+# send_email_notification(
+#     subject="Test email subject",
+#     text_content="testing text content",
+#     html_content="testing content"
+# )
+
+#
+#
+# Coinbase API and taxes
+#
+
 coinbase_api_key = os.environ.get('COINBASE_API_KEY')
 coinbase_api_secret = os.environ.get('COINBASE_API_SECRET')
 
@@ -25,10 +87,6 @@ coinbase_spot_taker_fee = float(os.environ.get('COINBASE_SPOT_TAKER_FEE'))
 federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
 
 client = RESTClient(api_key=coinbase_api_key, api_secret=coinbase_api_secret)
-
-LOCAL_PRICE_DATA = {} # Initialize a dictionary to store price data for each asset
-
-TARGET_PROFIT_PERCENTAGE = 1.15
 
 #
 #
@@ -88,6 +146,11 @@ def place_market_buy_order(symbol, base_size):
         if 'order_id' in order['response']:
             order_id = order['response']['order_id']
             print(f"BUY ORDER placed successfully. Order ID: {order_id}")
+            send_email_notification(
+                subject="Buy Order Placed",
+                text_content=f"BUY ORDER placed successfully for {symbol}. Order ID: {order_id}",
+                html_content=f"<h3>BUY ORDER placed successfully for {symbol}. Order ID: {order_id}</h3>"
+            )
         else:
             print(f"Unexpected response: {dumps(order)}")
     except Exception as e:
@@ -109,6 +172,11 @@ def place_market_sell_order(symbol, base_size):
         if 'order_id' in order['response']:
             order_id = order['response']['order_id']
             print(f"SELL ORDER placed successfully. Order ID: {order_id}")
+            send_email_notification(
+                subject="Sell Order Placed",
+                text_content=f"SELL ORDER placed successfully for {symbol}. Order ID: {order_id}",
+                html_content=f"<h3>SELL ORDER placed successfully for {symbol}. Order ID: {order_id}</h3>"
+            )
         else:
             print(f"Unexpected response: {dumps(order)}")
     except Exception as e:
@@ -287,10 +355,6 @@ def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_per
 # main logic loop
 #
 
-def load_config(file_path):
-    with open(file_path, 'r') as file:
-        return load(file)
-
 def iterate_assets(config, INTERVAL_SECONDS):
     while True:
         client_accounts = client.get_accounts()
@@ -299,6 +363,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
             enabled = asset['enabled']
             symbol = asset['symbol']
             SHARES_TO_ACQUIRE = asset['shares_to_acquire']
+            TARGET_PROFIT_PERCENTAGE = asset['target_profit_percentage']
 
             if enabled:
 
@@ -413,7 +478,6 @@ def iterate_assets(config, INTERVAL_SECONDS):
 if __name__ == "__main__":
     while True:
         try:
-            config = load_config('config.json')
             # Define time intervals
             INTERVAL_SECONDS = 30
             MINUTES = 240 # 4 hours
@@ -421,4 +485,9 @@ if __name__ == "__main__":
             iterate_assets(config, INTERVAL_SECONDS)
         except Exception as e:
             print(f"An error occurred: {e}. Restarting the program...")
+            send_email_notification(
+                subject="App crashed - restarting",
+                text_content="test",
+                html_content="test test test"
+            )
             time.sleep(10)  # Wait 10 seconds before restarting
