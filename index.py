@@ -473,6 +473,9 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
                 print('\n')
 
+            # Add a 1-second delay after processing each asset to avoid hitting the rate limit
+            time.sleep(1)
+
         time.sleep(INTERVAL_SECONDS)
 
 if __name__ == "__main__":
