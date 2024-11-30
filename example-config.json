@@ -3,11 +3,13 @@
       {
         "enabled": true,
         "symbol": "XRP-USD",
+        "target_profit_percentage": 1,
         "shares_to_acquire": 125
       },
       {
         "enabled": false,
         "symbol": "ADA-USD",
+        "target_profit_percentage": 1,
         "shares_to_acquire": 1
       }
     ]

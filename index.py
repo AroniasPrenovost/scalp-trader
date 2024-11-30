@@ -426,7 +426,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
                     print(f"net_expected_profit: {net_expected_profit}")
                     print(f"expected_profit_percentage: {expected_profit_percentage:.2f}%")
 
-                    if expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE and current_price_position_within_trading_range <= 45:
+                    if expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
                         print('~ BUY OPPORTUNITY ~')
                         place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
 
@@ -469,12 +469,12 @@ def iterate_assets(config, INTERVAL_SECONDS):
                             print('~ SELL OPPORTUNITY ~')
                             place_market_sell_order(symbol, owned_shares)
 
-                plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price)  # Plot the graph each time data is updated
+                # plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price)  # Plot the graph each time data is updated
 
                 print('\n')
 
-            # Add a 1-second delay after processing each asset to avoid hitting the rate limit
-            time.sleep(1)
+            # Add 2-second delay after processing each asset to avoid hitting the rate limit
+            time.sleep(2)
 
         time.sleep(INTERVAL_SECONDS)
 
