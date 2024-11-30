@@ -367,6 +367,9 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
             if enabled:
 
+                # Add 2-second delay after processing each asset to avoid hitting the rate limit
+                time.sleep(2)
+
                 print(symbol)
 
                 # if LOCAL_PRICE_DATA and LOCAL_PRICE_DATA[symbol]:
@@ -472,9 +475,6 @@ def iterate_assets(config, INTERVAL_SECONDS):
                 # plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price)  # Plot the graph each time data is updated
 
                 print('\n')
-
-            # Add 2-second delay after processing each asset to avoid hitting the rate limit
-            time.sleep(2)
 
         time.sleep(INTERVAL_SECONDS)
 
