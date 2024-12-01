@@ -8,6 +8,7 @@ from pprint import pprint
 from collections import deque
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+import numpy as np
 # coinbase api
 from coinbase.rest import RESTClient
 from mailjet_rest import Client
@@ -302,6 +303,57 @@ def calculate_current_price_position_within_trading_range(current_price, support
 
     return round(position_within_range, 2)
 
+
+#
+#
+# Calculate Simple Moving Average (SMA)
+#
+
+def calculate_sma(prices, period):
+    if len(prices) < period:
+        return None
+    # Convert deque to a list before slicing
+    prices_list = list(prices)
+    return np.mean(prices_list[-period:])
+
+
+#
+#
+# Calculate Relative Strength Index (RSI)
+#
+
+def calculate_rsi(prices, period=14):
+    if len(prices) < period:
+        return None
+    # Convert deque to a NumPy array for slicing and calculations
+    prices_array = np.array(prices)
+    deltas = np.diff(prices_array)
+    seed = deltas[:period]
+    up = seed[seed >= 0].sum() / period
+    down = -seed[seed < 0].sum() / period
+    rs = up / down
+    rsi = np.zeros_like(prices_array)
+    rsi[:period] = 100. - 100. / (1. + rs)
+
+    for i in range(period, len(prices_array)):
+        delta = deltas[i - 1]  # The diff is 1 shorter
+
+        if delta > 0:
+            upval = delta
+            downval = 0.
+        else:
+            upval = 0.
+            downval = -delta
+
+        up = (up * (period - 1) + upval) / period
+        down = (down * (period - 1) + downval) / period
+
+        rs = up / down
+        rsi[i] = 100. - 100. / (1. + rs)
+
+    return rsi[-1]
+
+
 #
 #
 # Create chart
@@ -408,6 +460,12 @@ def iterate_assets(config, INTERVAL_SECONDS):
 
                 entry_price = 0
 
+                # Calculate SMA and RSI
+                sma = calculate_sma(LOCAL_PRICE_DATA[symbol], period=20)
+                rsi = calculate_rsi(LOCAL_PRICE_DATA[symbol])
+                print(f"SMA: {sma}")
+                print(f"RSI: {rsi}")
+
                 if owned_shares == 0:
 
                     # Calculate a buffer zone below the resistance
@@ -429,9 +487,14 @@ def iterate_assets(config, INTERVAL_SECONDS):
                     print(f"net_expected_profit: {net_expected_profit}")
                     print(f"expected_profit_percentage: {expected_profit_percentage:.2f}%")
 
-                    if expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
-                        print('~ BUY OPPORTUNITY ~')
-                        place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                    # Buy signal: current price crosses above SMA and RSI is below 30
+                    if sma is not None and rsi is not None:
+                        if current_price > sma and rsi < 30:
+                            print('~ BUY OPPORTUNITY (current_price > sma and rsi < 30)~')
+                            place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                        elif expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
+                            print('~ BUY OPPORTUNITY (expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE)~')
+                            place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
 
                 elif owned_shares > 0:
 
@@ -469,8 +532,30 @@ def iterate_assets(config, INTERVAL_SECONDS):
                         print(f"sell_now_post_tax_profit_percentage: {potential_profit_percentage:.2f}%")
 
                         if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
-                            print('~ SELL OPPORTUNITY ~')
-                            place_market_sell_order(symbol, owned_shares)
+                            print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
+                            if current_price >= resistance:
+                                print('~ SELL OPPORTUNITY (price near resistance) ~')
+                                place_market_sell_order(symbol, owned_shares)
+                            elif rsi is not None and rsi > 70:
+                                print('~ SELL OPPORTUNITY (RSI > 70) ~')
+                                place_market_sell_order(symbol, owned_shares)
+                            elif sma is not None and current_price < sma:
+                                print('~ SELL OPPORTUNITY (price < SMA) ~')
+                                place_market_sell_order(symbol, owned_shares)
+
+                        # New sell indicators
+                        # if current_price >= resistance:
+                        #     print('~ SELL OPPORTUNITY (price near resistance) ~')
+                        #     place_market_sell_order(symbol, owned_shares)
+                        # elif rsi > 70:
+                        #     print('~ SELL OPPORTUNITY (RSI > 70) ~')
+                        #     place_market_sell_order(symbol, owned_shares)
+                        # elif current_price < sma:
+                        #     print('~ SELL OPPORTUNITY (price < SMA) ~')
+                        #     place_market_sell_order(symbol, owned_shares)
+                        # elif potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
+                        #     print('~ SELL OPPORTUNITY (profit target reached) ~')
+                        #     place_market_sell_order(symbol, owned_shares)
 
                 # plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price)  # Plot the graph each time data is updated
 
@@ -482,7 +567,7 @@ if __name__ == "__main__":
     while True:
         try:
             # Define time intervals
-            INTERVAL_SECONDS = 30
+            INTERVAL_SECONDS = 15
             MINUTES = 240 # 4 hours
             DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * MINUTES)
             iterate_assets(config, INTERVAL_SECONDS)
@@ -490,7 +575,7 @@ if __name__ == "__main__":
             print(f"An error occurred: {e}. Restarting the program...")
             send_email_notification(
                 subject="App crashed - restarting",
-                text_content="test",
-                html_content="test test test"
+                text_content=f"An error occurred: {e}. Restarting the program...",
+                html_content=f"An error occurred: {e}. Restarting the program..."
             )
             time.sleep(10)  # Wait 10 seconds before restarting
