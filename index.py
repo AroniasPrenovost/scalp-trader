@@ -19,8 +19,6 @@ def load_config(file_path):
     with open(file_path, 'r') as file:
         return load(file)
 
-config = load_config('config.json')
-
 #
 #
 # Initialize a dictionary to store price data for each asset
@@ -331,6 +329,11 @@ def calculate_rsi(prices, period=14):
     seed = deltas[:period]
     up = seed[seed >= 0].sum() / period
     down = -seed[seed < 0].sum() / period
+
+    # Check if down is zero to avoid division by zero
+    if down == 0:
+        return 100.0  # RSI is 100 if there are no losses
+
     rs = up / down
     rsi = np.zeros_like(prices_array)
     rsi[:period] = 100. - 100. / (1. + rs)
@@ -348,11 +351,44 @@ def calculate_rsi(prices, period=14):
         up = (up * (period - 1) + upval) / period
         down = (down * (period - 1) + downval) / period
 
-        rs = up / down
-        rsi[i] = 100. - 100. / (1. + rs)
+        # Check if down is zero to avoid division by zero
+        if down == 0:
+            rsi[i] = 100.0  # RSI is 100 if there are no losses
+        else:
+            rs = up / down
+            rsi[i] = 100. - 100. / (1. + rs)
 
     return rsi[-1]
 
+#
+#
+# Calculate MACD
+#
+
+def calculate_macd(prices, short_period=12, long_period=26, signal_period=9):
+    if len(prices) < long_period:
+        return None, None
+    prices_list = list(prices)  # Convert deque to list
+    short_ema = np.mean(prices_list[-short_period:])
+    long_ema = np.mean(prices_list[-long_period:])
+    macd_line = short_ema - long_ema
+    signal_line = np.mean(prices_list[-signal_period:])
+    return macd_line, signal_line
+
+#
+#
+# Calculate Bollinger Bands
+#
+
+def calculate_bollinger_bands(prices, period=20, num_std_dev=2):
+    if len(prices) < period:
+        return None, None, None
+    prices_list = list(prices)  # Convert deque to list
+    sma = calculate_sma(prices_list, period)
+    std_dev = np.std(prices_list[-period:])
+    upper_band = sma + (num_std_dev * std_dev)
+    lower_band = sma - (num_std_dev * std_dev)
+    return upper_band, lower_band, sma
 
 #
 #
@@ -407,9 +443,10 @@ def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_per
 # main logic loop
 #
 
-def iterate_assets(config, INTERVAL_SECONDS):
+def iterate_assets( INTERVAL_SECONDS):
     while True:
         client_accounts = client.get_accounts()
+        config = load_config('config.json')
 
         for asset in config['assets']:
             enabled = asset['enabled']
@@ -446,7 +483,7 @@ def iterate_assets(config, INTERVAL_SECONDS):
                 print(f"support: {support}")
                 print(f"resistance: {resistance}")
 
-                trading_range_percentage = calculate_trading_range_percentage(support, resistance)
+                trading_range_percentage = calculate_trading_range_percentage(min(LOCAL_PRICE_DATA[symbol]), max(LOCAL_PRICE_DATA[symbol]))
                 print(f"trading_range_percentage: {trading_range_percentage}%")
 
                 current_price_position_within_trading_range = calculate_current_price_position_within_trading_range(current_price, support, resistance)
@@ -463,8 +500,13 @@ def iterate_assets(config, INTERVAL_SECONDS):
                 # Calculate SMA and RSI
                 sma = calculate_sma(LOCAL_PRICE_DATA[symbol], period=20)
                 rsi = calculate_rsi(LOCAL_PRICE_DATA[symbol])
+                macd_line, signal_line = calculate_macd(LOCAL_PRICE_DATA[symbol])
+                upper_band, lower_band, _ = calculate_bollinger_bands(LOCAL_PRICE_DATA[symbol])
+
                 print(f"SMA: {sma}")
                 print(f"RSI: {rsi}")
+                print(f"MACD Line: {macd_line}, Signal Line: {signal_line}")
+                print(f"Bollinger Bands - Upper: {upper_band}, Lower: {lower_band}")
 
                 if owned_shares == 0:
 
@@ -488,9 +530,12 @@ def iterate_assets(config, INTERVAL_SECONDS):
                     print(f"expected_profit_percentage: {expected_profit_percentage:.2f}%")
 
                     # Buy signal: current price crosses above SMA and RSI is below 30
-                    if sma is not None and rsi is not None:
-                        if current_price > sma and rsi < 30:
-                            print('~ BUY OPPORTUNITY (current_price > sma and rsi < 30)~')
+                    if sma is not None and rsi is not None and macd_line is not None and signal_line is not None:
+                        if current_price > sma and rsi < 30 and macd_line > signal_line:
+                            print('~ BUY OPPORTUNITY (current_price > sma, rsi < 30, MACD crossover)~')
+                            place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                        elif current_price < lower_band:
+                            print('~ BUY OPPORTUNITY (price below lower Bollinger Band)~')
                             place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
                         elif expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
                             print('~ BUY OPPORTUNITY (expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE)~')
@@ -543,20 +588,6 @@ def iterate_assets(config, INTERVAL_SECONDS):
                                 print('~ SELL OPPORTUNITY (price < SMA) ~')
                                 place_market_sell_order(symbol, owned_shares)
 
-                        # New sell indicators
-                        # if current_price >= resistance:
-                        #     print('~ SELL OPPORTUNITY (price near resistance) ~')
-                        #     place_market_sell_order(symbol, owned_shares)
-                        # elif rsi > 70:
-                        #     print('~ SELL OPPORTUNITY (RSI > 70) ~')
-                        #     place_market_sell_order(symbol, owned_shares)
-                        # elif current_price < sma:
-                        #     print('~ SELL OPPORTUNITY (price < SMA) ~')
-                        #     place_market_sell_order(symbol, owned_shares)
-                        # elif potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
-                        #     print('~ SELL OPPORTUNITY (profit target reached) ~')
-                        #     place_market_sell_order(symbol, owned_shares)
-
                 # plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price)  # Plot the graph each time data is updated
 
                 print('\n')
@@ -568,14 +599,14 @@ if __name__ == "__main__":
         try:
             # Define time intervals
             INTERVAL_SECONDS = 15
-            MINUTES = 240 # 4 hours
+            MINUTES = 300 # 5 hours
             DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * MINUTES)
-            iterate_assets(config, INTERVAL_SECONDS)
+            iterate_assets(INTERVAL_SECONDS)
         except Exception as e:
             print(f"An error occurred: {e}. Restarting the program...")
-            send_email_notification(
-                subject="App crashed - restarting",
-                text_content=f"An error occurred: {e}. Restarting the program...",
-                html_content=f"An error occurred: {e}. Restarting the program..."
-            )
+            # send_email_notification(
+            #     subject="App crashed - restarting - scalp-scripts",
+            #     text_content=f"An error occurred: {e}. Restarting the program...",
+            #     html_content=f"An error occurred: {e}. Restarting the program..."
+            # )
             time.sleep(10)  # Wait 10 seconds before restarting
