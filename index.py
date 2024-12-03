@@ -554,7 +554,7 @@ def iterate_assets( INTERVAL_SECONDS):
 
                         if number_of_shares != owned_shares:
                             print('Something went wrong. number_of_shares should match owned_shares')
-                            quit()
+                            continue # adjust shares to buy in config
 
                         position_value_at_purchase = entry_price * number_of_shares
                         print(f"purchase_position_value: {position_value_at_purchase}")
