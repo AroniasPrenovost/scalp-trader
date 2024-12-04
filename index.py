@@ -508,7 +508,7 @@ def iterate_assets( INTERVAL_SECONDS):
                 print(f"MACD Line: {macd_line}, Signal Line: {signal_line}")
                 print(f"Bollinger Bands - Upper: {upper_band}, Lower: {lower_band}")
 
-                if owned_shares == 0:
+                if owned_shares < 1: # accounts for transaction slippage
 
                     # Calculate a buffer zone below the resistance
                     buffer_zone = (resistance - support) * 0.05  # 5% below resistance
@@ -541,7 +541,7 @@ def iterate_assets( INTERVAL_SECONDS):
                             print('~ BUY OPPORTUNITY (expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE)~')
                             place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
 
-                elif owned_shares > 0:
+                elif owned_shares > 1: # accounts for transaction slippage
 
                     corresponding_buy_order = get_most_recent_buy_order_for_asset(symbol)
                     if corresponding_buy_order:
