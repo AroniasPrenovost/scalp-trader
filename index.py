@@ -443,7 +443,7 @@ def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_per
 # main logic loop
 #
 
-def iterate_assets( INTERVAL_SECONDS):
+def iterate_assets(interval_seconds, data_points_for_x_minutes):
     while True:
         client_accounts = client.get_accounts()
         config = load_config('config.json')
@@ -466,7 +466,7 @@ def iterate_assets( INTERVAL_SECONDS):
 
                 # Initialize price data storage if not already done
                 if symbol not in LOCAL_PRICE_DATA:
-                    LOCAL_PRICE_DATA[symbol] = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
+                    LOCAL_PRICE_DATA[symbol] = deque(maxlen=data_points_for_x_minutes)
 
                 current_price = get_asset_price(symbol)
                 print(f"current_price: {current_price}")
@@ -474,8 +474,8 @@ def iterate_assets( INTERVAL_SECONDS):
                     LOCAL_PRICE_DATA[symbol].append(current_price)
 
                 # Only proceed if we have enough data
-                if len(LOCAL_PRICE_DATA[symbol]) < DATA_POINTS_FOR_X_MINUTES:
-                    print(f"Waiting for more data... ({len(LOCAL_PRICE_DATA[symbol])}/{DATA_POINTS_FOR_X_MINUTES})\n")
+                if len(LOCAL_PRICE_DATA[symbol]) < data_points_for_x_minutes:
+                    print(f"Waiting for more data... ({len(LOCAL_PRICE_DATA[symbol])}/{data_points_for_x_minutes})\n")
                     continue
 
                 # pass all these into the graph
@@ -588,20 +588,20 @@ def iterate_assets( INTERVAL_SECONDS):
                                 print('~ SELL OPPORTUNITY (price < SMA) ~')
                                 # place_market_sell_order(symbol, owned_shares)
 
-                # plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price)  # Plot the graph each time data is updated
+                plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price)  # Plot the graph each time data is updated
 
                 print('\n')
 
-        time.sleep(INTERVAL_SECONDS)
+        time.sleep(interval_seconds)
 
 if __name__ == "__main__":
     while True:
         try:
             # Define time intervals
             INTERVAL_SECONDS = 5
-            INTERVAL_MINUTES = 4
+            INTERVAL_MINUTES = 1
             DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
-            iterate_assets(INTERVAL_SECONDS)
+            iterate_assets(INTERVAL_SECONDS, DATA_POINTS_FOR_X_MINUTES)
         except Exception as e:
             print(f"An error occurred: {e}. Restarting the program...")
             # send_email_notification(
