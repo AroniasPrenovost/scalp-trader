@@ -533,13 +533,13 @@ def iterate_assets( INTERVAL_SECONDS):
                     if sma is not None and rsi is not None and macd_line is not None and signal_line is not None:
                         if current_price > sma and rsi < 30 and macd_line > signal_line:
                             print('~ BUY OPPORTUNITY (current_price > sma, rsi < 30, MACD crossover)~')
-                            place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                            # place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
                         elif current_price < lower_band:
                             print('~ BUY OPPORTUNITY (price below lower Bollinger Band)~')
-                            place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                            # place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
                         elif expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
                             print('~ BUY OPPORTUNITY (expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE)~')
-                            place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                            # place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
 
                 elif owned_shares > 1: # accounts for transaction slippage
 
@@ -580,13 +580,13 @@ def iterate_assets( INTERVAL_SECONDS):
                             print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
                             if current_price >= resistance:
                                 print('~ SELL OPPORTUNITY (price near resistance) ~')
-                                place_market_sell_order(symbol, owned_shares)
+                                # place_market_sell_order(symbol, owned_shares)
                             elif rsi is not None and rsi > 70:
                                 print('~ SELL OPPORTUNITY (RSI > 70) ~')
-                                place_market_sell_order(symbol, owned_shares)
+                                # place_market_sell_order(symbol, owned_shares)
                             elif sma is not None and current_price < sma:
                                 print('~ SELL OPPORTUNITY (price < SMA) ~')
-                                place_market_sell_order(symbol, owned_shares)
+                                # place_market_sell_order(symbol, owned_shares)
 
                 # plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price)  # Plot the graph each time data is updated
 
