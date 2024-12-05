@@ -599,8 +599,8 @@ if __name__ == "__main__":
         try:
             # Define time intervals
             INTERVAL_SECONDS = 5
-            MINUTES = 4
-            DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * MINUTES)
+            INTERVAL_MINUTES = 4
+            DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
             iterate_assets(INTERVAL_SECONDS)
         except Exception as e:
             print(f"An error occurred: {e}. Restarting the program...")
