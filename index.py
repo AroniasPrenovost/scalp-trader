@@ -457,7 +457,7 @@ def iterate_assets( INTERVAL_SECONDS):
             if enabled:
 
                 # Add 2-second delay after processing each asset to avoid hitting the rate limit
-                time.sleep(2)
+                # time.sleep(2)
 
                 print(symbol)
 
@@ -598,8 +598,8 @@ if __name__ == "__main__":
     while True:
         try:
             # Define time intervals
-            INTERVAL_SECONDS = 15
-            MINUTES = 300 # 5 hours
+            INTERVAL_SECONDS = 5
+            MINUTES = 4
             DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * MINUTES)
             iterate_assets(INTERVAL_SECONDS)
         except Exception as e:
