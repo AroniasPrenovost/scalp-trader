@@ -588,7 +588,7 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                                 print('~ SELL OPPORTUNITY (price < SMA) ~')
                                 # place_market_sell_order(symbol, owned_shares)
 
-                plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price)  # Plot the graph each time data is updated
+                # plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price)  # Plot the graph each time data is updated
 
                 print('\n')
 
