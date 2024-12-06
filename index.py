@@ -2,6 +2,7 @@
 import os
 from dotenv import load_dotenv
 from json import dumps, load
+import json
 import math
 import time
 from pprint import pprint
@@ -130,6 +131,77 @@ def get_current_asset_holdings(symbol, accounts):
 
 #
 #
+# Get the last buy order for the asset
+#
+
+def get_most_recent_buy_order_for_asset(symbol):
+    try:
+        orders = client.list_orders(product_id=symbol, order_status="FILLED")
+        if orders:
+            for order in orders['orders']:
+                if order['side'] == 'BUY':
+                    return order
+        print(f"No filled buy orders found for {symbol}.")
+        return None
+    except Exception as e:
+        print(f"Error fetching filled orders for {symbol}: {e}")
+        return None
+
+#
+#
+# Save order data to local json ledger
+#
+
+def save_order_data(symbol, order_data):
+    """
+    Save order data to a local file specific to the symbol.
+    """
+    file_name = f"{symbol}_orders.json"
+    try:
+        # Load existing data if the file exists and is not empty
+        if os.path.exists(file_name) and os.path.getsize(file_name) > 0:
+            with open(file_name, 'r') as file:
+                existing_data = json.load(file)
+        else:
+            existing_data = []
+
+        # Append the new order data
+        existing_data.append(order_data)
+
+        # Save the updated data back to the file
+        with open(file_name, 'w') as file:
+            json.dump(existing_data, file, indent=4)
+
+        print(f"Order data saved to {file_name}.")
+    except json.JSONDecodeError:
+        print(f"Error decoding JSON from {file_name}. The file might be corrupted.")
+        # Attempt to overwrite the file with the new order data
+        with open(file_name, 'w') as file:
+            json.dump([order_data], file, indent=4)
+        print(f"Order data saved to {file_name} after resetting the file.")
+    except Exception as e:
+        print(f"Error saving order data for {symbol}: {e}")
+
+
+#
+#
+#
+#
+
+def get_order_by_order_id(order_id):
+    try:
+        order = client.get_order(order_id=order_id)
+        if order:
+            return order
+        else:
+            print(f"No order found with ID: {order_id}.")
+            return None
+    except Exception as e:
+        print(f"Error fetching order with ID {order_id}: {e}")
+        return None
+
+#
+#
 # Create a market BUY order
 #
 
@@ -144,6 +216,13 @@ def place_market_buy_order(symbol, base_size):
         if 'order_id' in order['response']:
             order_id = order['response']['order_id']
             print(f"BUY ORDER placed successfully. Order ID: {order_id}")
+            # Get order data via get_order_by_order_id and save that data to a local file
+            order_data = get_order_by_order_id(order_id)
+            if order_data:
+                # Convert order_data to a dictionary if it's not already
+                order_dict = order_data['order'] if isinstance(order_data, dict) else order_data.to_dict()
+                save_order_data(symbol, order_dict)
+
             send_email_notification(
                 subject="Buy Order Placed",
                 text_content=f"BUY ORDER placed successfully for {symbol}. Order ID: {order_id}",
@@ -170,6 +249,13 @@ def place_market_sell_order(symbol, base_size):
         if 'order_id' in order['response']:
             order_id = order['response']['order_id']
             print(f"SELL ORDER placed successfully. Order ID: {order_id}")
+            # Get order data via get_order_by_order_id and save that data to a local file
+            order_data = get_order_by_order_id(order_id)
+            if order_data:
+                # Convert order_data to a dictionary if it's not already
+                order_dict = order_data['order'] if isinstance(order_data, dict) else order_data.to_dict()
+                save_order_data(symbol, order_dict)
+
             send_email_notification(
                 subject="Sell Order Placed",
                 text_content=f"SELL ORDER placed successfully for {symbol}. Order ID: {order_id}",
@@ -190,24 +276,6 @@ def generate_client_order_id(symbol, action):
     action = action.lower()
     custom_id = f"{symbol}_{action}_{time.time()}"
     return custom_id
-
-#
-#
-# Get the last buy order for the asset
-#
-
-def get_most_recent_buy_order_for_asset(symbol):
-    try:
-        orders = client.list_orders(product_id=symbol, order_status="FILLED")
-        if orders:
-            for order in orders['orders']:
-                if order['side'] == 'BUY':
-                    return order
-        print(f"No filled buy orders found for {symbol}.")
-        return None
-    except Exception as e:
-        print(f"Error fetching filled orders for {symbol}: {e}")
-        return None
 
 #
 #
@@ -542,8 +610,6 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 elif owned_shares > 1: # accounts for transaction slippage
 
                     corresponding_buy_order = get_most_recent_buy_order_for_asset(symbol)
-                    console.log('buy order: ', corresponding_buy_order)
-                    quit();
                     if corresponding_buy_order:
 
                         entry_price = float(corresponding_buy_order['average_filled_price'])
@@ -598,8 +664,8 @@ if __name__ == "__main__":
     while True:
         try:
             # Define time intervals
-            INTERVAL_SECONDS = 1
-            INTERVAL_MINUTES = 0.25
+            INTERVAL_SECONDS = 10
+            INTERVAL_MINUTES = 15
             DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
             iterate_assets(INTERVAL_SECONDS, DATA_POINTS_FOR_X_MINUTES)
         except Exception as e:
