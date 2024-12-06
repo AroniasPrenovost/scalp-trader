@@ -114,7 +114,7 @@ def get_current_asset_holdings(symbol, accounts):
             if account['currency'] == modified_symbol:
                 balance = account['balance']
                 # round to nearest whole number to ignore 0.0000000564....
-                available_balance = round(float((account['available_balance']['value'])))
+                available_balance = float((account['available_balance']['value']))
                 # print(account)
 
                 return {
@@ -543,6 +543,8 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 elif owned_shares > 1: # accounts for transaction slippage
 
                     corresponding_buy_order = get_most_recent_buy_order_for_asset(symbol)
+                    console.log('buy order: ', corresponding_buy_order)
+                    quit();
                     if corresponding_buy_order:
 
                         entry_price = float(corresponding_buy_order['average_filled_price'])
@@ -597,8 +599,8 @@ if __name__ == "__main__":
     while True:
         try:
             # Define time intervals
-            INTERVAL_SECONDS = 5
-            INTERVAL_MINUTES = 1
+            INTERVAL_SECONDS = 1
+            INTERVAL_MINUTES = 0.25
             DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
             iterate_assets(INTERVAL_SECONDS, DATA_POINTS_FOR_X_MINUTES)
         except Exception as e:
