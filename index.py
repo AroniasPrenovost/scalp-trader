@@ -552,7 +552,6 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                     LOCAL_PRICE_DATA[symbol] = deque(maxlen=data_points_for_x_minutes)
 
                 current_price = get_asset_price(symbol)
-                # print(f"current_price: {current_price}")
                 if current_price is not None:
                     LOCAL_PRICE_DATA[symbol].append(current_price)
 
@@ -563,6 +562,8 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
 
                 # pass all these into the graph
                 pivot, support, resistance = calculate_support_resistance(LOCAL_PRICE_DATA[symbol])
+
+                print(f"current_price: {current_price}")
                 print(f"support: {support}")
                 print(f"resistance: {resistance}")
 
@@ -634,7 +635,6 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
 
                         entry_price = float(corresponding_buy_order['average_filled_price'])
                         print(f"entry_price: {entry_price}")
-                        print(f"current_price: {current_price}")
 
                         entry_position_value_after_fees = float(corresponding_buy_order['total_value_after_fees'])
                         print(f"entry_position_value_after_fees: {entry_position_value_after_fees}")
@@ -676,8 +676,8 @@ if __name__ == "__main__":
     while True:
         try:
             # Define time intervals
-            INTERVAL_SECONDS = 2
-            INTERVAL_MINUTES = 1
+            INTERVAL_SECONDS = 15
+            INTERVAL_MINUTES = 30
             DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
             iterate_assets(INTERVAL_SECONDS, DATA_POINTS_FOR_X_MINUTES)
         except Exception as e:
