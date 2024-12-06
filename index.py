@@ -656,14 +656,14 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
 
                 elif looking_to_sell:
 
-                    number_of_shares = float(last_order['filled_size'])
-                    print('number_of_shares: ', number_of_shares)
-
                     entry_price = float(last_order['average_filled_price'])
                     print(f"entry_price: {entry_price}")
 
                     entry_position_value_after_fees = float(last_order['total_value_after_fees'])
                     print(f"entry_position_value_after_fees: {entry_position_value_after_fees}")
+
+                    number_of_shares = float(last_order['filled_size'])
+                    print('number_of_shares: ', number_of_shares)
 
                     # calculate profits if we were going to sell now
                     pre_tax_profit = (current_price - entry_price) * number_of_shares
