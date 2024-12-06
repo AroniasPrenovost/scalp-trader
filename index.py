@@ -493,7 +493,7 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 owned_shares = asset_holdings['available_balance'] if asset_holdings else 0
                 print('owned_shares: ', owned_shares)
 
-                entry_price = 0
+                entry_price = 0 # gets overwitten if an order exists
 
                 # Calculate SMA and RSI
                 sma = calculate_sma(LOCAL_PRICE_DATA[symbol], period=20)
