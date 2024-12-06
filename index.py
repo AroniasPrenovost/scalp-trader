@@ -166,34 +166,10 @@ def save_order_data_to_local_json_ledger(symbol, order_data):
 
 #
 #
-# get_most_recent_buy_order_from_local_json_ledger
+# get_last_order_from_local_json_ledger
 #
 
-def get_most_recent_buy_order_from_local_json_ledger(symbol):
-    """
-    Retrieve the most recent buy order from the local JSON ledger for the given symbol.
-    """
-    file_name = f"{symbol}_orders.json"
-    try:
-        if os.path.exists(file_name) and os.path.getsize(file_name) > 0:
-            with open(file_name, 'r') as file:
-                orders = json.load(file)
-                # Filter buy orders
-                buy_orders = [order['order'] for order in orders if order['order']['side'] == 'BUY']
-                if buy_orders:
-                    # Return the most recent buy order
-                    return buy_orders[-1]
-        print(f"No buy orders found in ledger for {symbol}.")
-        return None
-    except json.JSONDecodeError:
-        print(f"Error decoding JSON from {file_name}. The file might be corrupted.")
-        return None
-    except Exception as e:
-        print(f"Error retrieving buy order from ledger for {symbol}: {e}")
-        return None
-
-
-def get_most_recent_order_from_local_json_ledger(symbol):
+def get_last_order_from_local_json_ledger(symbol):
     """
     Retrieve the most recent order from the local JSON ledger for the given symbol.
     """
@@ -213,7 +189,6 @@ def get_most_recent_order_from_local_json_ledger(symbol):
     except Exception as e:
         print(f"Error retrieving order from ledger for {symbol}: {e}")
         return None
-
 
 #
 #
@@ -614,14 +589,14 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 print(f"MACD Line: {macd_line}, Signal Line: {signal_line}")
                 print(f"Bollinger Bands - Upper: {upper_band}, Lower: {lower_band}")
 
-                most_recent_order = get_most_recent_order_from_local_json_ledger(symbol)
-                if most_recent_order is None:
+                last_order = get_last_order_from_local_json_ledger(symbol)
+                if last_order is None:
                     print("Order ledger is empty. Defaulting to looking_to_buy = True.")
                     looking_to_buy = True
                     looking_to_sell = False
-                elif 'side' in most_recent_order:
-                    looking_to_buy = most_recent_order['side'] == 'SELL'
-                    looking_to_sell = most_recent_order['side'] == 'BUY'
+                elif 'side' in last_order:
+                    looking_to_buy = last_order['side'] == 'SELL'
+                    looking_to_sell = last_order['side'] == 'BUY'
                 else:
                     print("Order structure is unexpected.")
                     looking_to_buy = False
@@ -633,9 +608,18 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 if looking_to_sell:
                     print('STATUS:  looking_to_sell')
 
+                # error handling
                 if looking_to_buy == looking_to_sell:
                     print('something went wrong with local buy/sell order data')
                     continue
+                if looking_to_sell and owned_shares == 0:
+                    print('something went wrong, trying to sell when you do not own any assets')
+                    continue
+
+                #
+                #
+                # buy / sell logic
+                #
 
                 if looking_to_buy:
 
@@ -672,44 +656,41 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
 
                 elif looking_to_sell:
 
-                    corresponding_buy_order = get_most_recent_buy_order_from_local_json_ledger(symbol)
-                    if corresponding_buy_order:
+                    number_of_shares = float(last_order['filled_size'])
+                    print('number_of_shares: ', number_of_shares)
 
-                        number_of_shares = float(corresponding_buy_order['filled_size'])
-                        print('number_of_shares: ', number_of_shares)
+                    entry_price = float(last_order['average_filled_price'])
+                    print(f"entry_price: {entry_price}")
 
-                        entry_price = float(corresponding_buy_order['average_filled_price'])
-                        print(f"entry_price: {entry_price}")
+                    entry_position_value_after_fees = float(last_order['total_value_after_fees'])
+                    print(f"entry_position_value_after_fees: {entry_position_value_after_fees}")
 
-                        entry_position_value_after_fees = float(corresponding_buy_order['total_value_after_fees'])
-                        print(f"entry_position_value_after_fees: {entry_position_value_after_fees}")
+                    # calculate profits if we were going to sell now
+                    pre_tax_profit = (current_price - entry_price) * number_of_shares
 
-                        # calculate profits if we were going to sell now
-                        raw_profit = (current_price - entry_price) * number_of_shares
+                    sell_now_exchange_fee = calculate_exchange_fee(current_price, number_of_shares, 'taker')
+                    print(f"sell_now_exchange_fee: {sell_now_exchange_fee}")
 
-                        sell_now_exchange_fee = calculate_exchange_fee(current_price, number_of_shares, 'taker')
-                        print(f"sell_now_exchange_fee: {sell_now_exchange_fee}")
+                    sell_now_tax_owed = (federal_tax_rate / 100) * pre_tax_profit
+                    print(f"sell_now_taxes_owed: {sell_now_tax_owed}")
 
-                        sell_now_tax_owed = (federal_tax_rate / 100) * raw_profit
-                        print(f"sell_now_taxes_owed: {sell_now_tax_owed}")
+                    potential_profit = (current_price * number_of_shares) - entry_position_value_after_fees - sell_now_exchange_fee - sell_now_tax_owed
+                    print(f"potential_profit_USD: {potential_profit}")
 
-                        potential_profit = (current_price * number_of_shares) - entry_position_value_after_fees - sell_now_exchange_fee - sell_now_tax_owed
-                        print(f"potential_profit_USD: {potential_profit}")
+                    potential_profit_percentage = (potential_profit / entry_position_value_after_fees) * 100
+                    print(f"potential_profit_percentage: {potential_profit_percentage:.2f}%")
 
-                        potential_profit_percentage = (potential_profit / entry_position_value_after_fees) * 100
-                        print(f"potential_profit_percentage: {potential_profit_percentage:.2f}%")
-
-                        if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
-                            print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
-                            if current_price >= resistance:
-                                print('~ SELL OPPORTUNITY (price near resistance) ~')
-                                # place_market_sell_order(symbol, owned_shares)
-                            elif rsi is not None and rsi > 70:
-                                print('~ SELL OPPORTUNITY (RSI > 70) ~')
-                                # place_market_sell_order(symbol, owned_shares)
-                            elif sma is not None and current_price < sma:
-                                print('~ SELL OPPORTUNITY (price < SMA) ~')
-                                # place_market_sell_order(symbol, owned_shares)
+                    if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
+                        print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
+                        if current_price >= resistance:
+                            print('~ SELL OPPORTUNITY (price near resistance) ~')
+                            # place_market_sell_order(symbol, number_of_shares)
+                        elif rsi is not None and rsi > 70:
+                            print('~ SELL OPPORTUNITY (RSI > 70) ~')
+                            # place_market_sell_order(symbol, number_of_shares)
+                        elif sma is not None and current_price < sma:
+                            print('~ SELL OPPORTUNITY (price < SMA) ~')
+                            # place_market_sell_order(symbol, number_of_shares)
 
                 plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price)  # Plot the graph each time data is updated
 
