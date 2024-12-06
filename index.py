@@ -166,7 +166,7 @@ def save_order_data_to_local_json_ledger(symbol, order_data):
 
 #
 #
-#
+# get_most_recent_buy_order_from_local_json_ledger
 #
 
 def get_most_recent_buy_order_from_local_json_ledger(symbol):
@@ -190,6 +190,28 @@ def get_most_recent_buy_order_from_local_json_ledger(symbol):
         return None
     except Exception as e:
         print(f"Error retrieving buy order from ledger for {symbol}: {e}")
+        return None
+
+
+def get_most_recent_order_from_local_json_ledger(symbol):
+    """
+    Retrieve the most recent order from the local JSON ledger for the given symbol.
+    """
+    file_name = f"{symbol}_orders.json"
+    try:
+        if os.path.exists(file_name) and os.path.getsize(file_name) > 0:
+            with open(file_name, 'r') as file:
+                orders = json.load(file)
+                if orders:
+                    # Return the most recent order
+                    return orders[-1]['order']
+        print(f"No orders found in ledger for {symbol}.")
+        return None
+    except json.JSONDecodeError:
+        print(f"Error decoding JSON from {file_name}. The file might be corrupted.")
+        return None
+    except Exception as e:
+        print(f"Error retrieving order from ledger for {symbol}: {e}")
         return None
 
 
@@ -592,7 +614,26 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 print(f"MACD Line: {macd_line}, Signal Line: {signal_line}")
                 print(f"Bollinger Bands - Upper: {upper_band}, Lower: {lower_band}")
 
-                if owned_shares < 1: # accounts for transaction slippage
+                most_recent_order = get_most_recent_order_from_local_json_ledger(symbol)
+                if most_recent_order is None:
+                    print("Order ledger is empty. Defaulting to looking_to_buy = True.")
+                    looking_to_buy = True
+                    looking_to_sell = False
+                elif 'side' in most_recent_order:
+                    looking_to_buy = most_recent_order['side'] == 'SELL'
+                    looking_to_sell = most_recent_order['side'] == 'BUY'
+                else:
+                    print("Order structure is unexpected.")
+                    looking_to_buy = False
+                    looking_to_sell = False
+                # print('looking_to_buy', looking_to_buy)
+                # print('looking_to_sell', looking_to_sell)
+
+                if looking_to_buy == looking_to_sell:
+                    print('something went wrong with local buy/sell order data')
+                    continue
+
+                if looking_to_buy:
 
                     # Calculate a buffer zone below the resistance
                     buffer_zone = (resistance - support) * 0.05  # 5% below resistance
@@ -625,7 +666,7 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                             print('~ BUY OPPORTUNITY (expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE)~')
                             # place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
 
-                elif owned_shares > 1: # accounts for transaction slippage
+                elif looking_to_sell:
 
                     corresponding_buy_order = get_most_recent_buy_order_from_local_json_ledger(symbol)
                     if corresponding_buy_order:
@@ -676,8 +717,8 @@ if __name__ == "__main__":
     while True:
         try:
             # Define time intervals
-            INTERVAL_SECONDS = 15
-            INTERVAL_MINUTES = 30
+            INTERVAL_SECONDS = 1
+            INTERVAL_MINUTES = 0.25
             DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
             iterate_assets(INTERVAL_SECONDS, DATA_POINTS_FOR_X_MINUTES)
         except Exception as e:
