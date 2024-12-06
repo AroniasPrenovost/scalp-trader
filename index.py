@@ -628,6 +628,10 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                     looking_to_sell = False
                 # print('looking_to_buy', looking_to_buy)
                 # print('looking_to_sell', looking_to_sell)
+                if looking_to_buy:
+                    print('STATUS:  looking_to_buy')
+                if looking_to_sell:
+                    print('STATUS:  looking_to_sell')
 
                 if looking_to_buy == looking_to_sell:
                     print('something went wrong with local buy/sell order data')
