@@ -609,11 +609,8 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                     print('STATUS:  looking_to_sell')
 
                 # error handling
-                if looking_to_buy == looking_to_sell:
+                if looking_to_buy == looking_to_sell or looking_to_sell and owned_shares == 0:
                     print('something went wrong with local buy/sell order data')
-                    continue
-                if looking_to_sell and owned_shares == 0:
-                    print('something went wrong, trying to sell when you do not own any assets')
                     continue
 
                 #
