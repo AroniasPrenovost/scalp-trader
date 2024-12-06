@@ -131,28 +131,10 @@ def get_current_asset_holdings(symbol, accounts):
 
 #
 #
-# Get the last buy order for the asset
-#
-
-def get_most_recent_buy_order_for_asset(symbol):
-    try:
-        orders = client.list_orders(product_id=symbol, order_status="FILLED")
-        if orders:
-            for order in orders['orders']:
-                if order['side'] == 'BUY':
-                    return order
-        print(f"No filled buy orders found for {symbol}.")
-        return None
-    except Exception as e:
-        print(f"Error fetching filled orders for {symbol}: {e}")
-        return None
-
-#
-#
 # Save order data to local json ledger
 #
 
-def save_order_data(symbol, order_data):
+def save_order_data_to_local_json_ledger(symbol, order_data):
     """
     Save order data to a local file specific to the symbol.
     """
@@ -182,13 +164,41 @@ def save_order_data(symbol, order_data):
     except Exception as e:
         print(f"Error saving order data for {symbol}: {e}")
 
+#
+#
+#
+#
+
+def get_most_recent_buy_order_from_local_json_ledger(symbol):
+    """
+    Retrieve the most recent buy order from the local JSON ledger for the given symbol.
+    """
+    file_name = f"{symbol}_orders.json"
+    try:
+        if os.path.exists(file_name) and os.path.getsize(file_name) > 0:
+            with open(file_name, 'r') as file:
+                orders = json.load(file)
+                # Filter buy orders
+                buy_orders = [order['order'] for order in orders if order['order']['side'] == 'BUY']
+                if buy_orders:
+                    # Return the most recent buy order
+                    return buy_orders[-1]
+        print(f"No buy orders found in ledger for {symbol}.")
+        return None
+    except json.JSONDecodeError:
+        print(f"Error decoding JSON from {file_name}. The file might be corrupted.")
+        return None
+    except Exception as e:
+        print(f"Error retrieving buy order from ledger for {symbol}: {e}")
+        return None
+
 
 #
 #
 #
 #
 
-def get_order_by_order_id(order_id):
+def get_coinbase_order_by_order_id(order_id):
     try:
         order = client.get_order(order_id=order_id)
         if order:
@@ -216,12 +226,14 @@ def place_market_buy_order(symbol, base_size):
         if 'order_id' in order['response']:
             order_id = order['response']['order_id']
             print(f"BUY ORDER placed successfully. Order ID: {order_id}")
-            # Get order data via get_order_by_order_id and save that data to a local file
-            order_data = get_order_by_order_id(order_id)
+            time.sleep(3)
+
+            # Get order data via get_coinbase_order_by_order_id and save that data to a local file
+            order_data = get_coinbase_order_by_order_id(order_id)
             if order_data:
                 # Convert order_data to a dictionary if it's not already
                 order_dict = order_data['order'] if isinstance(order_data, dict) else order_data.to_dict()
-                save_order_data(symbol, order_dict)
+                save_order_data_to_local_json_ledger(symbol, order_dict)
 
             send_email_notification(
                 subject="Buy Order Placed",
@@ -249,12 +261,14 @@ def place_market_sell_order(symbol, base_size):
         if 'order_id' in order['response']:
             order_id = order['response']['order_id']
             print(f"SELL ORDER placed successfully. Order ID: {order_id}")
-            # Get order data via get_order_by_order_id and save that data to a local file
-            order_data = get_order_by_order_id(order_id)
+            time.sleep(3)
+
+            # Get order data via get_coinbase_order_by_order_id and save that data to a local file
+            order_data = get_coinbase_order_by_order_id(order_id)
             if order_data:
                 # Convert order_data to a dictionary if it's not already
                 order_dict = order_data['order'] if isinstance(order_data, dict) else order_data.to_dict()
-                save_order_data(symbol, order_dict)
+                save_order_data_to_local_json_ledger(symbol, order_dict)
 
             send_email_notification(
                 subject="Sell Order Placed",
@@ -527,6 +541,9 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
 
                 print(symbol)
 
+                # place_market_buy_order(symbol, 1);
+                # place_market_sell_order(symbol, 1);
+
                 # if LOCAL_PRICE_DATA and LOCAL_PRICE_DATA[symbol]:
                 #     print(LOCAL_PRICE_DATA[symbol])
 
@@ -535,7 +552,7 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                     LOCAL_PRICE_DATA[symbol] = deque(maxlen=data_points_for_x_minutes)
 
                 current_price = get_asset_price(symbol)
-                print(f"current_price: {current_price}")
+                # print(f"current_price: {current_price}")
                 if current_price is not None:
                     LOCAL_PRICE_DATA[symbol].append(current_price)
 
@@ -609,38 +626,33 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
 
                 elif owned_shares > 1: # accounts for transaction slippage
 
-                    corresponding_buy_order = get_most_recent_buy_order_for_asset(symbol)
+                    corresponding_buy_order = get_most_recent_buy_order_from_local_json_ledger(symbol)
                     if corresponding_buy_order:
+
+                        number_of_shares = float(corresponding_buy_order['filled_size'])
+                        print('number_of_shares: ', number_of_shares)
 
                         entry_price = float(corresponding_buy_order['average_filled_price'])
                         print(f"entry_price: {entry_price}")
+                        print(f"current_price: {current_price}")
 
-                        number_of_shares = float(corresponding_buy_order['filled_size'])
-                        # print('number_of_shares: ', number_of_shares)
+                        entry_position_value_after_fees = float(corresponding_buy_order['total_value_after_fees'])
+                        print(f"entry_position_value_after_fees: {entry_position_value_after_fees}")
 
-                        if number_of_shares != owned_shares:
-                            print('Something went wrong. number_of_shares should match owned_shares')
-                            continue # adjust shares to buy in config
+                        # calculate profits if we were going to sell now
+                        raw_profit = (current_price - entry_price) * number_of_shares
 
-                        position_value_at_purchase = entry_price * number_of_shares
-                        print(f"purchase_position_value: {position_value_at_purchase}")
+                        sell_now_exchange_fee = calculate_exchange_fee(current_price, number_of_shares, 'taker')
+                        print(f"sell_now_exchange_fee: {sell_now_exchange_fee}")
 
-                        current_position_value = current_price * number_of_shares
-                        print(f"current_position_value: {current_position_value}")
+                        sell_now_tax_owed = (federal_tax_rate / 100) * raw_profit
+                        print(f"sell_now_taxes_owed: {sell_now_tax_owed}")
 
-                        exchange_fee = calculate_exchange_fee(current_price, number_of_shares, 'taker')
-                        print(f"sell_now_exchange_fee: {exchange_fee}")
+                        potential_profit = (current_price * number_of_shares) - entry_position_value_after_fees - sell_now_exchange_fee - sell_now_tax_owed
+                        print(f"potential_profit_USD: {potential_profit}")
 
-                        profit = (current_price - entry_price) * number_of_shares
-                        tax_owed = (federal_tax_rate / 100) * profit
-                        print(f"sell_now_taxes_owed: {tax_owed}")
-
-                        potential_profit = profit - exchange_fee - tax_owed
-                        print(f"sell_now_post_tax_profit: {potential_profit}")
-
-                        investment = entry_price * number_of_shares
-                        potential_profit_percentage = (potential_profit / investment) * 100
-                        print(f"sell_now_post_tax_profit_percentage: {potential_profit_percentage:.2f}%")
+                        potential_profit_percentage = (potential_profit / entry_position_value_after_fees) * 100
+                        print(f"potential_profit_percentage: {potential_profit_percentage:.2f}%")
 
                         if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
                             print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
@@ -664,8 +676,8 @@ if __name__ == "__main__":
     while True:
         try:
             # Define time intervals
-            INTERVAL_SECONDS = 10
-            INTERVAL_MINUTES = 15
+            INTERVAL_SECONDS = 2
+            INTERVAL_MINUTES = 1
             DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
             iterate_assets(INTERVAL_SECONDS, DATA_POINTS_FOR_X_MINUTES)
         except Exception as e:
