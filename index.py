@@ -180,7 +180,7 @@ def get_last_order_from_local_json_ledger(symbol):
                 orders = json.load(file)
                 if orders:
                     # Return the most recent order
-                    return orders[-1]['order']
+                    return orders[-1]
         print(f"No orders found in ledger for {symbol}.")
         return None
     except json.JSONDecodeError:
@@ -189,6 +189,19 @@ def get_last_order_from_local_json_ledger(symbol):
     except Exception as e:
         print(f"Error retrieving order from ledger for {symbol}: {e}")
         return None
+
+#
+#
+#
+#
+
+def reset_json_ledger_file(symbol):
+    # Construct the file name based on the symbol
+    file_name = f"{symbol}_orders.json"
+
+    # Write an empty list to the file to reset it
+    with open(file_name, 'w') as file:
+        json.dump([], file)
 
 #
 #
@@ -209,6 +222,19 @@ def get_coinbase_order_by_order_id(order_id):
 
 #
 #
+#
+#
+
+def detect_stored_coinbase_order_type(last_order):
+    if last_order is None: # if empty
+        return 'none'
+    if 'order' in last_order: # if 'order' key exists, it's a finalized order
+        return 'full'
+    else:
+        return 'placeholder'
+
+#
+#
 # Create a market BUY order
 #
 
@@ -223,14 +249,11 @@ def place_market_buy_order(symbol, base_size):
         if 'order_id' in order['response']:
             order_id = order['response']['order_id']
             print(f"BUY ORDER placed successfully. Order ID: {order_id}")
-            time.sleep(3)
 
-            # Get order data via get_coinbase_order_by_order_id and save that data to a local file
-            order_data = get_coinbase_order_by_order_id(order_id)
-            if order_data:
-                # Convert order_data to a dictionary if it's not already
-                order_dict = order_data['order'] if isinstance(order_data, dict) else order_data.to_dict()
-                save_order_data_to_local_json_ledger(symbol, order_dict)
+            # Convert the order object to a dictionary if necessary
+            # Save the placeholder order data until we can lookup the completeed transaction
+            order_data = order.response if hasattr(order, 'response') else order
+            save_order_data_to_local_json_ledger(symbol, order_data)
 
             send_email_notification(
                 subject="Buy Order Placed",
@@ -258,14 +281,9 @@ def place_market_sell_order(symbol, base_size):
         if 'order_id' in order['response']:
             order_id = order['response']['order_id']
             print(f"SELL ORDER placed successfully. Order ID: {order_id}")
-            time.sleep(3)
 
-            # Get order data via get_coinbase_order_by_order_id and save that data to a local file
-            order_data = get_coinbase_order_by_order_id(order_id)
-            if order_data:
-                # Convert order_data to a dictionary if it's not already
-                order_dict = order_data['order'] if isinstance(order_data, dict) else order_data.to_dict()
-                save_order_data_to_local_json_ledger(symbol, order_dict)
+            # Clear out existing ledger since there is no need to wait and confirm a sell transaction as long as we got programmatic confirmation
+            reset_json_ledger_file(symbol)
 
             send_email_notification(
                 subject="Sell Order Placed",
@@ -533,18 +551,16 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
             TARGET_PROFIT_PERCENTAGE = asset['target_profit_percentage']
 
             if enabled:
-
-                # time.sleep(2)
-
                 print(symbol)
-
-                # place_market_buy_order(symbol, 1);
-                # place_market_sell_order(symbol, 1);
 
                 # if LOCAL_PRICE_DATA and LOCAL_PRICE_DATA[symbol]:
                 #     print(LOCAL_PRICE_DATA[symbol])
 
+                #
+                #
                 # Initialize price data storage if not already done
+                #
+
                 if symbol not in LOCAL_PRICE_DATA:
                     LOCAL_PRICE_DATA[symbol] = deque(maxlen=data_points_for_x_minutes)
 
@@ -557,7 +573,11 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                     print(f"Waiting for more data... ({len(LOCAL_PRICE_DATA[symbol])}/{data_points_for_x_minutes})\n")
                     continue
 
-                # pass all these into the graph
+                #
+                #
+                # Indicators
+                #
+
                 pivot, support, resistance = calculate_support_resistance(LOCAL_PRICE_DATA[symbol])
 
                 print(f"current_price: {current_price}")
@@ -589,23 +609,39 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 print(f"MACD Line: {macd_line}, Signal Line: {signal_line}")
                 print(f"Bollinger Bands - Upper: {upper_band}, Lower: {lower_band}")
 
+                #
+                #
+                # Manage order data/types in local ledger
+                #
+
                 last_order = get_last_order_from_local_json_ledger(symbol)
-                if last_order is None:
+                last_order_type = detect_stored_coinbase_order_type(last_order)
+                print(f"Order Type: {last_order_type}")
+
+                if (last_order_type == 'placeholder'):
+                    full_order_data = get_coinbase_order_by_order_id(last_order['order_id'])
+                    if full_order_data:
+                        full_order_dict = full_order_data['order'] if isinstance(full_order_data, dict) else full_order_data.to_dict()
+                        save_order_data_to_local_json_ledger(symbol, full_order_dict)
+                        print('Updated ledger with full order data')
+                        continue
+                    else:
+                        print('still waiting to pull full order data info')
+                        continue
+
+                looking_to_buy = False
+                looking_to_sell = False
+                if last_order_type == 'none':
                     print("Order ledger is empty. Defaulting to looking_to_buy = True.")
                     looking_to_buy = True
-                    looking_to_sell = False
-                elif 'side' in last_order:
-                    looking_to_buy = last_order['side'] == 'SELL'
-                    looking_to_sell = last_order['side'] == 'BUY'
-                else:
-                    print("Order structure is unexpected.")
-                    looking_to_buy = False
-                    looking_to_sell = False
-                # print('looking_to_buy', looking_to_buy)
-                # print('looking_to_sell', looking_to_sell)
-                if looking_to_buy:
+                elif last_order_type == 'full':
+                    if 'side' in last_order['order']:
+                        looking_to_buy = last_order['order']['side'] == 'SELL'
+                        looking_to_sell = last_order['order']['side'] == 'BUY'
+
+                if looking_to_buy == True:
                     print('STATUS:  looking_to_buy')
-                if looking_to_sell:
+                if looking_to_sell == True:
                     print('STATUS:  looking_to_sell')
 
                 # error handling
@@ -653,13 +689,13 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
 
                 elif looking_to_sell:
 
-                    entry_price = float(last_order['average_filled_price'])
+                    entry_price = float(last_order['order']['average_filled_price'])
                     print(f"entry_price: {entry_price}")
 
-                    entry_position_value_after_fees = float(last_order['total_value_after_fees'])
+                    entry_position_value_after_fees = float(last_order['order']['total_value_after_fees'])
                     print(f"entry_position_value_after_fees: {entry_position_value_after_fees}")
 
-                    number_of_shares = float(last_order['filled_size'])
+                    number_of_shares = float(last_order['order']['filled_size'])
                     print('number_of_shares: ', number_of_shares)
 
                     # calculate profits if we were going to sell now
@@ -689,8 +725,8 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                             print('~ SELL OPPORTUNITY (price < SMA) ~')
                             # place_market_sell_order(symbol, number_of_shares)
 
-                plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price)  # Plot the graph each time data is updated
-
+                # Indicators are passed into the plot graph
+                plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price)
                 print('\n')
 
         time.sleep(interval_seconds)
