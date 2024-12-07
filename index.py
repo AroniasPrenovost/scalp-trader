@@ -492,6 +492,9 @@ def calculate_bollinger_bands(prices, period=20, num_std_dev=2):
 #
 
 def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price):
+    if entry_price == 0:
+        entry_price = pivot
+
     plt.figure()
     # price data
     plt.plot(list(price_data), marker='o', label='Price Data')
@@ -500,9 +503,6 @@ def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_per
     plt.axhline(y=resistance, color='r', linewidth=1.5, linestyle='--', label='Resistance')
     # etc...
     plt.axhline(y=pivot, color='r', linewidth=1, linestyle=':', label='Pivot')
-
-    if entry_price == 0:
-        entry_price = pivot
 
     plt.axhline(y=entry_price, color='g', linewidth=1.2, linestyle='-', label='Entry Price')
 
@@ -590,15 +590,12 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 current_price_position_within_trading_range = calculate_current_price_position_within_trading_range(current_price, support, resistance)
                 print(f"current_price_position_within_trading_range: {current_price_position_within_trading_range}%")
 
-                # Continue with existing business logic
                 asset_holdings = get_current_asset_holdings(symbol, client_accounts)
                 # print('asset_holdings: ', asset_holdings)
                 owned_shares = asset_holdings['available_balance'] if asset_holdings else 0
                 print('owned_shares: ', owned_shares)
 
-                entry_price = 0 # gets overwitten if an order exists
 
-                # Calculate SMA and RSI
                 sma = calculate_sma(LOCAL_PRICE_DATA[symbol], period=20)
                 rsi = calculate_rsi(LOCAL_PRICE_DATA[symbol])
                 macd_line, signal_line = calculate_macd(LOCAL_PRICE_DATA[symbol])
@@ -613,6 +610,8 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 #
                 # Manage order data/types in local ledger
                 #
+
+                entry_price = 0
 
                 last_order = get_last_order_from_local_json_ledger(symbol)
                 last_order_type = detect_stored_coinbase_order_type(last_order)
@@ -679,13 +678,13 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                     if sma is not None and rsi is not None and macd_line is not None and signal_line is not None:
                         if current_price > sma and rsi < 30 and macd_line > signal_line:
                             print('~ BUY OPPORTUNITY (current_price > sma, rsi < 30, MACD crossover)~')
-                            # place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                            place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
                         elif current_price < lower_band:
                             print('~ BUY OPPORTUNITY (price below lower Bollinger Band)~')
-                            # place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                            place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
                         elif expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
                             print('~ BUY OPPORTUNITY (expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE)~')
-                            # place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                            place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
 
                 elif looking_to_sell:
 
@@ -717,13 +716,13 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                         print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
                         if current_price >= resistance:
                             print('~ SELL OPPORTUNITY (price near resistance) ~')
-                            # place_market_sell_order(symbol, number_of_shares)
+                            place_market_sell_order(symbol, number_of_shares)
                         elif rsi is not None and rsi > 70:
                             print('~ SELL OPPORTUNITY (RSI > 70) ~')
-                            # place_market_sell_order(symbol, number_of_shares)
+                            place_market_sell_order(symbol, number_of_shares)
                         elif sma is not None and current_price < sma:
                             print('~ SELL OPPORTUNITY (price < SMA) ~')
-                            # place_market_sell_order(symbol, number_of_shares)
+                            place_market_sell_order(symbol, number_of_shares)
 
                 # Indicators are passed into the plot graph
                 plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price)
@@ -735,8 +734,8 @@ if __name__ == "__main__":
     while True:
         try:
             # Define time intervals
-            INTERVAL_SECONDS = 1
-            INTERVAL_MINUTES = 0.25
+            INTERVAL_SECONDS = 10
+            INTERVAL_MINUTES = 30
             DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
             iterate_assets(INTERVAL_SECONDS, DATA_POINTS_FOR_X_MINUTES)
         except Exception as e:
