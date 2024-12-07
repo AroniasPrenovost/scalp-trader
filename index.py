@@ -734,7 +734,7 @@ if __name__ == "__main__":
     while True:
         try:
             # Define time intervals
-            INTERVAL_SECONDS = 30
+            INTERVAL_SECONDS = 15
             INTERVAL_MINUTES = 240 # 4 hour
             # 1440 # 1 day
             DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
