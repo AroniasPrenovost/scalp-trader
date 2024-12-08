@@ -76,6 +76,14 @@ def send_email_notification(subject, text_content, html_content):
 
 #
 #
+# Coinmarketcap API
+#
+
+coinmarketcap_api_key = os.environ.get('COINMARKETCAP_API_KEY')
+print(coinmarketcap_api_key)
+
+#
+#
 # Coinbase API and taxes
 #
 
