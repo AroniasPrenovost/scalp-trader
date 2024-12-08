@@ -519,18 +519,11 @@ def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_per
     plt.ylabel("Price")
     plt.legend()
 
-    # Set y-axis minimum
-    min_displayed_price = min(price_data)
-    if entry_price < min_displayed_price:
-        min_displayed_price = entry_price
-    # Set y-axis maximum
-    max_displayed_price = max(price_data)
-    if entry_price > max_displayed_price:
-        max_displayed_price = entry_price
+    # Set y-axis minimum and maximum to ensure support and resistance are visible
+    min_displayed_price = min(min(price_data), support, resistance, entry_price)
+    max_displayed_price = max(max(price_data), support, resistance, entry_price)
 
-    # Set y-axis to show every increment
-    # plt.gca().yaxis.set_major_locator(ticker.MultipleLocator(0.001))
-    # plt.gca().yaxis.set_minor_locator(ticker.AutoMinorLocator())
+    # Set y-axis limits with a small buffer
     plt.gca().set_ylim(min_displayed_price - 0.002, max_displayed_price + 0.002)
 
     # Set x-axis to show time points
@@ -742,8 +735,8 @@ if __name__ == "__main__":
     while True:
         try:
             # Define time intervals
-            INTERVAL_SECONDS = 15
-            INTERVAL_MINUTES = 240 # 4 hour
+            INTERVAL_SECONDS = 1
+            INTERVAL_MINUTES = .25 # 4 hour
             # 1440 # 1 day
             DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
             iterate_assets(INTERVAL_SECONDS, DATA_POINTS_FOR_X_MINUTES)
