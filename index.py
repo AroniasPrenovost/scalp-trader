@@ -618,9 +618,9 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 print(f"Order Type: {last_order_type}")
 
                 if (last_order_type == 'placeholder'):
-                    full_order_data = get_coinbase_order_by_order_id(last_order['order_id'])
-                    if full_order_data:
-                        full_order_dict = full_order_data['order'] if isinstance(full_order_data, dict) else full_order_data.to_dict()
+                    fulfilled_order_data = get_coinbase_order_by_order_id(last_order['order_id'])
+                    if fulfilled_order_data:
+                        full_order_dict = fulfilled_order_data['order'] if isinstance(fulfilled_order_data, dict) else fulfilled_order_data.to_dict()
                         save_order_data_to_local_json_ledger(symbol, full_order_dict)
                         print('Updated ledger with full order data')
                         continue
