@@ -505,14 +505,14 @@ def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_per
 
     plt.figure()
     # price data
-    plt.plot(list(price_data), marker='o', label='Price Data')
+    plt.plot(list(price_data), marker='o', label='price')
     # support + resistance levels
-    plt.axhline(y=support, color='y', linewidth=1.5, linestyle='--', label='Support')
-    plt.axhline(y=resistance, color='r', linewidth=1.5, linestyle='--', label='Resistance')
+    plt.axhline(y=resistance, color='r', linewidth=1.5, linestyle='--', label='resistance')
+    plt.axhline(y=support, color='y', linewidth=1.5, linestyle='--', label='support')
     # etc...
-    plt.axhline(y=pivot, color='r', linewidth=1, linestyle=':', label='Pivot')
+    plt.axhline(y=pivot, color='r', linewidth=1, linestyle=':', label='pivot')
 
-    plt.axhline(y=entry_price, color='g', linewidth=1.2, linestyle='-', label='Entry Price')
+    plt.axhline(y=entry_price, color='g', linewidth=1.2, linestyle='-', label='entry price')
 
     plt.title(f"Price Data for {symbol}")
     plt.xlabel("Time")
