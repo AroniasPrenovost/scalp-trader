@@ -29,6 +29,14 @@ LOCAL_PRICE_DATA = {}
 
 #
 #
+# Initialize a dictionary to store support and resistance levels for each asset
+#
+
+SUPPORT_RESISTANCE_LEVELS = {}
+last_calculated_support_resistance_pivot_prices = {}  # Store the last calculated price for each asset
+
+#
+#
 # Mailjet configuration
 #
 
@@ -80,7 +88,7 @@ def send_email_notification(subject, text_content, html_content):
 #
 
 coinmarketcap_api_key = os.environ.get('COINMARKETCAP_API_KEY')
-print(coinmarketcap_api_key)
+# print(coinmarketcap_api_key)
 
 #
 #
@@ -354,6 +362,28 @@ def calculate_transaction_cost(entry_price, number_of_shares, fee_type):
 # Determine support and resistance levels
 #
 
+def should_recalculate_support_resistance(prices, last_calculated_price, price_change_threshold=1.0):
+    """
+    Determine if support and resistance levels should be recalculated based on significant price movement.
+
+    :param prices: deque of stock prices
+    :param last_calculated_price: the price at the last calculation of support/resistance
+    :param price_change_threshold: the percentage change required to trigger a recalculation
+    :return: boolean indicating whether to recalculate support and resistance
+    """
+    if not prices:
+        return False
+
+    current_price = prices[-1]
+    price_change_percentage = abs((current_price - last_calculated_price) / last_calculated_price) * 100
+
+    return price_change_percentage >= price_change_threshold
+
+#
+#
+# Determine support and resistance levels
+#
+
 def calculate_support_resistance(prices):
     """
     Calculate support and resistance levels using pivot points for a given set of stock prices.
@@ -508,7 +538,7 @@ def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_per
     plt.plot(list(price_data), marker='o', label='price')
     # support + resistance levels
     plt.axhline(y=resistance, color='r', linewidth=1.5, linestyle='--', label='resistance')
-    plt.axhline(y=support, color='y', linewidth=1.5, linestyle='--', label='support')
+    plt.axhline(y=support, color='r', linewidth=1.5, linestyle='--', label='support')
     # etc...
     plt.axhline(y=pivot, color='r', linewidth=1, linestyle=':', label='pivot')
 
@@ -579,7 +609,40 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 # Indicators
                 #
 
-                pivot, support, resistance = calculate_support_resistance(LOCAL_PRICE_DATA[symbol])
+                # Initialize last calculated price if not set
+                if symbol not in last_calculated_support_resistance_pivot_prices:
+                    last_calculated_support_resistance_pivot_prices[symbol] = current_price
+
+                # Check if we should recalculate support and resistance levels
+                if should_recalculate_support_resistance(LOCAL_PRICE_DATA[symbol], last_calculated_support_resistance_pivot_prices[symbol]):
+                    pivot, support, resistance = calculate_support_resistance(LOCAL_PRICE_DATA[symbol])
+                    last_calculated_support_resistance_pivot_prices[symbol] = current_price  # Update the last calculated price
+
+                    # Store the calculated support and resistance levels
+                    SUPPORT_RESISTANCE_LEVELS[symbol] = {
+                        'pivot': pivot,
+                        'support': support,
+                        'resistance': resistance
+                    }
+                    print(f"Recalculated support and resistance for {symbol}")
+
+                # Set and retrieve the stored support and resistance levels
+                levels = SUPPORT_RESISTANCE_LEVELS.get(symbol, {})
+                if levels == {}:
+                    pivot, support, resistance = calculate_support_resistance(LOCAL_PRICE_DATA[symbol])
+                    last_calculated_support_resistance_pivot_prices[symbol] = current_price  # Update the last calculated price
+
+                    # Store the calculated support and resistance levels
+                    SUPPORT_RESISTANCE_LEVELS[symbol] = {
+                        'pivot': pivot,
+                        'support': support,
+                        'resistance': resistance
+                    }
+
+                # print(levels)
+                pivot = levels.get('pivot', 0)
+                support = levels.get('support', 0)
+                resistance = levels.get('resistance', 0)
 
                 print(f"current_price: {current_price}")
                 print(f"support: {support}")
@@ -590,12 +653,6 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
 
                 current_price_position_within_trading_range = calculate_current_price_position_within_trading_range(current_price, support, resistance)
                 print(f"current_price_position_within_trading_range: {current_price_position_within_trading_range}%")
-
-                asset_holdings = get_current_asset_holdings(symbol, client_accounts)
-                # print('asset_holdings: ', asset_holdings)
-                owned_shares = asset_holdings['available_balance'] if asset_holdings else 0
-                print('owned_shares: ', owned_shares)
-
 
                 sma = calculate_sma(LOCAL_PRICE_DATA[symbol], period=20)
                 rsi = calculate_rsi(LOCAL_PRICE_DATA[symbol])
@@ -609,6 +666,16 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
 
                 #
                 #
+                # current holdings
+                #
+
+                asset_holdings = get_current_asset_holdings(symbol, client_accounts)
+                # print('asset_holdings: ', asset_holdings)
+                owned_shares = asset_holdings['available_balance'] if asset_holdings else 0
+                print('owned_shares: ', owned_shares)
+
+                #
+                #
                 # Manage order data/types in local ledger
                 #
 
@@ -616,7 +683,7 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
 
                 last_order = get_last_order_from_local_json_ledger(symbol)
                 last_order_type = detect_stored_coinbase_order_type(last_order)
-                print(f"Order Type: {last_order_type}")
+                # print(f"Order Type: {last_order_type}")
 
                 if (last_order_type == 'placeholder'):
                     fulfilled_order_data = get_coinbase_order_by_order_id(last_order['order_id'])
@@ -632,7 +699,7 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 looking_to_buy = False
                 looking_to_sell = False
                 if last_order_type == 'none':
-                    print("Order ledger is empty. Defaulting to looking_to_buy = True.")
+                    print('Order ledger is empty')
                     looking_to_buy = True
                 elif last_order_type == 'full':
                     if 'side' in last_order['order']:
@@ -682,6 +749,9 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                             place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
                         elif current_price < lower_band:
                             print('~ BUY OPPORTUNITY (price below lower Bollinger Band)~')
+                            place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                        elif current_price_position_within_trading_range < 12:
+                            print('~ BUY OPPORTUNITY (current_price_position_within_trading_range < 16)~')
                             place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
                         # elif expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
                         #     print('~ BUY OPPORTUNITY (expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE)~')
@@ -735,8 +805,8 @@ if __name__ == "__main__":
     while True:
         try:
             # Define time intervals
-            INTERVAL_SECONDS = 15
-            INTERVAL_MINUTES = 240 # 4 hour
+            INTERVAL_SECONDS = 1
+            INTERVAL_MINUTES = 0.25 # 4 hour
             # 1440 # 1 day
             DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
             iterate_assets(INTERVAL_SECONDS, DATA_POINTS_FOR_X_MINUTES)
