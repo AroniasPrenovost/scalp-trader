@@ -544,9 +544,9 @@ def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_per
 
     plt.axhline(y=entry_price, color='g', linewidth=1.2, linestyle='-', label='entry price')
 
-    plt.title(f"Price Data for {symbol}")
-    plt.xlabel("Time")
-    plt.ylabel("Price")
+    plt.title(f"{symbol}")
+    plt.xlabel("time")
+    plt.ylabel("price")
     plt.legend()
 
     # Set y-axis minimum and maximum to ensure support and resistance are visible
@@ -560,7 +560,7 @@ def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_per
     plt.gca().xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
 
     plt.grid(True)
-    plt.figtext(0.5, 0.01, f"Trading Range %: {trading_range_percentage}, Current Position %: {current_price_position_within_trading_range}", ha="center", fontsize=8)
+    plt.figtext(0.5, 0.01, f"trade range %: {trading_range_percentage}, current position %: {current_price_position_within_trading_range}", ha="center", fontsize=8)
     plt.show(block=False)
     plt.pause(0.1)
     plt.close()
@@ -655,14 +655,13 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 print(f"current_price_position_within_trading_range: {current_price_position_within_trading_range}%")
 
                 sma = calculate_sma(LOCAL_PRICE_DATA[symbol], period=20)
+                # print(f"SMA: {sma}")
                 rsi = calculate_rsi(LOCAL_PRICE_DATA[symbol])
+                # print(f"RSI: {rsi}")
                 macd_line, signal_line = calculate_macd(LOCAL_PRICE_DATA[symbol])
+                # print(f"MACD Line: {macd_line}, Signal Line: {signal_line}")
                 upper_band, lower_band, _ = calculate_bollinger_bands(LOCAL_PRICE_DATA[symbol])
-
-                print(f"SMA: {sma}")
-                print(f"RSI: {rsi}")
-                print(f"MACD Line: {macd_line}, Signal Line: {signal_line}")
-                print(f"Bollinger Bands - Upper: {upper_band}, Lower: {lower_band}")
+                # print(f"Bollinger Bands - Upper: {upper_band}, Lower: {lower_band}")
 
                 #
                 #
@@ -806,7 +805,7 @@ if __name__ == "__main__":
         try:
             # Define time intervals
             INTERVAL_SECONDS = 1
-            INTERVAL_MINUTES = 0.25 # 4 hour
+            INTERVAL_MINUTES = 5 # 4 hour
             # 1440 # 1 day
             DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
             iterate_assets(INTERVAL_SECONDS, DATA_POINTS_FOR_X_MINUTES)
