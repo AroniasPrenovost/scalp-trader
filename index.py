@@ -853,7 +853,7 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 if looking_to_buy:
 
                     # Calculate a buffer zone below the resistance
-                    buffer_zone = (resistance - support) * 0.05  # 5% below resistance
+                    buffer_zone = (resistance - support) * 0.04  # 5% below resistance
                     anticipated_sell_price = resistance - buffer_zone
 
                     # Calculate expected profit and profit percentage
