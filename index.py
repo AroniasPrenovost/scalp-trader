@@ -90,7 +90,7 @@ def send_email_notification(subject, text_content, html_content):
 
 coinmarketcap_api_key = os.environ.get('COINMARKETCAP_API_KEY')
 
-def fetch_crypto_data(symbol):
+def fetch_coinmarketcap_volume_data(symbol):
     symbol = symbol.split('-')[0] # Use only the crypto symbol
     """
     Fetch the latest cryptocurrency data for a given symbol using the CoinMarketCap API.
@@ -551,6 +551,90 @@ def calculate_bollinger_bands(prices, period=20, num_std_dev=2):
 
 #
 #
+# Volume Analysis Functions
+#
+
+def volume_strength_index(volume_24h, volume_change_24h, price_change_24h):
+    """
+    Calculate a volume strength index based on 24-hour metrics.
+    :param volume_24h: Total volume in 24 hours
+    :param volume_change_24h: Percentage change in volume
+    :param price_change_24h: Percentage change in price
+    :return: Volume strength score (-1 to 1)
+    """
+    volume_momentum = volume_change_24h / 100
+    price_volume_correlation = (price_change_24h / 100) * (abs(volume_change_24h) / 100) if volume_24h > 0 else 0
+    strength_score = (volume_momentum + price_volume_correlation) / 2
+    return max(min(strength_score, 1), -1)
+
+def generate_volume_signal(volume_24h, volume_change_24h, price_change_24h, volume_threshold=5000000, volume_change_threshold=-20):
+    """
+    Generate trading signals based on volume characteristics.
+    :param volume_24h: Total volume in 24 hours
+    :param volume_change_24h: Percentage change in volume
+    :param price_change_24h: Percentage change in price
+    :param volume_threshold: Minimum volume for consideration
+    :param volume_change_threshold: Minimum volume change threshold
+    :return: Trading signal (-1: sell, 0: hold, 1: buy)
+    """
+    strength_score = volume_strength_index(volume_24h, volume_change_24h, price_change_24h)
+    if volume_24h < volume_threshold:
+        return 0  # Insufficient volume
+    if volume_change_24h < volume_change_threshold:
+        return -1 if price_change_24h > 0 else 0  # Potential bearish divergence
+    if strength_score > 0.5:
+        return 1  # Strong bullish signal
+    elif strength_score < -0.5:
+        return -1  # Strong bearish signal
+    return 0  # Neutral signal
+
+def volume_volatility_indicator(volume_24h, volume_change_24h, price_change_1h):
+    """
+    Calculate volume volatility.
+    :param volume_24h: Total volume in 24 hours
+    :param volume_change_24h: Percentage change in volume
+    :param price_change_1h: Percentage change in 1 hour
+    :return: Volatility score
+    """
+    volume_volatility = abs(volume_change_24h)
+    price_momentum = abs(price_change_1h)
+    volatility_score = (volume_volatility * price_momentum) / 100
+    return volatility_score
+
+# Scalp Trading Strategy Function (using volume analysis)
+#
+
+def volume_based_strategy_recommendation(data):
+    """
+    Scalp trading strategy using volume analysis.
+    :param data: Dictionary containing volume and price change data
+    :return: Trading recommendation
+    """
+    volume_24h = data['quote']['USD']['volume_24h']
+    volume_change_24h = data['quote']['USD']['volume_change_24h']
+    price_change_24h = data['quote']['USD']['percent_change_24h']
+    price_change_1h = data['quote']['USD']['percent_change_1h']
+
+    volume_signal = generate_volume_signal(volume_24h, volume_change_24h, price_change_24h)
+    volatility = volume_volatility_indicator(volume_24h, volume_change_24h, price_change_1h)
+
+    if volume_signal == 1 and volatility < 2:
+        return 'buy'
+        # Strong volume support with low volatility"
+    elif volume_signal == -1 and volatility > 3:
+        return 'sell'
+        # Weakening volume and high volatility"
+    else:
+        return 'hold'
+        # Insufficient clear signals"
+
+# volume_data = fetch_coinmarketcap_volume_data(symbol)
+# if volume_data:
+#     trading_recommendation = volume_based_strategy_recommendation(volume_data)
+#     print(f"Trading Recommendation for {symbol}: {trading_recommendation}")
+
+#
+#
 # Create chart
 #
 
@@ -701,6 +785,19 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 # print(f"MACD Line: {macd_line}, Signal Line: {signal_line}")
                 upper_band, lower_band, _ = calculate_bollinger_bands(LOCAL_PRICE_DATA[symbol])
                 # print(f"Bollinger Bands - Upper: {upper_band}, Lower: {lower_band}")
+
+                print('________')
+                if sma is not None and rsi is not None and macd_line is not None and signal_line is not None:
+                    if current_price > sma and rsi < 30 and macd_line > signal_line:
+                        print('~ test BUY OPPORTUNITY (current_price > sma, rsi < 30, MACD crossover)~')
+                        # place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                    elif current_price < lower_band:
+                        print('~ test BUY OPPORTUNITY (price below lower Bollinger Band)~')
+                        # place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                    elif current_price_position_within_trading_range < 8:
+                        print('~ test BUY OPPORTUNITY (current_price_position_within_trading_range < 16)~')
+                        # place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                print('_________')
 
                 #
                 #
