@@ -10,6 +10,7 @@ from collections import deque
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
+import requests # supports CoinMarketCap
 # coinbase api
 from coinbase.rest import RESTClient
 from mailjet_rest import Client
@@ -88,7 +89,29 @@ def send_email_notification(subject, text_content, html_content):
 #
 
 coinmarketcap_api_key = os.environ.get('COINMARKETCAP_API_KEY')
-# print(coinmarketcap_api_key)
+
+def fetch_crypto_data(symbol):
+    symbol = symbol.split('-')[0] # Use only the crypto symbol
+    """
+    Fetch the latest cryptocurrency data for a given symbol using the CoinMarketCap API.
+    """
+    LATEST_PRICE_API_URL = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest'
+    headers = {
+        'X-CMC_PRO_API_KEY': coinmarketcap_api_key,
+        'Accept': 'application/json',
+    }
+    params = {
+        'symbol': symbol,
+    }
+
+    try:
+        response = requests.get(LATEST_PRICE_API_URL, headers=headers, params=params)
+        response.raise_for_status()  # Raise an exception for HTTP errors
+        data = response.json()
+        return data['data'][symbol]
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching latest data for {symbol}: {e}")
+        return None
 
 #
 #
