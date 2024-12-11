@@ -38,6 +38,14 @@ last_calculated_support_resistance_pivot_prices = {}  # Store the last calculate
 
 #
 #
+# Initialize a dictionary to store Coinmarketcap volume data and its timestamp
+#
+
+CMC_VOLUME_DATA_CACHE = {}
+CMC_VOLUME_DATA_TIMESTAMP = {}
+
+#
+#
 # Mailjet configuration
 #
 
@@ -91,10 +99,16 @@ def send_email_notification(subject, text_content, html_content):
 coinmarketcap_api_key = os.environ.get('COINMARKETCAP_API_KEY')
 
 def fetch_coinmarketcap_volume_data(symbol):
-    symbol = symbol.split('-')[0] # Use only the crypto symbol
-    """
-    Fetch the latest cryptocurrency data for a given symbol using the CoinMarketCap API.
-    """
+    global CMC_VOLUME_DATA_CACHE, CMC_VOLUME_DATA_TIMESTAMP
+
+    symbol = symbol.split('-')[0]  # Use only the crypto symbol
+    current_time = time.time()
+
+    # Check if we have cached data and if it's still valid (less than 5 minutes old)
+    if symbol in CMC_VOLUME_DATA_CACHE and (current_time - CMC_VOLUME_DATA_TIMESTAMP[symbol] < 300):
+        return CMC_VOLUME_DATA_CACHE[symbol]
+
+    # If not, fetch new data
     LATEST_PRICE_API_URL = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest'
     headers = {
         'X-CMC_PRO_API_KEY': coinmarketcap_api_key,
@@ -108,7 +122,9 @@ def fetch_coinmarketcap_volume_data(symbol):
         response = requests.get(LATEST_PRICE_API_URL, headers=headers, params=params)
         response.raise_for_status()  # Raise an exception for HTTP errors
         data = response.json()
-        return data['data'][symbol]
+        CMC_VOLUME_DATA_CACHE[symbol] = data['data'][symbol]
+        CMC_VOLUME_DATA_TIMESTAMP[symbol] = current_time
+        return CMC_VOLUME_DATA_CACHE[symbol]
     except requests.exceptions.RequestException as e:
         print(f"Error fetching latest data for {symbol}: {e}")
         return None
@@ -718,25 +734,33 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 # Indicators
                 #
 
-                # Initialize last calculated price if not set
+                # get trade recommendation based on volume
+                volume_data = fetch_coinmarketcap_volume_data(symbol)
+                trading_recommendation = volume_based_strategy_recommendation(volume_data) # ('buy', 'sell', 'hold')
+                print('volume-based trading recommendation: ', trading_recommendation)
+
+                # Initialize last calculated support+resistance price if not set
                 if symbol not in last_calculated_support_resistance_pivot_prices:
                     last_calculated_support_resistance_pivot_prices[symbol] = current_price
 
                 # Check if we should recalculate support and resistance levels
                 if should_recalculate_support_resistance(LOCAL_PRICE_DATA[symbol], last_calculated_support_resistance_pivot_prices[symbol]):
-                    # check if we're recalculating because price has gone too far below support
-                    ENABLED = False
-                    if current_price < last_calculated_support_resistance_pivot_prices[symbol]:
-                        if ENABLED:
-                            last_order = get_last_order_from_local_json_ledger(symbol)
-                            last_order_type = detect_stored_coinbase_order_type(last_order)
-                            if last_order_type == 'buy':
+                    last_order = get_last_order_from_local_json_ledger(symbol)
+                    last_order_type = detect_stored_coinbase_order_type(last_order)
+                    if last_order_type == 'buy':
+                        # check if price has gone below support
+                        if current_price < last_calculated_support_resistance_pivot_prices[symbol]:
+                            # doublecheck volume-based strategy
+                            current_time = time.time()
+                            if symbol in CMC_VOLUME_DATA_CACHE:
+                                del CMC_VOLUME_DATA_CACHE[symbol]
+                            CMC_VOLUME_DATA_TIMESTAMP[symbol] = current_time
+                            volume_data = fetch_coinmarketcap_volume_data(symbol)
+                            trading_recommendation = volume_based_strategy_recommendation(volume_data)
+                            if trading_recommendation == 'sell':
                                 shares = last_order['order']['filled_size']
                                 place_market_sell_order(symbol, shares)
-                                print('CUT LOSSES')
-                        else:
-                            print('disabled forced SELLOFF for now')
-
+                                print('~ SELL OPPORTUNITY (cutting losses) ~')
 
                     pivot, support, resistance = calculate_support_resistance(LOCAL_PRICE_DATA[symbol])
                     last_calculated_support_resistance_pivot_prices[symbol] = current_price  # Update the last calculated price
@@ -798,6 +822,7 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                         print('~ test BUY OPPORTUNITY (current_price_position_within_trading_range < 16)~')
                         # place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
                 print('_________')
+                quit()
 
                 #
                 #
@@ -850,7 +875,7 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 # buy / sell logic
                 #
 
-                if looking_to_buy:
+                if looking_to_buy and trading_recommendation == 'buy':
 
                     # Calculate a buffer zone below the resistance
                     buffer_zone = (resistance - support) * 0.04  # 5% below resistance
@@ -879,11 +904,11 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                         elif current_price < lower_band:
                             print('~ BUY OPPORTUNITY (price below lower Bollinger Band)~')
                             place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                        elif current_price_position_within_trading_range < 12:
-                            print('~ BUY OPPORTUNITY (current_price_position_within_trading_range < 16)~')
+                        elif current_price_position_within_trading_range < 9:
+                            print('~ BUY OPPORTUNITY (current_price_position_within_trading_range < 9)~')
                             place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
 
-                elif looking_to_sell:
+                elif looking_to_sell and trading_recommendation == 'sell':
 
                     entry_price = float(last_order['order']['average_filled_price'])
                     print(f"entry_price: {entry_price}")
