@@ -720,7 +720,7 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                         continue
 
                 # error handling
-                if looking_to_buy == looking_to_sell or looking_to_sell and owned_shares == 0:
+                if (looking_to_buy == True and looking_to_sell == True) or looking_to_sell and owned_shares == 0:
                     print('something went wrong with local buy/sell order data')
                     continue
 
