@@ -245,7 +245,12 @@ def detect_stored_coinbase_order_type(last_order):
     if last_order is None: # if empty
         return 'none'
     if 'order' in last_order: # if 'order' key exists, it's a finalized order
-        return 'full'
+        if 'side' in last_order['order']:
+            type = last_order['order']['side']
+            return type.lower()
+        #     looking_to_buy = last_order['order']['side'] == 'SELL'
+        #     looking_to_sell = last_order['order']['side'] == 'BUY'
+        # return 'full'
     else:
         return 'placeholder'
 
@@ -615,6 +620,20 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
 
                 # Check if we should recalculate support and resistance levels
                 if should_recalculate_support_resistance(LOCAL_PRICE_DATA[symbol], last_calculated_support_resistance_pivot_prices[symbol]):
+                    # check if we're recalculating because price has gone too far below support
+                    ENABLED = False
+                    if current_price < last_calculated_support_resistance_pivot_prices[symbol]:
+                        if ENABLED:
+                            last_order = get_last_order_from_local_json_ledger(symbol)
+                            last_order_type = detect_stored_coinbase_order_type(last_order)
+                            if last_order_type == 'buy':
+                                shares = last_order['order']['filled_size']
+                                place_market_sell_order(symbol, shares)
+                                print('CUT LOSSES')
+                        else:
+                            print('disabled forced SELLOFF for now')
+
+
                     pivot, support, resistance = calculate_support_resistance(LOCAL_PRICE_DATA[symbol])
                     last_calculated_support_resistance_pivot_prices[symbol] = current_price  # Update the last calculated price
 
@@ -682,38 +701,32 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
 
                 last_order = get_last_order_from_local_json_ledger(symbol)
                 last_order_type = detect_stored_coinbase_order_type(last_order)
-                # print(f"Order Type: {last_order_type}")
 
+                looking_to_buy = False
+                looking_to_sell = False
+                if last_order_type == 'none' or last_order_type == 'sell':
+                    looking_to_buy = True
+                if last_order_type == 'buy':
+                    looking_to_sell = True
                 if (last_order_type == 'placeholder'):
                     fulfilled_order_data = get_coinbase_order_by_order_id(last_order['order_id'])
                     if fulfilled_order_data:
                         full_order_dict = fulfilled_order_data['order'] if isinstance(fulfilled_order_data, dict) else fulfilled_order_data.to_dict()
                         save_order_data_to_local_json_ledger(symbol, full_order_dict)
-                        print('Updated ledger with full order data')
+                        print('Updated ledger with full order data \n')
                         continue
                     else:
-                        print('still waiting to pull full order data info')
+                        print('still waiting to pull full order data info \n')
                         continue
-
-                looking_to_buy = False
-                looking_to_sell = False
-                if last_order_type == 'none':
-                    print('Order ledger is empty')
-                    looking_to_buy = True
-                elif last_order_type == 'full':
-                    if 'side' in last_order['order']:
-                        looking_to_buy = last_order['order']['side'] == 'SELL'
-                        looking_to_sell = last_order['order']['side'] == 'BUY'
-
-                if looking_to_buy == True:
-                    print('STATUS:  looking_to_buy')
-                if looking_to_sell == True:
-                    print('STATUS:  looking_to_sell')
 
                 # error handling
                 if looking_to_buy == looking_to_sell or looking_to_sell and owned_shares == 0:
                     print('something went wrong with local buy/sell order data')
                     continue
+
+                # print('last_order_type: ', last_order_type)
+                # print('looking_to_buy: ', looking_to_buy)
+                # print('looking_to_sell: ', looking_to_sell)
 
                 #
                 #
@@ -805,7 +818,7 @@ if __name__ == "__main__":
         try:
             # Define time intervals
             INTERVAL_SECONDS = 1
-            INTERVAL_MINUTES = 5 # 4 hour
+            INTERVAL_MINUTES = 0.25 # 4 hour
             # 1440 # 1 day
             DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
             iterate_assets(INTERVAL_SECONDS, DATA_POINTS_FOR_X_MINUTES)
