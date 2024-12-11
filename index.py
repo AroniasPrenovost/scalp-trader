@@ -882,9 +882,6 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                         elif current_price_position_within_trading_range < 12:
                             print('~ BUY OPPORTUNITY (current_price_position_within_trading_range < 16)~')
                             place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                        # elif expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
-                        #     print('~ BUY OPPORTUNITY (expected_profit_percentage >= TARGET_PROFIT_PERCENTAGE)~')
-                        #     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
 
                 elif looking_to_sell:
 
