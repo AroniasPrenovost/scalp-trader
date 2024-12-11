@@ -242,15 +242,12 @@ def get_coinbase_order_by_order_id(order_id):
 #
 
 def detect_stored_coinbase_order_type(last_order):
-    if last_order is None: # if empty
+    if last_order is None:
         return 'none'
     if 'order' in last_order: # if 'order' key exists, it's a finalized order
         if 'side' in last_order['order']:
             type = last_order['order']['side']
             return type.lower()
-        #     looking_to_buy = last_order['order']['side'] == 'SELL'
-        #     looking_to_sell = last_order['order']['side'] == 'BUY'
-        # return 'full'
     else:
         return 'placeholder'
 
