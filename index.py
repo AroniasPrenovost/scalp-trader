@@ -485,52 +485,6 @@ def calculate_sma(prices, period):
     prices_list = list(prices)
     return np.mean(prices_list[-period:])
 
-
-#
-#
-# Calculate Relative Strength Index (RSI)
-#
-
-def calculate_rsi(prices, period=14):
-    if len(prices) < period:
-        return None
-    # Convert deque to a NumPy array for slicing and calculations
-    prices_array = np.array(prices)
-    deltas = np.diff(prices_array)
-    seed = deltas[:period]
-    up = seed[seed >= 0].sum() / period
-    down = -seed[seed < 0].sum() / period
-
-    # Check if down is zero to avoid division by zero
-    if down == 0:
-        return 100.0  # RSI is 100 if there are no losses
-
-    rs = up / down
-    rsi = np.zeros_like(prices_array)
-    rsi[:period] = 100. - 100. / (1. + rs)
-
-    for i in range(period, len(prices_array)):
-        delta = deltas[i - 1]  # The diff is 1 shorter
-
-        if delta > 0:
-            upval = delta
-            downval = 0.
-        else:
-            upval = 0.
-            downval = -delta
-
-        up = (up * (period - 1) + upval) / period
-        down = (down * (period - 1) + downval) / period
-
-        # Check if down is zero to avoid division by zero
-        if down == 0:
-            rsi[i] = 100.0  # RSI is 100 if there are no losses
-        else:
-            rs = up / down
-            rsi[i] = 100. - 100. / (1. + rs)
-
-    return rsi[-1]
-
 #
 #
 # Calculate MACD
@@ -650,7 +604,7 @@ def volume_based_strategy_recommendation(data):
 # Create chart
 #
 
-def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price):
+def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price, min_price, max_price):
     if entry_price == 0:
         entry_price = pivot
 
@@ -658,12 +612,18 @@ def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_per
     # price data
     plt.plot(list(price_data), marker='o', label='price')
     # support + resistance levels
-    plt.axhline(y=resistance, color='r', linewidth=1.5, linestyle='--', label='resistance')
-    plt.axhline(y=support, color='r', linewidth=1.5, linestyle='--', label='support')
+    plt.axhline(y=resistance, color='b', linewidth=1.4, linestyle='--', label='resistance')
+    plt.axhline(y=support, color='b', linewidth=1.4, linestyle='--', label='support')
     # etc...
     plt.axhline(y=pivot, color='r', linewidth=1, linestyle=':', label='pivot')
 
-    plt.axhline(y=entry_price, color='g', linewidth=1.2, linestyle='-', label='entry price')
+    entry_price_width = 1.2
+    if entry_price == 0:
+        entry_price_width = 0
+    plt.axhline(y=entry_price, color='g', linewidth=entry_price_width, linestyle='-', label='entry price')
+
+    plt.axhline(y=min_price, color='y', linewidth=1.2, linestyle='-', label='min price')
+    plt.axhline(y=max_price, color='y', linewidth=1.2, linestyle='-', label='max price')
 
     plt.title(f"{symbol}")
     plt.xlabel("time")
@@ -800,13 +760,13 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
 
                 sma = calculate_sma(LOCAL_PRICE_DATA[symbol], period=20)
                 # print(f"SMA: {sma}")
-                rsi = calculate_rsi(LOCAL_PRICE_DATA[symbol])
-                # print(f"RSI: {rsi}")
                 macd_line, signal_line = calculate_macd(LOCAL_PRICE_DATA[symbol])
                 # print(f"MACD Line: {macd_line}, Signal Line: {signal_line}")
                 upper_band, lower_band, _ = calculate_bollinger_bands(LOCAL_PRICE_DATA[symbol])
                 # print(f"Bollinger Bands - Upper: {upper_band}, Lower: {lower_band}")
 
+                minimum_price_in_chart = min(LOCAL_PRICE_DATA[symbol])
+                maximum_price_in_chart = max(LOCAL_PRICE_DATA[symbol])
                 #
                 #
                 # current holdings
@@ -867,16 +827,19 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                         print(f"net_expected_profit: {net_expected_profit}")
                         print(f"expected_profit_percentage: {expected_profit_percentage:.2f}%")
 
-                        # Buy signal: current price crosses above SMA and RSI is below 30
-                        if sma is not None and rsi is not None and macd_line is not None and signal_line is not None:
-                            if current_price > sma and rsi < 30 and macd_line > signal_line:
-                                print('~ BUY OPPORTUNITY (current_price > sma, rsi < 30, MACD crossover)~')
+                        # Buy signal: current price crosses above SMA
+                        if sma is not None and macd_line is not None and signal_line is not None:
+                            if current_price > sma and macd_line > signal_line:
+                                print('~ BUY OPPORTUNITY (current_price > sma, MACD crossover)~')
                                 place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
                             elif current_price < lower_band:
                                 print('~ BUY OPPORTUNITY (price below lower Bollinger Band)~')
                                 place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                            elif current_price_position_within_trading_range < 9:
-                                print('~ BUY OPPORTUNITY (current_price_position_within_trading_range < 9)~')
+                            elif current_price_position_within_trading_range < 6:
+                                print('~ BUY OPPORTUNITY (current_price_position_within_trading_range < 6)~')
+                                place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                            elif current_price < minimum_price_in_chart:
+                                print('~ BUY OPPORTUNITY (current_price < minimum_price_in_chart)~')
                                 place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
 
 
@@ -918,15 +881,12 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                         if current_price >= resistance:
                             print('~ SELL OPPORTUNITY (price near resistance) ~')
                             place_market_sell_order(symbol, number_of_shares)
-                        elif rsi is not None and rsi > 70:
-                            print('~ SELL OPPORTUNITY (RSI > 70) ~')
-                            place_market_sell_order(symbol, number_of_shares)
                         elif sma is not None and current_price < sma:
                             print('~ SELL OPPORTUNITY (price < SMA) ~')
                             place_market_sell_order(symbol, number_of_shares)
 
                 # Indicators are passed into the plot graph
-                plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price)
+                plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price, minimum_price_in_chart, maximum_price_in_chart)
                 print('\n')
 
         time.sleep(interval_seconds)
@@ -935,7 +895,7 @@ if __name__ == "__main__":
     while True:
         try:
             # Define time intervals
-            INTERVAL_SECONDS = 5
+            INTERVAL_SECONDS = 1
             INTERVAL_MINUTES = 0.25 # 4 hour
             # 1440 # 1 day
             DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
