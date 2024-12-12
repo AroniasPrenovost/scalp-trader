@@ -30,6 +30,13 @@ LOCAL_PRICE_DATA = {}
 
 #
 #
+# Initialize a dictionary to store volume-based recommendations for each asset
+#
+
+VOLUME_BASED_RECOMMENDATIONS = {}
+
+#
+#
 # Initialize a dictionary to store support and resistance levels for each asset
 #
 
@@ -690,11 +697,22 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 # Indicators
                 #
 
+                if symbol not in VOLUME_BASED_RECOMMENDATIONS:
+                    VOLUME_BASED_RECOMMENDATIONS[symbol] = 0
+
                 # get trade recommendation based on volume
                 volume_data = fetch_coinmarketcap_volume_data(symbol)
                 # print(volume_data)
                 volume_based_strategy = volume_based_strategy_recommendation(volume_data) # ('buy', 'sell', 'hold')
                 print('volume_based_strategy: ', volume_based_strategy)
+                # detect change in recommendation
+                if VOLUME_BASED_RECOMMENDATIONS[symbol] != volume_based_strategy:
+                    send_email_notification(
+                        subject=f"strategy change: {str(VOLUME_BASED_RECOMMENDATIONS[symbol]).upper()} --> {str(volume_based_strategy).upper()}",
+                        text_content=f"{str(VOLUME_BASED_RECOMMENDATIONS[symbol]).upper()} --> {str(volume_based_strategy).upper()}",
+                        html_content="strategy changed"
+                    )
+                    VOLUME_BASED_RECOMMENDATIONS[symbol] = volume_based_strategy # Store the swing trade recommendation
 
                 # Initialize last calculated support+resistance price if not set
                 if symbol not in last_calculated_support_resistance_pivot_prices:
@@ -714,6 +732,14 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                                 del CMC_VOLUME_DATA_TIMESTAMP[symbol]
                             volume_data = fetch_coinmarketcap_volume_data(symbol)
                             volume_based_strategy = volume_based_strategy_recommendation(volume_data)
+                            # detect change in recommendation
+                            if VOLUME_BASED_RECOMMENDATIONS[symbol] != volume_based_strategy:
+                                send_email_notification(
+                                    subject=f"strategy change: {str(VOLUME_BASED_RECOMMENDATIONS[symbol]).upper()} --> {volume_based_strategy.update()}",
+                                    text_content=f"{str(VOLUME_BASED_RECOMMENDATIONS[symbol]).upper()} --> {str(volume_based_strategy).upper()}",
+                                    html_content="strategy changed"
+                                )
+                                VOLUME_BASED_RECOMMENDATIONS[symbol] = volume_based_strategy
                             if volume_based_strategy == 'sell':
                                 print('~ SELL OPPORTUNITY (cutting losses) ~')
                                 shares = last_order['order']['filled_size']
