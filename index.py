@@ -846,6 +846,10 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                     if volume_based_strategy == 'buy':
                         print('looking to BUY')
 
+                        if trading_range_percentage < TARGET_PROFIT_PERCENTAGE:
+                            print('trading range smaller than target_profit_percentage')
+                            continue
+
                         # Calculate a buffer zone below the resistance
                         buffer_zone = (resistance - support) * 0.04  # 5% below resistance
                         anticipated_sell_price = resistance - buffer_zone
@@ -935,7 +939,7 @@ if __name__ == "__main__":
         try:
             # Define time intervals
             INTERVAL_SECONDS = 5
-            INTERVAL_MINUTES = 30 # 4 hour
+            INTERVAL_MINUTES = 0.25 # 4 hour
             # 1440 # 1 day
             DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
             iterate_assets(INTERVAL_SECONDS, DATA_POINTS_FOR_X_MINUTES)
