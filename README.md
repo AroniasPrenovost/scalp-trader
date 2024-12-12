@@ -5,10 +5,11 @@ This project is a cryptocurrency trading bot that interacts with the Coinbase AP
 ## Features
 
 - Fetch current asset prices from Coinbase.
+- Fetch asset volume data from CoinMarketCap.
 - Manage asset positions and account balances.
 - Place market orders for buying and selling assets.
 - Calculate potential profits, exchange fees, and taxes.
-- Monitor market conditions and trigger buy/sell actions based on technical indicators such as SMA, RSI, MACD, and Bollinger Bands.
+- Monitor market conditions and trigger buy/sell actions based on technical indicators such as SMA, MACD, and Bollinger Bands.
 - Send email notifications for order placements using Mailjet.
 
 ## Prerequisites
@@ -22,6 +23,7 @@ This project is a cryptocurrency trading bot that interacts with the Coinbase AP
   - `COINBASE_SPOT_MAKER_FEE`
   - `COINBASE_SPOT_TAKER_FEE`
   - `FEDERAL_TAX_RATE`
+  - `COINMARKETCAP_API_KEY`
   - `MAILJET_API_KEY`
   - `MAILJET_SECRET_KEY`
   - `MAILJET_FROM_EMAIL`
@@ -52,6 +54,7 @@ This project is a cryptocurrency trading bot that interacts with the Coinbase AP
    COINBASE_SPOT_MAKER_FEE=0.5
    COINBASE_SPOT_TAKER_FEE=0.5
    FEDERAL_TAX_RATE=15
+  COINMARKETCAP_API_KEY=some_api_key
    MAILJET_API_KEY=your_mailjet_api_key
    MAILJET_SECRET_KEY=your_mailjet_secret_key
    MAILJET_FROM_EMAIL=your_email
