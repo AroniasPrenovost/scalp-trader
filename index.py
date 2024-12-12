@@ -100,8 +100,8 @@ def fetch_coinmarketcap_volume_data(symbol):
     CMC_SYMBOL = symbol.split('-')[0] # NOTE symbol modification
     current_time = time.time()
 
-    # Check if we have cached data and if it's still valid (less than 5 minutes old)
-    if symbol in CMC_VOLUME_DATA_CACHE and (current_time - CMC_VOLUME_DATA_TIMESTAMP[symbol] < 300):
+    # Check if we have cached data and if it's still valid (less than 15 minutes old)
+    if symbol in CMC_VOLUME_DATA_CACHE and (current_time - CMC_VOLUME_DATA_TIMESTAMP[symbol] < 900):
         return CMC_VOLUME_DATA_CACHE[symbol]
 
     # If not, fetch new data
