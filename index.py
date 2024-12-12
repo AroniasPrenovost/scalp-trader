@@ -896,7 +896,7 @@ if __name__ == "__main__":
         try:
             # Define time intervals
             INTERVAL_SECONDS = 10
-            INTERVAL_MINUTES = 4 # 4 hour
+            INTERVAL_MINUTES = 240 # 4 hour
             # 1440 # 1 day
             DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
             iterate_assets(INTERVAL_SECONDS, DATA_POINTS_FOR_X_MINUTES)
