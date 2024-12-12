@@ -828,8 +828,7 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 last_order_type = detect_stored_coinbase_order_type(last_order)
 
                 #
-                # handle unverified BUY / SELL order
-                #
+                # Handle unverified BUY / SELL order
                 if last_order_type == 'placeholder':
                     fulfilled_order_data = get_coinbase_order_by_order_id(last_order['order_id'])
                     if fulfilled_order_data:
@@ -841,7 +840,6 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
 
                 #
                 # BUY logic
-                #
                 elif last_order_type == 'none' or last_order_type == 'sell':
                     if volume_based_strategy == 'buy':
                         print('looking to BUY')
@@ -884,7 +882,6 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
 
                 #
                 # SELL logic
-                #
                 elif last_order_type == 'buy' and volume_based_strategy == 'sell':
                     print('looking to SELL')
 
