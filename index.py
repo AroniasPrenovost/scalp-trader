@@ -811,20 +811,6 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 upper_band, lower_band, _ = calculate_bollinger_bands(LOCAL_PRICE_DATA[symbol])
                 # print(f"Bollinger Bands - Upper: {upper_band}, Lower: {lower_band}")
 
-                print('________')
-                if sma is not None and rsi is not None and macd_line is not None and signal_line is not None:
-                    if current_price > sma and rsi < 30 and macd_line > signal_line:
-                        print('~ test BUY OPPORTUNITY (current_price > sma, rsi < 30, MACD crossover)~')
-                        # place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                    elif current_price < lower_band:
-                        print('~ test BUY OPPORTUNITY (price below lower Bollinger Band)~')
-                        # place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                    elif current_price_position_within_trading_range < 8:
-                        print('~ test BUY OPPORTUNITY (current_price_position_within_trading_range < 16)~')
-                        # place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                print('_________')
-                quit()
-
                 #
                 #
                 # current holdings
@@ -868,8 +854,26 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                     continue
 
                 # print('last_order_type: ', last_order_type)
-                # print('looking_to_buy: ', looking_to_buy)
-                # print('looking_to_sell: ', looking_to_sell)
+                print('looking_to_buy: ', looking_to_buy)
+                print('looking_to_sell: ', looking_to_sell)
+
+                print('________')
+                if looking_to_buy and volume_based_strategy == 'buy':
+                    if sma is not None and rsi is not None and macd_line is not None and signal_line is not None:
+                        if current_price > sma and rsi < 30 and macd_line > signal_line:
+                            print('~ test BUY OPPORTUNITY (current_price > sma, rsi < 30, MACD crossover)~')
+                            # place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                        elif current_price < lower_band:
+                            print('~ test BUY OPPORTUNITY (price below lower Bollinger Band)~')
+                            # place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                        elif current_price_position_within_trading_range < 8:
+                            print('~ test BUY OPPORTUNITY (current_price_position_within_trading_range < 16)~')
+                            # place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                print('_________')
+                plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price)
+
+                print('SKIP')
+                continue
 
                 #
                 #
@@ -957,8 +961,8 @@ if __name__ == "__main__":
     while True:
         try:
             # Define time intervals
-            INTERVAL_SECONDS = 1
-            INTERVAL_MINUTES = 0.25 # 4 hour
+            INTERVAL_SECONDS = 5
+            INTERVAL_MINUTES = 30 # 4 hour
             # 1440 # 1 day
             DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
             iterate_assets(INTERVAL_SECONDS, DATA_POINTS_FOR_X_MINUTES)
