@@ -845,7 +845,7 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
 
                 #
                 # SELL logic
-                elif last_order_type == 'buy' and volume_based_strategy == 'sell':
+                elif last_order_type == 'buy': # and volume_based_strategy == 'sell':
                     print('looking to SELL')
 
                     if owned_shares == 0:
