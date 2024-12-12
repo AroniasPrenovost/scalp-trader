@@ -827,89 +827,66 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 last_order = get_last_order_from_local_json_ledger(symbol)
                 last_order_type = detect_stored_coinbase_order_type(last_order)
 
-                looking_to_buy = False
-                looking_to_sell = False
-                if last_order_type == 'none' or last_order_type == 'sell':
-                    looking_to_buy = True
-                if last_order_type == 'buy':
-                    looking_to_sell = True
-                if (last_order_type == 'placeholder'):
+                #
+                # handle unverified BUY / SELL order
+                #
+                if last_order_type == 'placeholder':
                     fulfilled_order_data = get_coinbase_order_by_order_id(last_order['order_id'])
                     if fulfilled_order_data:
                         full_order_dict = fulfilled_order_data['order'] if isinstance(fulfilled_order_data, dict) else fulfilled_order_data.to_dict()
                         save_order_data_to_local_json_ledger(symbol, full_order_dict)
                         print('Updated ledger with full order data \n')
-                        continue
                     else:
                         print('still waiting to pull full order data info \n')
+
+                #
+                # BUY logic
+                #
+                elif last_order_type == 'none' or last_order_type == 'sell':
+                    if volume_based_strategy == 'buy':
+                        print('looking to BUY')
+
+                        # Calculate a buffer zone below the resistance
+                        buffer_zone = (resistance - support) * 0.04  # 5% below resistance
+                        anticipated_sell_price = resistance - buffer_zone
+
+                        # Calculate expected profit and profit percentage
+                        expected_profit = (anticipated_sell_price - current_price) * SHARES_TO_ACQUIRE
+                        exchange_fee = calculate_exchange_fee(anticipated_sell_price, SHARES_TO_ACQUIRE, 'taker')
+                        tax_owed = (federal_tax_rate / 100) * expected_profit
+                        print(f"anticipated_tax_owed: {tax_owed}")
+
+                        net_expected_profit = expected_profit - exchange_fee - tax_owed
+
+                        expected_profit_percentage = (net_expected_profit / SHARES_TO_ACQUIRE) * 100
+
+                        print(f"anticipated_sell_price: {anticipated_sell_price}")
+                        print(f"expected_profit: {expected_profit}")
+                        print(f"net_expected_profit: {net_expected_profit}")
+                        print(f"expected_profit_percentage: {expected_profit_percentage:.2f}%")
+
+                        # Buy signal: current price crosses above SMA and RSI is below 30
+                        if sma is not None and rsi is not None and macd_line is not None and signal_line is not None:
+                            if current_price > sma and rsi < 30 and macd_line > signal_line:
+                                print('~ BUY OPPORTUNITY (current_price > sma, rsi < 30, MACD crossover)~')
+                                place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                            elif current_price < lower_band:
+                                print('~ BUY OPPORTUNITY (price below lower Bollinger Band)~')
+                                place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                            elif current_price_position_within_trading_range < 9:
+                                print('~ BUY OPPORTUNITY (current_price_position_within_trading_range < 9)~')
+                                place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+
+
+                #
+                # SELL logic
+                #
+                elif last_order_type == 'buy' and volume_based_strategy == 'sell':
+                    print('looking to SELL')
+
+                    if owned_shares == 0:
+                        print('something went wrong with local buy/sell order data')
                         continue
-
-                # error handling
-                if (looking_to_buy == True and looking_to_sell == True) or looking_to_sell and owned_shares == 0:
-                    print('something went wrong with local buy/sell order data')
-                    continue
-
-                # print('last_order_type: ', last_order_type)
-                print('looking_to_buy: ', looking_to_buy)
-                print('looking_to_sell: ', looking_to_sell)
-
-                print('________')
-                if looking_to_buy and volume_based_strategy == 'buy':
-                    if sma is not None and rsi is not None and macd_line is not None and signal_line is not None:
-                        if current_price > sma and rsi < 30 and macd_line > signal_line:
-                            print('~ test BUY OPPORTUNITY (current_price > sma, rsi < 30, MACD crossover)~')
-                            # place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                        elif current_price < lower_band:
-                            print('~ test BUY OPPORTUNITY (price below lower Bollinger Band)~')
-                            # place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                        elif current_price_position_within_trading_range < 8:
-                            print('~ test BUY OPPORTUNITY (current_price_position_within_trading_range < 16)~')
-                            # place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                print('_________')
-                plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price)
-
-                print('SKIP')
-                continue
-
-                #
-                #
-                # buy / sell logic
-                #
-
-                if looking_to_buy and volume_based_strategy == 'buy':
-
-                    # Calculate a buffer zone below the resistance
-                    buffer_zone = (resistance - support) * 0.04  # 5% below resistance
-                    anticipated_sell_price = resistance - buffer_zone
-
-                    # Calculate expected profit and profit percentage
-                    expected_profit = (anticipated_sell_price - current_price) * SHARES_TO_ACQUIRE
-                    exchange_fee = calculate_exchange_fee(anticipated_sell_price, SHARES_TO_ACQUIRE, 'taker')
-                    tax_owed = (federal_tax_rate / 100) * expected_profit
-                    print(f"anticipated_tax_owed: {tax_owed}")
-
-                    net_expected_profit = expected_profit - exchange_fee - tax_owed
-
-                    expected_profit_percentage = (net_expected_profit / SHARES_TO_ACQUIRE) * 100
-
-                    print(f"anticipated_sell_price: {anticipated_sell_price}")
-                    print(f"expected_profit: {expected_profit}")
-                    print(f"net_expected_profit: {net_expected_profit}")
-                    print(f"expected_profit_percentage: {expected_profit_percentage:.2f}%")
-
-                    # Buy signal: current price crosses above SMA and RSI is below 30
-                    if sma is not None and rsi is not None and macd_line is not None and signal_line is not None:
-                        if current_price > sma and rsi < 30 and macd_line > signal_line:
-                            print('~ BUY OPPORTUNITY (current_price > sma, rsi < 30, MACD crossover)~')
-                            place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                        elif current_price < lower_band:
-                            print('~ BUY OPPORTUNITY (price below lower Bollinger Band)~')
-                            place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                        elif current_price_position_within_trading_range < 9:
-                            print('~ BUY OPPORTUNITY (current_price_position_within_trading_range < 9)~')
-                            place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-
-                elif looking_to_sell and volume_based_strategy == 'sell':
 
                     entry_price = float(last_order['order']['average_filled_price'])
                     print(f"entry_price: {entry_price}")
