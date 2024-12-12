@@ -902,9 +902,9 @@ if __name__ == "__main__":
             iterate_assets(INTERVAL_SECONDS, DATA_POINTS_FOR_X_MINUTES)
         except Exception as e:
             print(f"An error occurred: {e}. Restarting the program...")
-            # send_email_notification(
-            #     subject="App crashed - restarting - scalp-scripts",
-            #     text_content=f"An error occurred: {e}. Restarting the program...",
-            #     html_content=f"An error occurred: {e}. Restarting the program..."
-            # )
+            send_email_notification(
+                subject="App crashed - restarting - scalp-scripts",
+                text_content=f"An error occurred: {e}. Restarting the program...",
+                html_content=f"An error occurred: {e}. Restarting the program..."
+            )
             time.sleep(10)  # Wait 10 seconds before restarting
