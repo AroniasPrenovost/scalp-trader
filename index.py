@@ -38,14 +38,6 @@ last_calculated_support_resistance_pivot_prices = {}  # Store the last calculate
 
 #
 #
-# Initialize a dictionary to store Coinmarketcap volume data and its timestamp
-#
-
-CMC_VOLUME_DATA_CACHE = {}
-CMC_VOLUME_DATA_TIMESTAMP = {}
-
-#
-#
 # Mailjet configuration
 #
 
@@ -93,10 +85,14 @@ def send_email_notification(subject, text_content, html_content):
 
 #
 #
-# Coinmarketcap API
+# Coinmarketcap API and data
 #
 
 coinmarketcap_api_key = os.environ.get('COINMARKETCAP_API_KEY')
+
+# Initialize a dictionary to store Coinmarketcap volume data and its timestamp
+CMC_VOLUME_DATA_CACHE = {}
+CMC_VOLUME_DATA_TIMESTAMP = {}
 
 def fetch_coinmarketcap_volume_data(symbol):
     global CMC_VOLUME_DATA_CACHE, CMC_VOLUME_DATA_TIMESTAMP
