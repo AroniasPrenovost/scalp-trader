@@ -43,6 +43,8 @@ VOLUME_BASED_RECOMMENDATIONS = {}
 SUPPORT_RESISTANCE_LEVELS = {}
 last_calculated_support_resistance_pivot_prices = {}  # Store the last calculated price for each asset
 
+LOCAL_TREND_DATA = {}
+
 #
 #
 # Mailjet configuration
@@ -464,6 +466,28 @@ def calculate_trading_range_percentage(num1, num2):
     return f"{percentage_difference:.2f}"
 
 
+def is_downward_trend(prices, data_points_for_entire_interval):
+    """
+    Determine if there is a downward trend in the given price data.
+
+    :param prices: deque of stock prices
+    :param data_points_for_entire_interval: total number of data points for the timeframe
+    :return: boolean indicating if there is a downward trend
+    """
+    # Calculate the period as 20% of the total data points
+    period = max(1, int(data_points_for_entire_interval * 0.2))
+
+    if len(prices) < period:
+        return False
+
+    # Calculate the moving average for the specified period
+    moving_average = np.mean(list(prices)[-period:])
+
+    # Compare the current price to the moving average
+    current_price = prices[-1]
+    return current_price < moving_average
+
+
 def calculate_current_price_position_within_trading_range(current_price, support, resistance):
     """
     Calculate the position of the current price within the trading range.
@@ -670,17 +694,24 @@ def volume_based_strategy_recommendation(data):
 # Create chart
 #
 
-def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price, min_price, max_price):
+def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price, min_price, max_price, trend_data):
     if entry_price == 0:
         entry_price = pivot
 
     plt.figure()
+
     # price data
-    plt.plot(list(price_data), marker='o', label='price')
-    # support + resistance levels
+    plt.plot(list(price_data), marker='.', label='price')
+
+    # trend data
+    marker_icon = '^'
+    if trend_data[len(trend_data)-1] < price_data[len(price_data)-1]:
+        marker_icon = 'v'
+    plt.plot(list(trend_data), marker=marker_icon, label='trend (+/-)')
+
+    # support, resistance, pivot levels
     plt.axhline(y=resistance, color='b', linewidth=1.4, linestyle='--', label='resistance')
     plt.axhline(y=support, color='b', linewidth=1.4, linestyle='--', label='support')
-    # etc...
     plt.axhline(y=pivot, color='r', linewidth=1, linestyle=':', label='pivot')
 
     entry_price_width = 1.2
@@ -746,15 +777,31 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 if current_price is not None:
                     LOCAL_PRICE_DATA[symbol].append(current_price)
 
+                if symbol not in LOCAL_TREND_DATA:
+                    LOCAL_TREND_DATA[symbol] = deque(maxlen=data_points_for_x_minutes)
+
                 # Only proceed if we have enough data
                 if len(LOCAL_PRICE_DATA[symbol]) < data_points_for_x_minutes:
                     print(f"Waiting for more data... ({len(LOCAL_PRICE_DATA[symbol])}/{data_points_for_x_minutes})\n")
                     continue
 
+
                 #
                 #
                 # Indicators
                 #
+
+                # Calculate the new price offset to visualize the percent_change_1h value clearly on the graph
+                # Determine if the trend is downward
+                trend_is_downward = is_downward_trend(LOCAL_PRICE_DATA[symbol], data_points_for_x_minutes) # true or false
+                print('trend_is_downward: ', trend_is_downward)
+                # Set the offset percentage based on the trend direction
+                offset_percentage = -0.025 if trend_is_downward else 0.025
+                # Calculate the price trend offset
+                price_trend_offset = current_price * (offset_percentage / 100)
+                offset_price = current_price + price_trend_offset
+                # Append the calculated offset to the local trend data
+                LOCAL_TREND_DATA[symbol].append(offset_price)
 
                 if symbol not in VOLUME_BASED_RECOMMENDATIONS:
                     VOLUME_BASED_RECOMMENDATIONS[symbol] = 0
@@ -766,57 +813,23 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 print('volume_based_strategy: ', volume_based_strategy)
                 # detect change in recommendation
                 if VOLUME_BASED_RECOMMENDATIONS[symbol] != volume_based_strategy:
+                    print(f"strategy change: {str(VOLUME_BASED_RECOMMENDATIONS[symbol]).upper()} --> {str(volume_based_strategy).upper()}")
                     send_email_notification(
                         subject=f"strategy change: {str(VOLUME_BASED_RECOMMENDATIONS[symbol]).upper()} --> {str(volume_based_strategy).upper()}",
                         text_content=f"{str(VOLUME_BASED_RECOMMENDATIONS[symbol]).upper()} --> {str(volume_based_strategy).upper()}",
                         html_content="strategy changed"
                     )
-                    VOLUME_BASED_RECOMMENDATIONS[symbol] = volume_based_strategy # Store the swing trade recommendation
+                    # overwrite stored swing trade recommendation
+                    VOLUME_BASED_RECOMMENDATIONS[symbol] = volume_based_strategy
 
                 # Initialize last calculated support+resistance price if not set
                 if symbol not in last_calculated_support_resistance_pivot_prices:
                     last_calculated_support_resistance_pivot_prices[symbol] = current_price
 
-                # Check if we should recalculate support and resistance levels
-                if should_recalculate_support_resistance(LOCAL_PRICE_DATA[symbol], last_calculated_support_resistance_pivot_prices[symbol]):
-                    last_order = get_last_order_from_local_json_ledger(symbol)
-                    last_order_type = detect_stored_coinbase_order_type(last_order)
-                    if last_order_type == 'buy':
-                        # check if price has gone below support
-                        if current_price < last_calculated_support_resistance_pivot_prices[symbol]:
-                            # doublecheck volume-based strategy w/ most recent data
-                            if symbol in CMC_VOLUME_DATA_CACHE:
-                                del CMC_VOLUME_DATA_CACHE[symbol]
-                            if symbol in CMC_VOLUME_DATA_TIMESTAMP:
-                                del CMC_VOLUME_DATA_TIMESTAMP[symbol]
-                            volume_data = fetch_coinmarketcap_volume_data(symbol)
-                            volume_based_strategy = volume_based_strategy_recommendation(volume_data)
-                            # detect change in recommendation
-                            if VOLUME_BASED_RECOMMENDATIONS[symbol] != volume_based_strategy:
-                                send_email_notification(
-                                    subject=f"strategy change: {str(VOLUME_BASED_RECOMMENDATIONS[symbol]).upper()} --> {volume_based_strategy.update()}",
-                                    text_content=f"{str(VOLUME_BASED_RECOMMENDATIONS[symbol]).upper()} --> {str(volume_based_strategy).upper()}",
-                                    html_content="strategy changed"
-                                )
-                                VOLUME_BASED_RECOMMENDATIONS[symbol] = volume_based_strategy
-                            if volume_based_strategy == 'sell':
-                                print('~ SELL OPPORTUNITY (cutting losses) ~')
-                                shares = last_order['order']['filled_size']
-                                place_market_sell_order(symbol, shares)
-
-                    pivot, support, resistance = calculate_support_resistance(LOCAL_PRICE_DATA[symbol])
-                    last_calculated_support_resistance_pivot_prices[symbol] = current_price  # Update the last calculated price
-
-                    # Store the calculated support and resistance levels
-                    SUPPORT_RESISTANCE_LEVELS[symbol] = {
-                        'pivot': pivot,
-                        'support': support,
-                        'resistance': resistance
-                    }
-                    print(f"Recalculated support and resistance for {symbol}")
-
-                # Set and retrieve the stored support and resistance levels
+                # Get stored support and resistance levels
                 levels = SUPPORT_RESISTANCE_LEVELS.get(symbol, {})
+
+                # Calculate and set levels if empty not set yet
                 if levels == {}:
                     pivot, support, resistance = calculate_support_resistance(LOCAL_PRICE_DATA[symbol])
                     last_calculated_support_resistance_pivot_prices[symbol] = current_price  # Update the last calculated price
@@ -832,6 +845,31 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 pivot = levels.get('pivot', 0)
                 support = levels.get('support', 0)
                 resistance = levels.get('resistance', 0)
+
+                # Check if we should recalculate support and resistance levels
+                if should_recalculate_support_resistance(LOCAL_PRICE_DATA[symbol], last_calculated_support_resistance_pivot_prices[symbol]):
+                    last_order = get_last_order_from_local_json_ledger(symbol)
+                    last_order_type = detect_stored_coinbase_order_type(last_order)
+                    # SELL-OFF
+                    if last_order_type == 'buy':
+                        if is_downward_trend(LOCAL_PRICE_DATA[symbol], data_points_for_x_minutes):
+                            print('~ SELL OPPORTUNITY (downward trend detected) ~')
+                            shares = last_order['order']['filled_size']
+                            place_market_sell_order(symbol, shares)
+
+                    # recalculate support
+                    pivot, support, resistance = calculate_support_resistance(LOCAL_PRICE_DATA[symbol])
+                    # Update the last calculated price
+                    last_calculated_support_resistance_pivot_prices[symbol] = current_price
+
+                    # Update stored support and resistance levels
+                    SUPPORT_RESISTANCE_LEVELS[symbol] = {
+                        'pivot': pivot,
+                        'support': support,
+                        'resistance': resistance
+                    }
+                    print(f"Recalculated support and resistance for {symbol}")
+
 
                 print(f"current_price: {current_price}")
                 print(f"support: {support}")
@@ -868,9 +906,14 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 #
 
                 entry_price = 0
+                TEMP_FLAG = True
 
                 last_order = get_last_order_from_local_json_ledger(symbol)
                 last_order_type = detect_stored_coinbase_order_type(last_order)
+
+
+                plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price, minimum_price_in_chart, maximum_price_in_chart, LOCAL_TREND_DATA[symbol])
+                continue;
 
                 #
                 # Handle unverified BUY / SELL order
@@ -886,10 +929,10 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 #
                 # BUY logic
                 elif last_order_type == 'none' or last_order_type == 'sell':
-                    if volume_based_strategy == 'buy':
+                    if TEMP_FLAG: # volume_based_strategy == 'buy':
                         print('looking to BUY')
 
-                        if trading_range_percentage < TARGET_PROFIT_PERCENTAGE:
+                        if float(trading_range_percentage) < float(TARGET_PROFIT_PERCENTAGE):
                             print('trading range smaller than target_profit_percentage')
                             continue
 
@@ -923,9 +966,9 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                             elif current_price_position_within_trading_range < 6:
                                 print('~ BUY OPPORTUNITY (current_price_position_within_trading_range < 6)~')
                                 place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                            elif current_price < minimum_price_in_chart:
-                                print('~ BUY OPPORTUNITY (current_price < minimum_price_in_chart)~')
-                                place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                            # elif current_price < minimum_price_in_chart:
+                            #     print('~ BUY OPPORTUNITY (current_price < minimum_price_in_chart)~')
+                            #     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
 
 
                 #
@@ -971,7 +1014,7 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                             place_market_sell_order(symbol, number_of_shares)
 
                 # Indicators are passed into the plot graph
-                plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price, minimum_price_in_chart, maximum_price_in_chart)
+                plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price, minimum_price_in_chart, maximum_price_in_chart, LOCAL_TREND_DATA[symbol])
                 print('\n')
 
         time.sleep(interval_seconds)
