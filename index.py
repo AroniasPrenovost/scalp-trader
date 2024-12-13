@@ -132,6 +132,8 @@ def fetch_coinmarketcap_volume_data(symbol):
         print(f"Error fetching latest data for {symbol}: {e}")
         return None
 
+
+
 #
 #
 # Coinbase API and taxes
@@ -608,6 +610,63 @@ def volume_based_strategy_recommendation(data):
 
 #
 #
+# Looks for trade recommendations based on volume
+#
+
+# def get_volume_based_recommendation_for_tradeable_assets(file_path):
+#     """
+#     Reads the tradeable assets from a JSON file and processes each asset with a 1-second delay.
+#     """
+#     LATEST_PRICE_API_URL = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest'
+#     headers = {
+#         'X-CMC_PRO_API_KEY': coinmarketcap_api_key,
+#         'Accept': 'application/json',
+#     }
+#     try:
+#         with open(file_path, 'r') as file:
+#             assets = json.load(file)
+#
+#         for asset in assets:
+#             currency = asset.get('currency')
+#             if currency:
+#                 print(f"Processing asset: {currency}")
+#                 params = {
+#                     'symbol': currency,
+#                 }
+#                 # Here you can add the logic to process each asset
+#                 try:
+#                     response = requests.get(LATEST_PRICE_API_URL, headers=headers, params=params)
+#                     response.raise_for_status()  # Raise an exception for HTTP errors
+#                     data = response.json()
+#                     d = volume_based_strategy_recommendation(data['data'][currency])
+#                     print(f"recommendation for {currency}", d)
+#                     # CMC_VOLUME_DATA_CACHE[symbol] = data['data'][CMC_SYMBOL]
+#                     # CMC_VOLUME_DATA_TIMESTAMP[symbol] = current_time
+#                     # return CMC_VOLUME_DATA_CACHE[symbol]
+#                 except requests.exceptions.RequestException as e:
+#                     print(f"Error fetching latest data for {currency}: {e}")
+#                     return None
+#
+#                 # Wait for 1 second before processing the next asset
+#                 time.sleep(1)
+#             else:
+#                 print("Invalid asset data found, skipping...")
+#     except FileNotFoundError:
+#         print(f"File not found: {file_path}")
+#     except json.JSONDecodeError:
+#         print(f"Error decoding JSON from file: {file_path}")
+#     except Exception as e:
+#         print(f"An error occurred: {e}")
+#
+
+# Example usage
+# get_volume_based_recommendation_for_tradeable_assets('tradeable-coinbase-assets.json')
+# quit();
+
+
+
+#
+#
 # Create chart
 #
 
@@ -921,8 +980,8 @@ if __name__ == "__main__":
     while True:
         try:
             # Define time intervals
-            INTERVAL_SECONDS = 1
-            INTERVAL_MINUTES = 0.25 # 15 seconds
+            INTERVAL_SECONDS = 10
+            INTERVAL_MINUTES = 60
             # INTERVAL_SECONDS = 15
             # INTERVAL_MINUTES = 250 # 4 hour
             DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
