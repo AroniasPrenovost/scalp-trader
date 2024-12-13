@@ -791,7 +791,7 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 # Indicators
                 #
 
-                # Calculate the new price offset to visualize the percent_change_1h value clearly on the graph
+                #
                 # Determine if the trend is downward
                 trend_is_downward = is_downward_trend(LOCAL_PRICE_DATA[symbol], data_points_for_x_minutes) # true or false
                 print('trend_is_downward: ', trend_is_downward)
@@ -803,6 +803,7 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 # Append the calculated offset to the local trend data
                 LOCAL_TREND_DATA[symbol].append(offset_price)
 
+                #
                 if symbol not in VOLUME_BASED_RECOMMENDATIONS:
                     VOLUME_BASED_RECOMMENDATIONS[symbol] = 0
 
@@ -925,7 +926,7 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 #
                 # BUY logic
                 elif last_order_type == 'none' or last_order_type == 'sell':
-                    if TEMP_FLAG: # volume_based_strategy == 'buy':
+                    if TEMP_FLAG and trend_is_downward == False: # volume_based_strategy == 'buy':
                         print('looking to BUY')
 
                         if float(trading_range_percentage) < float(TARGET_PROFIT_PERCENTAGE):
