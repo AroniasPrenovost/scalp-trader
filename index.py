@@ -34,7 +34,7 @@ LOCAL_PRICE_DATA = {}
 #
 
 VOLUME_BASED_RECOMMENDATIONS = {}
-LOCAL_VOLUME_DATA = {}  # Initialize LOCAL_VOLUME_DATA for storing percent_change_1h
+
 #
 #
 # Initialize a dictionary to store support and resistance levels for each asset
@@ -611,15 +611,13 @@ def volume_based_strategy_recommendation(data):
 # Create chart
 #
 
-def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price, min_price, max_price, volume_data):
+def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price, min_price, max_price):
     if entry_price == 0:
         entry_price = pivot
 
     plt.figure()
     # price data
     plt.plot(list(price_data), marker='o', label='price')
-    # volume fluctuation data
-    plt.plot(list(volume_data), marker='o', label='volume change')
     # support + resistance levels
     plt.axhline(y=resistance, color='b', linewidth=1.4, linestyle='--', label='resistance')
     plt.axhline(y=support, color='b', linewidth=1.4, linestyle='--', label='support')
@@ -694,16 +692,13 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                     print(f"Waiting for more data... ({len(LOCAL_PRICE_DATA[symbol])}/{data_points_for_x_minutes})\n")
                     continue
 
-                if symbol not in VOLUME_BASED_RECOMMENDATIONS:
-                    VOLUME_BASED_RECOMMENDATIONS[symbol] = 0
-
-                if symbol not in LOCAL_VOLUME_DATA:
-                    LOCAL_VOLUME_DATA[symbol] = deque(maxlen=data_points_for_x_minutes)
-
                 #
                 #
                 # Indicators
                 #
+
+                if symbol not in VOLUME_BASED_RECOMMENDATIONS:
+                    VOLUME_BASED_RECOMMENDATIONS[symbol] = 0
 
                 # get trade recommendation based on volume
                 volume_data = fetch_coinmarketcap_volume_data(symbol)
@@ -761,12 +756,6 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                     }
                     print(f"Recalculated support and resistance for {symbol}")
 
-                # TODO: store 'percent_change_1h' key property in LOCAL_VOLUME_DATA
-                # TODO: use the pivot point as an 'anchor' number so the % change appears clearly in the graph (I want it mapped within the bound of support and resistance)
-                # print(CMC_VOLUME_DATA_CACHE);
-                # {'MATIC-USD': {'id': 3890, 'name': 'Polygon', 'symbol': 'MATIC', 'slug': 'polygon', 'num_market_pairs': 1450, 'date_added': '2019-04-28T00:00:00.000Z', 'tags': ['pos', 'platform', 'enterprise-solutions', 'zero-knowledge-proofs', 'scaling', 'state-channel', 'coinbase-ventures-portfolio', 'layer-2', 'binance-launchpad', 'binance-labs-portfolio', 'polygon-ecosystem', 'moonriver-ecosystem', 'injective-ecosystem', 'ftx-bankruptcy-estate', 'alleged-sec-securities', 'modular-blockchain', 'standard-crypto-portfolio'], 'max_supply': None, 'circulating_supply': 1959887982.4253762, 'total_supply': 10000000000, 'is_active': 1, 'infinite_supply': False, 'platform': None, 'cmc_rank': 102, 'is_fiat': 0, 'self_reported_circulating_supply': None, 'self_reported_market_cap': None, 'tvl_ratio': None, 'last_updated': '2024-12-13T16:20:00.000Z', 'quote': {'USD': {'price': 0.6141088698616195, 'volume_24h': 8942340.08070613, 'volume_change_24h': -48.0929, 'percent_change_1h': -1.8182842, 'percent_change_24h': -5.51194959, 'percent_change_7d': -11.40644384, 'percent_change_30d': 55.37266617, 'percent_change_60d': 63.82267557, 'percent_change_90d': 61.76305858, 'market_cap': 1203584593.9426174, 'market_cap_dominance': 0.0334, 'fully_diluted_market_cap': 6141088698.62, 'tvl': None, 'last_updated': '2024-12-13T16:20:00.000Z'}}}}
-
-
                 # Set and retrieve the stored support and resistance levels
                 levels = SUPPORT_RESISTANCE_LEVELS.get(symbol, {})
                 if levels == {}:
@@ -788,14 +777,6 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 print(f"current_price: {current_price}")
                 print(f"support: {support}")
                 print(f"resistance: {resistance}")
-
-
-                # map volume data based on pivot price
-                if volume_data:
-                    percent_change_1h = volume_data['quote']['USD']['percent_change_1h']
-                    # Calculate the new price offset to visualize the percent_change_1h value clearly on the graph
-                    volume_change_data_point = pivot * (1 + percent_change_1h / 100)
-                    LOCAL_VOLUME_DATA[symbol].append(volume_change_data_point)
 
                 trading_range_percentage = calculate_trading_range_percentage(min(LOCAL_PRICE_DATA[symbol]), max(LOCAL_PRICE_DATA[symbol]))
                 print(f"trading_range_percentage: {trading_range_percentage}%")
@@ -931,7 +912,7 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                             place_market_sell_order(symbol, number_of_shares)
 
                 # Indicators are passed into the plot graph
-                plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price, minimum_price_in_chart, maximum_price_in_chart, LOCAL_VOLUME_DATA[symbol])
+                plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price, minimum_price_in_chart, maximum_price_in_chart)
                 print('\n')
 
         time.sleep(interval_seconds)
@@ -940,8 +921,8 @@ if __name__ == "__main__":
     while True:
         try:
             # Define time intervals
-            INTERVAL_SECONDS = 1
-            INTERVAL_MINUTES =0.25 # 4 hour
+            INTERVAL_SECONDS = 10
+            INTERVAL_MINUTES = 240 # 4 hour
             # 1440 # 1 day
             DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
             iterate_assets(INTERVAL_SECONDS, DATA_POINTS_FOR_X_MINUTES)
