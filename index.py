@@ -911,10 +911,6 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 last_order = get_last_order_from_local_json_ledger(symbol)
                 last_order_type = detect_stored_coinbase_order_type(last_order)
 
-
-                plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price, minimum_price_in_chart, maximum_price_in_chart, LOCAL_TREND_DATA[symbol])
-                continue;
-
                 #
                 # Handle unverified BUY / SELL order
                 if last_order_type == 'placeholder':
