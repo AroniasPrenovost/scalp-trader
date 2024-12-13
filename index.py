@@ -921,9 +921,10 @@ if __name__ == "__main__":
     while True:
         try:
             # Define time intervals
-            INTERVAL_SECONDS = 10
-            INTERVAL_MINUTES = 240 # 4 hour
-            # 1440 # 1 day
+            INTERVAL_SECONDS = 1
+            INTERVAL_MINUTES = 0.25 # 15 seconds
+            # INTERVAL_SECONDS = 15
+            # INTERVAL_MINUTES = 250 # 4 hour
             DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
             iterate_assets(INTERVAL_SECONDS, DATA_POINTS_FOR_X_MINUTES)
         except Exception as e:
