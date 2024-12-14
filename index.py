@@ -60,8 +60,8 @@ LOCAL_CHARACTER_TREND_DATA = {}
 
 # INTERVAL_SECONDS = 1
 # INTERVAL_MINUTES = 0.25
-INTERVAL_SECONDS = 5
-INTERVAL_MINUTES = 20
+INTERVAL_SECONDS = 2
+INTERVAL_MINUTES = 0.25
 # INTERVAL_SECONDS = 15
 # INTERVAL_MINUTES = 240 # 4 hour
 
@@ -108,7 +108,7 @@ if mode == 'test':
     print("TEST mode enabled")
     TEST_PRICE_DATA = generate_test_price_data(0.062, DATA_POINTS_FOR_X_MINUTES, 0.001, 0.025)
     TEST_TREND_DATA = generate_test_price_data(0.062, DATA_POINTS_FOR_X_MINUTES, 0.001, 0.025)
-    TEST_LOCAL_CHARACTER_TREND_DATA = generate_test_price_data(0.062, DATA_POINTS_FOR_X_MINUTES, 0.001, 0.025)
+    TEST_CHARACTER_TREND_DATA = generate_test_price_data(0.062, DATA_POINTS_FOR_X_MINUTES, 0.001, 0.025)
 else:
     print(f"Running in {mode} mode")
 
@@ -861,7 +861,7 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
             if IS_TEST_MODE == True:
                 LOCAL_PRICE_DATA[symbol] = TEST_PRICE_DATA
                 LOCAL_TREND_DATA[symbol] = TEST_TREND_DATA
-                LOCAL_CHARACTER_TREND_DATA[symbol] = TEST_LOCAL_CHARACTER_TREND_DATA
+                LOCAL_CHARACTER_TREND_DATA[symbol] = TEST_CHARACTER_TREND_DATA
 
             if enabled:
                 print(symbol)
