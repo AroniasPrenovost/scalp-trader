@@ -112,8 +112,6 @@ if mode == 'test':
 else:
     print(f"Running in {mode} mode")
 
-
-
 #
 #
 # Mailjet configuration
@@ -939,7 +937,7 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
 
                 print('trend: ', trend)
                 print('change_of_character: ', change_of_character)
-                
+
                 if symbol not in VOLUME_BASED_RECOMMENDATIONS:
                     VOLUME_BASED_RECOMMENDATIONS[symbol] = 0
 
