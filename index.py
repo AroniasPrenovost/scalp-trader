@@ -60,8 +60,8 @@ LOCAL_CHARACTER_TREND_DATA = {}
 
 # INTERVAL_SECONDS = 1
 # INTERVAL_MINUTES = 0.25
-INTERVAL_SECONDS = 15
-INTERVAL_MINUTES = 240
+INTERVAL_SECONDS = 5
+INTERVAL_MINUTES = 20
 # INTERVAL_SECONDS = 15
 # INTERVAL_MINUTES = 240 # 4 hour
 
@@ -799,21 +799,10 @@ def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_per
     plt.plot(list(price_data), marker=',', label='price', c='brown')
 
     # trend data markers
-    marker_icon = '|'
-    if trend_data[len(trend_data)-1] < price_data[len(price_data)-1]:
-        marker_icon = '|'
-    elif trend_data[len(trend_data)-1] > price_data[len(price_data)-1]:
-        marker_icon = '|'
-    plt.plot(list(trend_data), marker=marker_icon, label='trend (+/-)', c='orange')
+    plt.plot(list(trend_data), marker='|', label='trend (+/-)', c='orange')
 
-
-    # character trend data markers
-    char_marker_icon = '|'
-    if character_trend_data[len(character_trend_data)-1] < price_data[len(price_data)-1]:
-        char_marker_icon = '|'
-    elif character_trend_data[len(character_trend_data)-1] > price_data[len(price_data)-1]:
-        char_marker_icon = '|'
-    plt.plot(list(character_trend_data), marker=char_marker_icon, label='character trend +/-')
+    # character trend data markerss
+    plt.plot(list(character_trend_data), marker='|', label='character trend +/-')
 
     # support, resistance, pivot levels
     plt.axhline(y=resistance, color='b', linewidth=1.4, linestyle='--', label='resistance')
