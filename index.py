@@ -14,6 +14,8 @@ import requests # supports CoinMarketCap
 # coinbase api
 from coinbase.rest import RESTClient
 from mailjet_rest import Client
+# parse CLI args
+import argparse
 
 load_dotenv()
 
@@ -58,8 +60,8 @@ LOCAL_CHARACTER_TREND_DATA = {}
 
 # INTERVAL_SECONDS = 1
 # INTERVAL_MINUTES = 0.25
-INTERVAL_SECONDS = 10
-INTERVAL_MINUTES = 60
+INTERVAL_SECONDS = 15
+INTERVAL_MINUTES = 240
 # INTERVAL_SECONDS = 15
 # INTERVAL_MINUTES = 240 # 4 hour
 
@@ -70,20 +72,20 @@ DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
 # Generating test data
 #
 
-def generate_test_price_data(start_price=0.062, num_minutes=360, trend=0.001, volatility=0.025):
+def generate_test_price_data(start_price=0.062, data_points=360, trend=0.001, volatility=0.025):
     """
     Generate a list of simulated price data for testing.
 
     :param start_price: The starting price for the simulation.
-    :param num_minutes: The number of minutes (data points) to generate.
+    :param data_points: The number of minutes (data points) to generate.
     :param trend: The average change in price per minute (positive for upward trend, negative for downward).
     :param volatility: The standard deviation of the price changes (higher values for more volatility).
     :return: A deque containing the simulated price data.
     """
-    prices = deque(maxlen=num_minutes)
+    prices = deque(maxlen=data_points)
     current_price = start_price
 
-    for _ in range(num_minutes):
+    for _ in range(data_points):
         # Simulate a random price change with a trend
         price_change = np.random.normal(loc=trend, scale=volatility)
         current_price += price_change
@@ -95,10 +97,23 @@ def generate_test_price_data(start_price=0.062, num_minutes=360, trend=0.001, vo
 # test_price_data = generate_test_price_data()
 # print(list(test_price_data))
 
+# Set up argument parsing
+parser = argparse.ArgumentParser(description='Process some command-line arguments.')
+parser.add_argument('mode', nargs='?', default='default', help='Mode of operation (e.g., test)')
+args = parser.parse_args() # Parse the arguments
+mode = args.mode # Access the argument
+IS_TEST_MODE = False
+if mode == 'test':
+    IS_TEST_MODE = True
+    print("TEST mode enabled")
+    TEST_PRICE_DATA = generate_test_price_data(0.062, DATA_POINTS_FOR_X_MINUTES, 0.001, 0.025)
+    TEST_TREND_DATA = generate_test_price_data(0.062, DATA_POINTS_FOR_X_MINUTES, 0.001, 0.025)
+    TEST_LOCAL_CHARACTER_TREND_DATA = generate_test_price_data(0.062, DATA_POINTS_FOR_X_MINUTES, 0.001, 0.025)
+else:
+    print(f"Running in {mode} mode")
 
-TEST_PRICE_DATA = generate_test_price_data()
-TEST_TREND_DATA = generate_test_price_data()
-TEST_LOCAL_CHARACTER_TREND_DATA = generate_test_price_data()
+
+
 #
 #
 # Mailjet configuration
@@ -856,7 +871,7 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
             READY_TO_TRADE = asset['ready_to_trade']
             ENABLE_CHART = asset['enable_chart']
 
-            if True:
+            if IS_TEST_MODE == True:
                 LOCAL_PRICE_DATA[symbol] = TEST_PRICE_DATA
                 LOCAL_TREND_DATA[symbol] = TEST_TREND_DATA
                 LOCAL_CHARACTER_TREND_DATA[symbol] = TEST_LOCAL_CHARACTER_TREND_DATA
@@ -883,7 +898,7 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                     LOCAL_TREND_DATA[symbol] = deque(maxlen=data_points_for_x_minutes)
 
                 trend = determine_trend(LOCAL_PRICE_DATA[symbol], data_points_for_x_minutes, TREND_TIMEFRAME_PERCENT)
-                print('trend: ', trend)
+                # print('trend: ', trend)
                 offset_percentage = 0
                 if trend == 'upward':
                     offset_percentage = 0.045
@@ -901,7 +916,7 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
 
                 # Detect change of character
                 change_of_character = detect_change_of_character(LOCAL_PRICE_DATA[symbol], CHARACTER_TREND_TIMEFRAME_PERCENT)
-                print('change_of_character: ', change_of_character)
+                # print('change_of_character: ', change_of_character)
                 char_offset_percentage = 0
                 if change_of_character == 'bullish':
                     char_offset_percentage = 0.095
@@ -922,7 +937,9 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 # Indicators
                 #
 
-
+                print('trend: ', trend)
+                print('change_of_character: ', change_of_character)
+                
                 if symbol not in VOLUME_BASED_RECOMMENDATIONS:
                     VOLUME_BASED_RECOMMENDATIONS[symbol] = 0
 
