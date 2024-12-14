@@ -43,8 +43,62 @@ VOLUME_BASED_RECOMMENDATIONS = {}
 SUPPORT_RESISTANCE_LEVELS = {}
 last_calculated_support_resistance_pivot_prices = {}  # Store the last calculated price for each asset
 
-LOCAL_TREND_DATA = {}
+#
+#
+# Initialize a dictionary to store trend data for each asset
+#
 
+LOCAL_TREND_DATA = {}
+LOCAL_CHARACTER_TREND_DATA = {}
+
+#
+#
+# Define time intervals
+#
+
+# INTERVAL_SECONDS = 1
+# INTERVAL_MINUTES = 0.25
+INTERVAL_SECONDS = 10
+INTERVAL_MINUTES = 60
+# INTERVAL_SECONDS = 15
+# INTERVAL_MINUTES = 240 # 4 hour
+
+DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
+
+#
+#
+# Generating test data
+#
+
+def generate_test_price_data(start_price=0.062, num_minutes=360, trend=0.001, volatility=0.025):
+    """
+    Generate a list of simulated price data for testing.
+
+    :param start_price: The starting price for the simulation.
+    :param num_minutes: The number of minutes (data points) to generate.
+    :param trend: The average change in price per minute (positive for upward trend, negative for downward).
+    :param volatility: The standard deviation of the price changes (higher values for more volatility).
+    :return: A deque containing the simulated price data.
+    """
+    prices = deque(maxlen=num_minutes)
+    current_price = start_price
+
+    for _ in range(num_minutes):
+        # Simulate a random price change with a trend
+        price_change = np.random.normal(loc=trend, scale=volatility)
+        current_price += price_change
+        prices.append(current_price)
+
+    return prices
+
+# Example usage
+# test_price_data = generate_test_price_data()
+# print(list(test_price_data))
+
+
+TEST_PRICE_DATA = generate_test_price_data()
+TEST_TREND_DATA = generate_test_price_data()
+TEST_LOCAL_CHARACTER_TREND_DATA = generate_test_price_data()
 #
 #
 # Mailjet configuration
@@ -465,27 +519,55 @@ def calculate_trading_range_percentage(num1, num2):
     percentage_difference = (difference / average) * 100
     return f"{percentage_difference:.2f}"
 
-
-def is_downward_trend(prices, data_points_for_entire_interval):
+def determine_trend(prices, data_points_for_entire_interval, timeframe_percent):
     """
-    Determine if there is a downward trend in the given price data.
+    Determine the trend in the given price data.
 
     :param prices: deque of stock prices
     :param data_points_for_entire_interval: total number of data points for the timeframe
-    :return: boolean indicating if there is a downward trend
+    :return: string indicating the trend ('downward', 'upward', or 'neutral')
     """
-    # Calculate the period as 20% of the total data points
-    period = max(1, int(data_points_for_entire_interval * 0.2))
+    # Calculate the period as 17% of the total data points
+    period = max(1, int(data_points_for_entire_interval * timeframe_percent))
 
     if len(prices) < period:
-        return False
+        return 'neutral'
 
     # Calculate the moving average for the specified period
     moving_average = np.mean(list(prices)[-period:])
 
     # Compare the current price to the moving average
     current_price = prices[-1]
-    return current_price < moving_average
+
+    if current_price < moving_average:
+        return 'downward'
+    elif current_price > moving_average:
+        return 'upward'
+    else:
+        return 'neutral'
+
+def detect_change_of_character(prices, lookback_period):
+    """
+    Detects a change of character in the price data.
+
+    :param prices: deque of stock prices
+    :param lookback_period: number of periods to look back for highs and lows
+    :return: string indicating the change ('bullish', 'bearish', or 'none')
+    """
+    if len(prices) < lookback_period:
+        return 'none'
+
+    recent_prices = list(prices)[-lookback_period:]
+    recent_high = max(recent_prices)
+    recent_low = min(recent_prices)
+    current_price = prices[-1]
+
+    if current_price > recent_high:
+        return 'bullish'
+    elif current_price < recent_low:
+        return 'bearish'
+    else:
+        return 'none'
 
 
 def calculate_current_price_position_within_trading_range(current_price, support, resistance):
@@ -694,20 +776,31 @@ def volume_based_strategy_recommendation(data):
 # Create chart
 #
 
-def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price, min_price, max_price, trend_data):
+def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price, min_price, max_price, trend_data, character_trend_data):
     if entry_price == 0:
         entry_price = pivot
 
     plt.figure()
 
-    # price data
-    plt.plot(list(price_data), marker='.', label='price')
+    # price data markers
+    plt.plot(list(price_data), marker=',', label='price', c='brown')
 
-    # trend data
-    marker_icon = '^'
+    # trend data markers
+    marker_icon = '|'
     if trend_data[len(trend_data)-1] < price_data[len(price_data)-1]:
-        marker_icon = 'v'
-    plt.plot(list(trend_data), marker=marker_icon, label='trend (+/-)')
+        marker_icon = '|'
+    elif trend_data[len(trend_data)-1] > price_data[len(price_data)-1]:
+        marker_icon = '|'
+    plt.plot(list(trend_data), marker=marker_icon, label='trend (+/-)', c='orange')
+
+
+    # character trend data markers
+    char_marker_icon = '|'
+    if character_trend_data[len(character_trend_data)-1] < price_data[len(price_data)-1]:
+        char_marker_icon = '|'
+    elif character_trend_data[len(character_trend_data)-1] > price_data[len(price_data)-1]:
+        char_marker_icon = '|'
+    plt.plot(list(character_trend_data), marker=char_marker_icon, label='character trend +/-')
 
     # support, resistance, pivot levels
     plt.axhline(y=resistance, color='b', linewidth=1.4, linestyle='--', label='resistance')
@@ -717,10 +810,10 @@ def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_per
     entry_price_width = 1.2
     if entry_price == 0:
         entry_price_width = 0
-    plt.axhline(y=entry_price, color='g', linewidth=entry_price_width, linestyle='-', label='entry price')
+    plt.axhline(y=entry_price, color='m', linewidth=entry_price_width, linestyle='-', label='entry price')
 
-    plt.axhline(y=min_price, color='y', linewidth=1.2, linestyle='-', label='min price')
-    plt.axhline(y=max_price, color='y', linewidth=1.2, linestyle='-', label='max price')
+    plt.axhline(y=min_price, color='b', linewidth=1.2, linestyle='-', label='min price')
+    plt.axhline(y=max_price, color='b', linewidth=1.2, linestyle='-', label='max price')
 
     plt.title(f"{symbol}")
     plt.xlabel("time")
@@ -758,6 +851,15 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
             symbol = asset['symbol']
             SHARES_TO_ACQUIRE = asset['shares_to_acquire']
             TARGET_PROFIT_PERCENTAGE = asset['target_profit_percentage']
+            TREND_TIMEFRAME_PERCENT = asset['trend_timeframe_percent']
+            CHARACTER_TREND_TIMEFRAME_PERCENT = asset['character_trend_timeframe_percent']
+            READY_TO_TRADE = asset['ready_to_trade']
+            ENABLE_CHART = asset['enable_chart']
+
+            if True:
+                LOCAL_PRICE_DATA[symbol] = TEST_PRICE_DATA
+                LOCAL_TREND_DATA[symbol] = TEST_TREND_DATA
+                LOCAL_CHARACTER_TREND_DATA[symbol] = TEST_LOCAL_CHARACTER_TREND_DATA
 
             if enabled:
                 print(symbol)
@@ -780,30 +882,47 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 if symbol not in LOCAL_TREND_DATA:
                     LOCAL_TREND_DATA[symbol] = deque(maxlen=data_points_for_x_minutes)
 
+                trend = determine_trend(LOCAL_PRICE_DATA[symbol], data_points_for_x_minutes, TREND_TIMEFRAME_PERCENT)
+                print('trend: ', trend)
+                offset_percentage = 0
+                if trend == 'upward':
+                    offset_percentage = 0.045
+                elif trend == 'downward':
+                    offset_percentage = -0.045
+                price_trend_offset = current_price * (offset_percentage / 100)
+                offset_price = current_price
+                if trend == 'upward' or trend == 'downward':
+                    offset_price = current_price + price_trend_offset
+                # Append the calculated offset to the local trend data
+                LOCAL_TREND_DATA[symbol].append(offset_price)
+
+                if symbol not in LOCAL_CHARACTER_TREND_DATA:
+                    LOCAL_CHARACTER_TREND_DATA[symbol] = deque(maxlen=data_points_for_x_minutes)
+
+                # Detect change of character
+                change_of_character = detect_change_of_character(LOCAL_PRICE_DATA[symbol], CHARACTER_TREND_TIMEFRAME_PERCENT)
+                print('change_of_character: ', change_of_character)
+                char_offset_percentage = 0
+                if change_of_character == 'bullish':
+                    char_offset_percentage = 0.095
+                elif change_of_character == 'bearish':
+                    char_offset_percentage = -0.095
+                price_trend_offset = current_price * (char_offset_percentage / 100)
+                char_offset_price = current_price + price_trend_offset
+                # Append the calculated offset to the local trend data
+                LOCAL_CHARACTER_TREND_DATA[symbol].append(char_offset_price)
+
                 # Only proceed if we have enough data
                 if len(LOCAL_PRICE_DATA[symbol]) < data_points_for_x_minutes:
                     print(f"Waiting for more data... ({len(LOCAL_PRICE_DATA[symbol])}/{data_points_for_x_minutes})\n")
                     continue
-
 
                 #
                 #
                 # Indicators
                 #
 
-                #
-                # Determine if the trend is downward
-                trend_is_downward = is_downward_trend(LOCAL_PRICE_DATA[symbol], data_points_for_x_minutes) # true or false
-                print('trend_is_downward: ', trend_is_downward)
-                # Set the offset percentage based on the trend direction
-                offset_percentage = -0.025 if trend_is_downward else 0.025
-                # Calculate the price trend offset
-                price_trend_offset = current_price * (offset_percentage / 100)
-                offset_price = current_price + price_trend_offset
-                # Append the calculated offset to the local trend data
-                LOCAL_TREND_DATA[symbol].append(offset_price)
 
-                #
                 if symbol not in VOLUME_BASED_RECOMMENDATIONS:
                     VOLUME_BASED_RECOMMENDATIONS[symbol] = 0
 
@@ -815,11 +934,11 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 # detect change in recommendation
                 if VOLUME_BASED_RECOMMENDATIONS[symbol] != volume_based_strategy:
                     print(f"strategy change: {str(VOLUME_BASED_RECOMMENDATIONS[symbol]).upper()} --> {str(volume_based_strategy).upper()}")
-                    send_email_notification(
-                        subject=f"strategy change: {str(VOLUME_BASED_RECOMMENDATIONS[symbol]).upper()} --> {str(volume_based_strategy).upper()}",
-                        text_content=f"{str(VOLUME_BASED_RECOMMENDATIONS[symbol]).upper()} --> {str(volume_based_strategy).upper()}",
-                        html_content="strategy changed"
-                    )
+                    # send_email_notification(
+                    #     subject=f"strategy change: {str(VOLUME_BASED_RECOMMENDATIONS[symbol]).upper()} --> {str(volume_based_strategy).upper()}",
+                    #     text_content=f"{str(VOLUME_BASED_RECOMMENDATIONS[symbol]).upper()} --> {str(volume_based_strategy).upper()}",
+                    #     html_content="strategy changed"
+                    # )
                     # overwrite stored swing trade recommendation
                     VOLUME_BASED_RECOMMENDATIONS[symbol] = volume_based_strategy
 
@@ -853,7 +972,7 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                     last_order_type = detect_stored_coinbase_order_type(last_order)
                     # SELL-OFF
                     if last_order_type == 'buy':
-                        if is_downward_trend(LOCAL_PRICE_DATA[symbol], data_points_for_x_minutes):
+                        if trend == 'downward':
                             print('~ SELL OPPORTUNITY (downward trend detected) ~')
                             shares = last_order['order']['filled_size']
                             place_market_sell_order(symbol, shares)
@@ -907,10 +1026,12 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 #
 
                 entry_price = 0
-                TEMP_FLAG = True
 
                 last_order = get_last_order_from_local_json_ledger(symbol)
                 last_order_type = detect_stored_coinbase_order_type(last_order)
+
+                if READY_TO_TRADE == False:
+                    print('ready_to_trade: ', READY_TO_TRADE)
 
                 #
                 # Handle unverified BUY / SELL order
@@ -926,92 +1047,98 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 #
                 # BUY logic
                 elif last_order_type == 'none' or last_order_type == 'sell':
-                    if TEMP_FLAG and trend_is_downward == False: # volume_based_strategy == 'buy':
-                        print('looking to BUY')
+                    if trend == 'upward': # volume_based_strategy == 'buy':
+                        print('signal: BUY')
+                        if READY_TO_TRADE == True:
 
-                        if float(trading_range_percentage) < float(TARGET_PROFIT_PERCENTAGE):
-                            print('trading range smaller than target_profit_percentage')
-                            continue
+                            if float(trading_range_percentage) < float(TARGET_PROFIT_PERCENTAGE):
+                                print('trading range smaller than target_profit_percentage')
+                                continue
 
-                        # Calculate a buffer zone below the resistance
-                        buffer_zone = (resistance - support) * 0.04  # 5% below resistance
-                        anticipated_sell_price = resistance - buffer_zone
+                            # Calculate a buffer zone below the resistance
+                            buffer_zone = (resistance - support) * 0.04  # 5% below resistance
+                            anticipated_sell_price = resistance - buffer_zone
 
-                        # Calculate expected profit and profit percentage
-                        expected_profit = (anticipated_sell_price - current_price) * SHARES_TO_ACQUIRE
-                        exchange_fee = calculate_exchange_fee(anticipated_sell_price, SHARES_TO_ACQUIRE, 'taker')
-                        tax_owed = (federal_tax_rate / 100) * expected_profit
-                        print(f"anticipated_tax_owed: {tax_owed}")
+                            # Calculate expected profit and profit percentage
+                            expected_profit = (anticipated_sell_price - current_price) * SHARES_TO_ACQUIRE
+                            exchange_fee = calculate_exchange_fee(anticipated_sell_price, SHARES_TO_ACQUIRE, 'taker')
+                            tax_owed = (federal_tax_rate / 100) * expected_profit
+                            print(f"anticipated_tax_owed: {tax_owed}")
 
-                        net_expected_profit = expected_profit - exchange_fee - tax_owed
+                            net_expected_profit = expected_profit - exchange_fee - tax_owed
 
-                        expected_profit_percentage = (net_expected_profit / SHARES_TO_ACQUIRE) * 100
+                            expected_profit_percentage = (net_expected_profit / SHARES_TO_ACQUIRE) * 100
 
-                        print(f"anticipated_sell_price: {anticipated_sell_price}")
-                        print(f"expected_profit: {expected_profit}")
-                        print(f"net_expected_profit: {net_expected_profit}")
-                        print(f"expected_profit_percentage: {expected_profit_percentage:.2f}%")
+                            print(f"anticipated_sell_price: {anticipated_sell_price}")
+                            print(f"expected_profit: {expected_profit}")
+                            print(f"net_expected_profit: {net_expected_profit}")
+                            print(f"expected_profit_percentage: {expected_profit_percentage:.2f}%")
 
-                        # Buy signal: current price crosses above SMA
-                        if sma is not None and macd_line is not None and signal_line is not None:
-                            if current_price > sma and macd_line > signal_line:
-                                print('~ BUY OPPORTUNITY (current_price > sma, MACD crossover)~')
-                                place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                            elif current_price < lower_band:
-                                print('~ BUY OPPORTUNITY (price below lower Bollinger Band)~')
-                                place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                            elif current_price_position_within_trading_range < 6:
-                                print('~ BUY OPPORTUNITY (current_price_position_within_trading_range < 6)~')
-                                place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                            # elif current_price < minimum_price_in_chart:
-                            #     print('~ BUY OPPORTUNITY (current_price < minimum_price_in_chart)~')
-                            #     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                            # Buy signal: current price crosses above SMA
+                            if sma is not None and macd_line is not None and signal_line is not None:
+                                if current_price > sma and macd_line > signal_line:
+                                    print('~ BUY OPPORTUNITY (current_price > sma, MACD crossover)~')
+                                    place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                                elif current_price < lower_band:
+                                    print('~ BUY OPPORTUNITY (price below lower Bollinger Band)~')
+                                    place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                                elif current_price_position_within_trading_range < 6:
+                                    print('~ BUY OPPORTUNITY (current_price_position_within_trading_range < 6)~')
+                                    place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                                elif current_price < minimum_price_in_chart:
+                                    print('~ BUY OPPORTUNITY (current_price < minimum_price_in_chart)~')
+                                    place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
 
 
                 #
                 # SELL logic
                 elif last_order_type == 'buy': # and volume_based_strategy == 'sell':
-                    print('looking to SELL')
+                    print('signal: SELL')
+                    if READY_TO_TRADE == True:
 
-                    if owned_shares == 0:
-                        print('something went wrong with local buy/sell order data')
-                        continue
+                        if owned_shares == 0:
+                            print('something went wrong with local buy/sell order data')
+                            continue
 
-                    entry_price = float(last_order['order']['average_filled_price'])
-                    print(f"entry_price: {entry_price}")
+                        entry_price = float(last_order['order']['average_filled_price'])
+                        print(f"entry_price: {entry_price}")
 
-                    entry_position_value_after_fees = float(last_order['order']['total_value_after_fees'])
-                    print(f"entry_position_value_after_fees: {entry_position_value_after_fees}")
+                        entry_position_value_after_fees = float(last_order['order']['total_value_after_fees'])
+                        print(f"entry_position_value_after_fees: {entry_position_value_after_fees}")
 
-                    number_of_shares = float(last_order['order']['filled_size'])
-                    print('number_of_shares: ', number_of_shares)
+                        number_of_shares = float(last_order['order']['filled_size'])
+                        print('number_of_shares: ', number_of_shares)
 
-                    # calculate profits if we were going to sell now
-                    pre_tax_profit = (current_price - entry_price) * number_of_shares
+                        # calculate profits if we were going to sell now
+                        pre_tax_profit = (current_price - entry_price) * number_of_shares
 
-                    sell_now_exchange_fee = calculate_exchange_fee(current_price, number_of_shares, 'taker')
-                    print(f"sell_now_exchange_fee: {sell_now_exchange_fee}")
+                        sell_now_exchange_fee = calculate_exchange_fee(current_price, number_of_shares, 'taker')
+                        print(f"sell_now_exchange_fee: {sell_now_exchange_fee}")
 
-                    sell_now_tax_owed = (federal_tax_rate / 100) * pre_tax_profit
-                    print(f"sell_now_taxes_owed: {sell_now_tax_owed}")
+                        sell_now_tax_owed = (federal_tax_rate / 100) * pre_tax_profit
+                        print(f"sell_now_taxes_owed: {sell_now_tax_owed}")
 
-                    potential_profit = (current_price * number_of_shares) - entry_position_value_after_fees - sell_now_exchange_fee - sell_now_tax_owed
-                    print(f"potential_profit_USD: {potential_profit}")
+                        potential_profit = (current_price * number_of_shares) - entry_position_value_after_fees - sell_now_exchange_fee - sell_now_tax_owed
+                        print(f"potential_profit_USD: {potential_profit}")
 
-                    potential_profit_percentage = (potential_profit / entry_position_value_after_fees) * 100
-                    print(f"potential_profit_percentage: {potential_profit_percentage:.2f}%")
+                        potential_profit_percentage = (potential_profit / entry_position_value_after_fees) * 100
+                        print(f"potential_profit_percentage: {potential_profit_percentage:.2f}%")
 
-                    if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
-                        print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
-                        if current_price >= resistance:
-                            print('~ SELL OPPORTUNITY (price near resistance) ~')
-                            place_market_sell_order(symbol, number_of_shares)
-                        elif sma is not None and current_price < sma:
-                            print('~ SELL OPPORTUNITY (price < SMA) ~')
-                            place_market_sell_order(symbol, number_of_shares)
+                        if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
+                            if current_price >= resistance:
+                                print('~ SELL OPPORTUNITY (price near resistance) ~')
+                                place_market_sell_order(symbol, number_of_shares)
+                            elif sma is not None and current_price < sma:
+                                print('~ SELL OPPORTUNITY (price < SMA) ~')
+                                place_market_sell_order(symbol, number_of_shares)
+                            else:
+                                print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
+                                place_market_sell_order(symbol, number_of_shares)
 
                 # Indicators are passed into the plot graph
-                plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price, minimum_price_in_chart, maximum_price_in_chart, LOCAL_TREND_DATA[symbol])
+                if ENABLE_CHART:
+                    plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price, minimum_price_in_chart, maximum_price_in_chart, LOCAL_TREND_DATA[symbol], LOCAL_CHARACTER_TREND_DATA[symbol])
+
                 print('\n')
 
         time.sleep(interval_seconds)
@@ -1019,12 +1146,6 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
 if __name__ == "__main__":
     while True:
         try:
-            # Define time intervals
-            INTERVAL_SECONDS = 10
-            INTERVAL_MINUTES = 60
-            # INTERVAL_SECONDS = 15
-            # INTERVAL_MINUTES = 250 # 4 hour
-            DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
             iterate_assets(INTERVAL_SECONDS, DATA_POINTS_FOR_X_MINUTES)
         except Exception as e:
             print(f"An error occurred: {e}. Restarting the program...")
