@@ -888,9 +888,9 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 # print('trend: ', trend)
                 offset_percentage = 0
                 if trend == 'upward':
-                    offset_percentage = 0.045
+                    offset_percentage = 0.05
                 elif trend == 'downward':
-                    offset_percentage = -0.045
+                    offset_percentage = -0.05
                 price_trend_offset = current_price * (offset_percentage / 100)
                 offset_price = current_price
                 if trend == 'upward' or trend == 'downward':
@@ -906,9 +906,9 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 # print('change_of_character: ', change_of_character)
                 char_offset_percentage = 0
                 if change_of_character == 'bullish':
-                    char_offset_percentage = 0.095
+                    char_offset_percentage = 0.1
                 elif change_of_character == 'bearish':
-                    char_offset_percentage = -0.095
+                    char_offset_percentage = -0.1
                 price_trend_offset = current_price * (char_offset_percentage / 100)
                 char_offset_price = current_price + price_trend_offset
                 # Append the calculated offset to the local trend data
