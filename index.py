@@ -255,7 +255,7 @@ if mode == 'test':
             TEST_PRICE_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
             TEST_TREND_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
             TEST_CHARACTER_TREND_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
-            TEST_TREND_DIVERGENCE_DATA = deque(maxlen=int((DATA_POINTS_FOR_X_MINUTES/2)))
+            TEST_TREND_DIVERGENCE_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
 
             # UP_TREND_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES/2)
             # DOWN_TREND_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES/2)
@@ -1015,7 +1015,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
 
                 if symbol not in LOCAL_TREND_DIVERGENCE_DATA:
-                    LOCAL_TREND_DIVERGENCE_DATA[symbol] = deque(maxlen=int(data_points_for_x_minutes/2))
+                    LOCAL_TREND_DIVERGENCE_DATA[symbol] = deque(maxlen=data_points_for_x_minutes)
                     if IS_TEST_MODE == True:
                         LOCAL_TREND_DIVERGENCE_DATA[symbol] = TEST_TREND_DIVERGENCE_DATA
 
