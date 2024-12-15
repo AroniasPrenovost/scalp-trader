@@ -54,9 +54,7 @@ last_calculated_support_resistance_pivot_prices = {}  # Store the last calculate
 LOCAL_TREND_DATA = {}
 LOCAL_CHARACTER_TREND_DATA = {}
 
-LOCAL_TREND_DIVERGENCE_DATA = {}
-UP_TREND_DATA = {}
-DOWN_TREND_DATA = {}
+LOCAL_UPWARD_TREND_DIVERGENCE_DATA = {}
 
 #
 #
@@ -260,10 +258,7 @@ if mode == 'test':
             TEST_PRICE_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
             TEST_TREND_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
             TEST_CHARACTER_TREND_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
-            TEST_TREND_DIVERGENCE_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
-
-            # UP_TREND_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES/2)
-            # DOWN_TREND_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES/2)
+            TEST_UPWARD_TREND_DIVERGENCE_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
 
             raw_test_data = generate_test_price_data(start_price, DATA_POINTS_FOR_X_MINUTES, 0.00000003)
 
@@ -280,12 +275,9 @@ if mode == 'test':
                 if trend == 'upward':
                     price_trend_offset = price * (10 / 100)
                     offset_price = price + price_trend_offset
-                    # UP_TREND_DATA.append(offset_price)
                 elif trend == 'downward':
                     price_trend_offset = price * (-10 / 100)
                     offset_price = price + price_trend_offset
-                    # DOWN_TREND_DATA.append(offset_price)
-                # Append the calculated offset to the local trend data
                 TEST_TREND_DATA.append(offset_price)
                 #
                 # CHARACTER TREND
@@ -300,17 +292,17 @@ if mode == 'test':
                 elif change_of_character == 'bearish':
                     price_trend_offset = price * (-18 / 100)
                     char_offset_price = price + price_trend_offset
-                # Append the calculated offset to the local trend data
                 TEST_CHARACTER_TREND_DATA.append(char_offset_price)
 
                 if (trend == 'upward' and change_of_character == 'bearish') or (trend == 'downward' and change_of_character == 'bullish'):
+                    if trend == 'upward':
                     # print(' ______ ')
-                    # print('trend: ', trend)
+                        # print('trend: ', trend)
                     # print('coc: ', change_of_character)
-                    # print('price: ', price)
-                    TEST_TREND_DIVERGENCE_DATA.append(price)
+                        print('price: ', price)
+                        TEST_UPWARD_TREND_DIVERGENCE_DATA.append(price)
 
-            print('trend divergence(s): ', f"{len(TEST_TREND_DIVERGENCE_DATA)}/{len(TEST_PRICE_DATA)}")
+            print('upward trend divergence(s): ', f"{len(TEST_UPWARD_TREND_DIVERGENCE_DATA)}/{len(TEST_PRICE_DATA)}")
 else:
     print(f"Running in {mode} mode")
 
@@ -921,7 +913,7 @@ def volume_based_strategy_recommendation(data):
 # Create chart
 #
 
-def plot_graph(timeframe_minutes, symbol, price_data, pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price, min_price, max_price, trend_data, character_trend_data, diverg):
+def plot_graph(timeframe_minutes, symbol, price_data, pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price, min_price, max_price, trend_data, character_trend_data, up_diverg):
     # init graph
     plt.figure()
 
@@ -934,14 +926,14 @@ def plot_graph(timeframe_minutes, symbol, price_data, pivot, support, resistance
     plt.plot(list(price_data), marker=',', label='price', c='black')
 
     # trend data markers
-    plt.plot(list(trend_data), marker='|', label='trend (+/-)', c='cyan')
+    plt.plot(list(trend_data), marker=2, label='trend (+/-)', c='brown')
 
     # character trend data markerss
-    # plt.plot(list(character_trend_data), marker='|', label='character trend +/-', c='orange')
+    # plt.plot(list(character_trend_data), marker=3, label='character trend +/-', c='orange')
 
-    # Plot divergence markers
-    diverg_indices = [i for i, x in enumerate(price_data) if x in diverg]
-    plt.scatter(diverg_indices, [price_data[i] for i in diverg_indices], color='red', label='divergence', marker='x')
+    # Plot upward divergence markers
+    up_diverg_indices = [i for i, x in enumerate(price_data) if x in up_diverg]
+    plt.scatter(up_diverg_indices, [price_data[i] for i in up_diverg_indices], color='red', label='divergence', marker='x')
 
 
     # support, resistance, pivot levels
@@ -1019,10 +1011,10 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                         LOCAL_TREND_DATA[symbol] = TEST_TREND_DATA
 
 
-                if symbol not in LOCAL_TREND_DIVERGENCE_DATA:
-                    LOCAL_TREND_DIVERGENCE_DATA[symbol] = deque(maxlen=data_points_for_x_minutes)
+                if symbol not in LOCAL_UPWARD_TREND_DIVERGENCE_DATA:
+                    LOCAL_UPWARD_TREND_DIVERGENCE_DATA[symbol] = deque(maxlen=data_points_for_x_minutes)
                     if IS_TEST_MODE == True:
-                        LOCAL_TREND_DIVERGENCE_DATA[symbol] = TEST_TREND_DIVERGENCE_DATA
+                        LOCAL_UPWARD_TREND_DIVERGENCE_DATA[symbol] = TEST_UPWARD_TREND_DIVERGENCE_DATA
 
                 trend = determine_trend(LOCAL_PRICE_DATA[symbol], data_points_for_x_minutes, TREND_TIMEFRAME_PERCENT)
                 # print('trend: ', trend)
@@ -1293,7 +1285,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                         minimum_price_in_chart,
                         maximum_price_in_chart, LOCAL_TREND_DATA[symbol],
                         LOCAL_CHARACTER_TREND_DATA[symbol],
-                        LOCAL_TREND_DIVERGENCE_DATA[symbol]
+                        LOCAL_UPWARD_TREND_DIVERGENCE_DATA[symbol]
                     )
 
                 print('\n')
