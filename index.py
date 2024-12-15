@@ -10,6 +10,7 @@ from collections import deque
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
+import pandas as pd
 import requests # supports CoinMarketCap
 # coinbase api
 from coinbase.rest import RESTClient
@@ -61,7 +62,7 @@ LOCAL_CHARACTER_TREND_DATA = {}
 # INTERVAL_SECONDS = 1
 # INTERVAL_MINUTES = 0.25
 INTERVAL_SECONDS = 2
-INTERVAL_MINUTES = 0.25
+INTERVAL_MINUTES = 60
 # INTERVAL_SECONDS = 15
 # INTERVAL_MINUTES = 240 # 4 hour
 
@@ -69,10 +70,128 @@ DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
 
 #
 #
+# Coinbase API and taxes
+#
+
+coinbase_api_key = os.environ.get('COINBASE_API_KEY')
+coinbase_api_secret = os.environ.get('COINBASE_API_SECRET')
+
+coinbase_spot_maker_fee = float(os.environ.get('COINBASE_SPOT_MAKER_FEE'))
+coinbase_spot_taker_fee = float(os.environ.get('COINBASE_SPOT_TAKER_FEE'))
+federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
+
+client = RESTClient(api_key=coinbase_api_key, api_secret=coinbase_api_secret)
+
+#
+#
+# Get current price
+#
+
+def get_asset_price(symbol):
+    try:
+        product = client.get_product(symbol)
+        price = float(product["price"])
+        return price
+    except Exception as e:
+        print(f"Error fetching product price for {symbol}: {e}")
+        return None
+
+
+def determine_trend(prices, data_points_for_entire_interval, timeframe_percent):
+    """
+    Determine the trend in the given price data.
+
+    :param prices: deque of stock prices
+    :param data_points_for_entire_interval: total number of data points for the timeframe
+    :return: string indicating the trend ('downward', 'upward', or 'neutral')
+    """
+    # Calculate the period as 17% of the total data points
+    period = max(1, int(data_points_for_entire_interval * timeframe_percent))
+
+    if len(prices) < period:
+        return 'neutral'
+
+    # Calculate the moving average for the specified period
+    moving_average = np.mean(list(prices)[-period:])
+
+    # Compare the current price to the moving average
+    current_price = prices[-1]
+
+    if current_price < moving_average:
+        return 'downward'
+    elif current_price > moving_average:
+        return 'upward'
+    else:
+        return 'neutral'
+
+def detect_trend_direction(prices, lookback_period=30, short_window=20, long_window=50, support_resistance_window=30, atr_window=14):
+    """
+    Detects a change of character in the price data using moving averages, support/resistance levels, and ATR.
+
+    :param prices: deque of stock prices
+    :param lookback_period: number of periods to look back for highs and lows
+    :param short_window: window size for the short moving average
+    :param long_window: window size for the long moving average
+    :param support_resistance_window: window size for calculating support and resistance
+    :param atr_window: window size for calculating the Average True Range
+    :return: string indicating the change ('bullish', 'bearish', or 'none')
+    """
+    if len(prices) < max(lookback_period, long_window, support_resistance_window, atr_window):
+        return 'none'
+
+    # Convert deque to pandas Series for easier manipulation
+    prices_series = pd.Series(list(prices))
+
+    # Calculate moving averages
+    short_ma = prices_series.rolling(window=short_window).mean()
+    long_ma = prices_series.rolling(window=long_window).mean()
+
+    # Calculate support and resistance
+    support = prices_series.rolling(window=support_resistance_window).min()
+    resistance = prices_series.rolling(window=support_resistance_window).max()
+
+    # Calculate ATR
+    high_low = prices_series.rolling(window=2).apply(lambda x: x.max() - x.min(), raw=True)
+    high_close = prices_series.rolling(window=2).apply(lambda x: abs(x[1] - x[0]), raw=True)
+    low_close = prices_series.rolling(window=2).apply(lambda x: abs(x[1] - x[0]), raw=True)
+    true_range = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+    atr = true_range.rolling(window=atr_window).mean()
+
+    # Determine trend
+    trend = np.where(short_ma > long_ma, 'upward', 'downward')
+
+    # Get recent prices for lookback period
+    recent_prices = prices_series[-lookback_period:]
+    recent_high = recent_prices.max()
+    recent_low = recent_prices.min()
+    current_price = prices_series.iloc[-1]
+
+    # Debugging: Print key variables
+    # print(f"Current Price: {current_price}")
+    # print(f"Recent High: {recent_high}")
+    # print(f"Recent Low: {recent_low}")
+    # print(f"ATR: {atr.iloc[-1]}")
+    print(f"Trend: {trend[-1]}")
+    if trend[-1] == 'upward':
+        return 'bullish'
+    elif trend[-1] == 'downward':
+        return 'bearish'
+
+    # Determine change of character using ATR
+    if current_price > recent_high + atr.iloc[-1] and trend[-1] == 'upward':
+        return 'bullish'
+    elif current_price < recent_low - atr.iloc[-1] and trend[-1] == 'downward':
+        return 'bearish'
+    else:
+        return 'none'
+
+
+#
+#
 # Generating test data
 #
 
-def generate_test_price_data(start_price=0.062, data_points=360, trend=0.001, volatility=0.025):
+def generate_test_price_data(start_price, data_points, trend=0.001, volatility=0.025):
     """
     Generate a list of simulated price data for testing.
 
@@ -93,22 +212,82 @@ def generate_test_price_data(start_price=0.062, data_points=360, trend=0.001, vo
 
     return prices
 
-# Example usage
-# test_price_data = generate_test_price_data()
-# print(list(test_price_data))
 
-# Set up argument parsing
+#
+#
+# TEST mode
+#
+
 parser = argparse.ArgumentParser(description='Process some command-line arguments.')
 parser.add_argument('mode', nargs='?', default='default', help='Mode of operation (e.g., test)')
 args = parser.parse_args() # Parse the arguments
 mode = args.mode # Access the argument
 IS_TEST_MODE = False
 if mode == 'test':
-    IS_TEST_MODE = True
-    print("TEST mode enabled")
-    TEST_PRICE_DATA = generate_test_price_data(0.062, DATA_POINTS_FOR_X_MINUTES, 0.001, 0.025)
-    TEST_TREND_DATA = generate_test_price_data(0.062, DATA_POINTS_FOR_X_MINUTES, 0.001, 0.025)
-    TEST_CHARACTER_TREND_DATA = generate_test_price_data(0.062, DATA_POINTS_FOR_X_MINUTES, 0.001, 0.025)
+    cfig = load_config('config.json');
+    for asset in cfig['assets']:
+        enabled = asset['enabled']
+        symbol = asset['symbol']
+        if enabled:
+            print(symbol)
+
+            IS_TEST_MODE = True
+
+            start_price = get_asset_price(symbol)
+
+            symbol = asset['symbol']
+            SHARES_TO_ACQUIRE = asset['shares_to_acquire']
+            TARGET_PROFIT_PERCENTAGE = asset['target_profit_percentage']
+            TREND_TIMEFRAME_PERCENT = asset['trend_timeframe_percent']
+            CHARACTER_TREND_TIMEFRAME_PERCENT = asset['character_trend_timeframe_percent']
+            READY_TO_TRADE = asset['ready_to_trade']
+            ENABLE_CHART = asset['enable_chart']
+
+            #
+            #
+            # Initialize price data storage if not already done
+            #
+
+            TEST_PRICE_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
+            TEST_TREND_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
+            TEST_CHARACTER_TREND_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
+
+            raw_test_data = generate_test_price_data(start_price, DATA_POINTS_FOR_X_MINUTES, 0.000003)
+
+            # generate indicator visualizations
+            for price in raw_test_data:
+                # PRICE
+                TEST_PRICE_DATA.append(price)
+                #
+                # TREND
+                #
+                trend = determine_trend(TEST_PRICE_DATA, DATA_POINTS_FOR_X_MINUTES, TREND_TIMEFRAME_PERCENT)
+                # visualize on chart
+                offset_price = price
+                if trend == 'upward':
+                    price_trend_offset = price * (6 / 100)
+                    offset_price = price + price_trend_offset
+                elif trend == 'downward':
+                    price_trend_offset = price * (-6 / 100)
+                    offset_price = price + price_trend_offset
+                # Append the calculated offset to the local trend data
+                TEST_TREND_DATA.append(offset_price)
+                #
+                # CHARACTER TREND
+                #
+                change_of_character = detect_trend_direction(TEST_PRICE_DATA, 20)
+                print('change: ', change_of_character)
+                # visualize on chart
+                char_offset_price = price
+                if change_of_character == 'bullish':
+                    price_trend_offset = price * (14 / 100)
+                    char_offset_price = price + price_trend_offset
+                elif change_of_character == 'bearish':
+                    price_trend_offset = price * (-14 / 100)
+                    char_offset_price = price + price_trend_offset
+                # Append the calculated offset to the local trend data
+                TEST_CHARACTER_TREND_DATA.append(char_offset_price)
+
 else:
     print(f"Running in {mode} mode")
 
@@ -202,34 +381,6 @@ def fetch_coinmarketcap_volume_data(symbol):
         return None
 
 
-
-#
-#
-# Coinbase API and taxes
-#
-
-coinbase_api_key = os.environ.get('COINBASE_API_KEY')
-coinbase_api_secret = os.environ.get('COINBASE_API_SECRET')
-
-coinbase_spot_maker_fee = float(os.environ.get('COINBASE_SPOT_MAKER_FEE'))
-coinbase_spot_taker_fee = float(os.environ.get('COINBASE_SPOT_TAKER_FEE'))
-federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
-
-client = RESTClient(api_key=coinbase_api_key, api_secret=coinbase_api_secret)
-
-#
-#
-# Get current price
-#
-
-def get_asset_price(symbol):
-    try:
-        product = client.get_product(symbol)
-        price = float(product["price"])
-        return price
-    except Exception as e:
-        print(f"Error fetching product price for {symbol}: {e}")
-        return None
 
 #
 #
@@ -523,6 +674,10 @@ def calculate_support_resistance(prices):
 
     return pivot, support, resistance
 
+#
+#
+#
+#
 
 def calculate_trading_range_percentage(num1, num2):
     if num1 == 0 and num2 == 0:
@@ -532,56 +687,10 @@ def calculate_trading_range_percentage(num1, num2):
     percentage_difference = (difference / average) * 100
     return f"{percentage_difference:.2f}"
 
-def determine_trend(prices, data_points_for_entire_interval, timeframe_percent):
-    """
-    Determine the trend in the given price data.
-
-    :param prices: deque of stock prices
-    :param data_points_for_entire_interval: total number of data points for the timeframe
-    :return: string indicating the trend ('downward', 'upward', or 'neutral')
-    """
-    # Calculate the period as 17% of the total data points
-    period = max(1, int(data_points_for_entire_interval * timeframe_percent))
-
-    if len(prices) < period:
-        return 'neutral'
-
-    # Calculate the moving average for the specified period
-    moving_average = np.mean(list(prices)[-period:])
-
-    # Compare the current price to the moving average
-    current_price = prices[-1]
-
-    if current_price < moving_average:
-        return 'downward'
-    elif current_price > moving_average:
-        return 'upward'
-    else:
-        return 'neutral'
-
-def detect_change_of_character(prices, lookback_period):
-    """
-    Detects a change of character in the price data.
-
-    :param prices: deque of stock prices
-    :param lookback_period: number of periods to look back for highs and lows
-    :return: string indicating the change ('bullish', 'bearish', or 'none')
-    """
-    if len(prices) < lookback_period:
-        return 'none'
-
-    recent_prices = list(prices)[-lookback_period:]
-    recent_high = max(recent_prices)
-    recent_low = min(recent_prices)
-    current_price = prices[-1]
-
-    if current_price > recent_high:
-        return 'bullish'
-    elif current_price < recent_low:
-        return 'bearish'
-    else:
-        return 'none'
-
+#
+#
+#
+#
 
 def calculate_current_price_position_within_trading_range(current_price, support, resistance):
     """
@@ -796,13 +905,15 @@ def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_per
     plt.figure()
 
     # price data markers
-    plt.plot(list(price_data), marker=',', label='price', c='brown')
+    plt.plot(list(price_data), marker='.', label='price', c='black')
 
     # trend data markers
     plt.plot(list(trend_data), marker='|', label='trend (+/-)', c='orange')
 
     # character trend data markerss
-    plt.plot(list(character_trend_data), marker='|', label='character trend +/-')
+    plt.plot(list(character_trend_data), marker='|', label='character trend +/-', c='green')
+
+
 
     # support, resistance, pivot levels
     plt.axhline(y=resistance, color='b', linewidth=1.4, linestyle='--', label='resistance')
@@ -858,11 +969,6 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
             READY_TO_TRADE = asset['ready_to_trade']
             ENABLE_CHART = asset['enable_chart']
 
-            if IS_TEST_MODE == True:
-                LOCAL_PRICE_DATA[symbol] = TEST_PRICE_DATA
-                LOCAL_TREND_DATA[symbol] = TEST_TREND_DATA
-                LOCAL_CHARACTER_TREND_DATA[symbol] = TEST_CHARACTER_TREND_DATA
-
             if enabled:
                 print(symbol)
 
@@ -876,6 +982,8 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
 
                 if symbol not in LOCAL_PRICE_DATA:
                     LOCAL_PRICE_DATA[symbol] = deque(maxlen=data_points_for_x_minutes)
+                    if IS_TEST_MODE == True:
+                        LOCAL_PRICE_DATA[symbol] = TEST_PRICE_DATA
 
                 current_price = get_asset_price(symbol)
                 if current_price is not None:
@@ -883,14 +991,16 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
 
                 if symbol not in LOCAL_TREND_DATA:
                     LOCAL_TREND_DATA[symbol] = deque(maxlen=data_points_for_x_minutes)
+                    if IS_TEST_MODE == True:
+                        LOCAL_TREND_DATA[symbol] = TEST_TREND_DATA
 
                 trend = determine_trend(LOCAL_PRICE_DATA[symbol], data_points_for_x_minutes, TREND_TIMEFRAME_PERCENT)
                 # print('trend: ', trend)
                 offset_percentage = 0
                 if trend == 'upward':
-                    offset_percentage = 0.05
+                    offset_percentage = 6
                 elif trend == 'downward':
-                    offset_percentage = -0.05
+                    offset_percentage = -6
                 price_trend_offset = current_price * (offset_percentage / 100)
                 offset_price = current_price
                 if trend == 'upward' or trend == 'downward':
@@ -900,15 +1010,17 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
 
                 if symbol not in LOCAL_CHARACTER_TREND_DATA:
                     LOCAL_CHARACTER_TREND_DATA[symbol] = deque(maxlen=data_points_for_x_minutes)
+                    if IS_TEST_MODE == True:
+                        LOCAL_CHARACTER_TREND_DATA[symbol] = TEST_CHARACTER_TREND_DATA
 
                 # Detect change of character
-                change_of_character = detect_change_of_character(LOCAL_PRICE_DATA[symbol], CHARACTER_TREND_TIMEFRAME_PERCENT)
+                change_of_character = detect_trend_direction(LOCAL_PRICE_DATA[symbol], CHARACTER_TREND_TIMEFRAME_PERCENT)
                 # print('change_of_character: ', change_of_character)
                 char_offset_percentage = 0
                 if change_of_character == 'bullish':
-                    char_offset_percentage = 0.1
+                    char_offset_percentage = 14
                 elif change_of_character == 'bearish':
-                    char_offset_percentage = -0.1
+                    char_offset_percentage = -14
                 price_trend_offset = current_price * (char_offset_percentage / 100)
                 char_offset_price = current_price + price_trend_offset
                 # Append the calculated offset to the local trend data
@@ -924,8 +1036,8 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 # Indicators
                 #
 
-                print('trend: ', trend)
-                print('change_of_character: ', change_of_character)
+                # print('trend: ', trend)
+                # print('change_of_character: ', change_of_character)
 
                 if symbol not in VOLUME_BASED_RECOMMENDATIONS:
                     VOLUME_BASED_RECOMMENDATIONS[symbol] = 0
