@@ -54,6 +54,9 @@ last_calculated_support_resistance_pivot_prices = {}  # Store the last calculate
 LOCAL_TREND_DATA = {}
 LOCAL_CHARACTER_TREND_DATA = {}
 
+UP_TREND_DATA = {}
+DOWN_TREND_DATA = {}
+
 #
 #
 # Define time intervals
@@ -61,7 +64,7 @@ LOCAL_CHARACTER_TREND_DATA = {}
 
 # INTERVAL_SECONDS = 1
 # INTERVAL_MINUTES = 0.25
-INTERVAL_SECONDS = 2
+INTERVAL_SECONDS = 5
 INTERVAL_MINUTES = 60
 # INTERVAL_SECONDS = 15
 # INTERVAL_MINUTES = 240 # 4 hour
@@ -252,6 +255,9 @@ if mode == 'test':
             TEST_TREND_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
             TEST_CHARACTER_TREND_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
 
+            # UP_TREND_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES/2)
+            # DOWN_TREND_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES/2)
+
             raw_test_data = generate_test_price_data(start_price, DATA_POINTS_FOR_X_MINUTES, 0.000003)
 
             # generate indicator visualizations
@@ -265,11 +271,13 @@ if mode == 'test':
                 # visualize on chart
                 offset_price = price
                 if trend == 'upward':
-                    price_trend_offset = price * (6 / 100)
+                    price_trend_offset = price * (10 / 100)
                     offset_price = price + price_trend_offset
+                    # UP_TREND_DATA.append(offset_price)
                 elif trend == 'downward':
-                    price_trend_offset = price * (-6 / 100)
+                    price_trend_offset = price * (-10 / 100)
                     offset_price = price + price_trend_offset
+                    # DOWN_TREND_DATA.append(offset_price)
                 # Append the calculated offset to the local trend data
                 TEST_TREND_DATA.append(offset_price)
                 #
@@ -280,10 +288,10 @@ if mode == 'test':
                 # visualize on chart
                 char_offset_price = price
                 if change_of_character == 'bullish':
-                    price_trend_offset = price * (14 / 100)
+                    price_trend_offset = price * (18 / 100)
                     char_offset_price = price + price_trend_offset
                 elif change_of_character == 'bearish':
-                    price_trend_offset = price * (-14 / 100)
+                    price_trend_offset = price * (-18 / 100)
                     char_offset_price = price + price_trend_offset
                 # Append the calculated offset to the local trend data
                 TEST_CHARACTER_TREND_DATA.append(char_offset_price)
@@ -996,14 +1004,12 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
 
                 trend = determine_trend(LOCAL_PRICE_DATA[symbol], data_points_for_x_minutes, TREND_TIMEFRAME_PERCENT)
                 # print('trend: ', trend)
-                offset_percentage = 0
-                if trend == 'upward':
-                    offset_percentage = 6
-                elif trend == 'downward':
-                    offset_percentage = -6
-                price_trend_offset = current_price * (offset_percentage / 100)
                 offset_price = current_price
-                if trend == 'upward' or trend == 'downward':
+                if trend == 'upward':
+                    price_trend_offset = current_price * (10 / 100)
+                    offset_price = current_price + price_trend_offset
+                elif trend == 'downward':
+                    price_trend_offset = current_price * (-10 / 100)
                     offset_price = current_price + price_trend_offset
                 # Append the calculated offset to the local trend data
                 LOCAL_TREND_DATA[symbol].append(offset_price)
@@ -1016,13 +1022,13 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 # Detect change of character
                 change_of_character = detect_trend_direction(LOCAL_PRICE_DATA[symbol], CHARACTER_TREND_TIMEFRAME_PERCENT)
                 # print('change_of_character: ', change_of_character)
-                char_offset_percentage = 0
+                char_offset_price = price
                 if change_of_character == 'bullish':
-                    char_offset_percentage = 14
+                    price_trend_offset = current_price * (18 / 100)
+                    char_offset_price = current_price + price_trend_offset
                 elif change_of_character == 'bearish':
-                    char_offset_percentage = -14
-                price_trend_offset = current_price * (char_offset_percentage / 100)
-                char_offset_price = current_price + price_trend_offset
+                    price_trend_offset = current_price * (-18 / 100)
+                    char_offset_price = current_price + price_trend_offset
                 # Append the calculated offset to the local trend data
                 LOCAL_CHARACTER_TREND_DATA[symbol].append(char_offset_price)
 
