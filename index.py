@@ -222,11 +222,11 @@ def generate_test_price_data(start_price, data_points, trend=0.001, volatility=0
 # TEST mode
 #
 
+IS_TEST_MODE = False
 parser = argparse.ArgumentParser(description='Process some command-line arguments.')
 parser.add_argument('mode', nargs='?', default='default', help='Mode of operation (e.g., test)')
-args = parser.parse_args() # Parse the arguments
-mode = args.mode # Access the argument
-IS_TEST_MODE = False
+args = parser.parse_args()
+mode = args.mode
 if mode == 'test':
     cfig = load_config('config.json');
     for asset in cfig['assets']:
