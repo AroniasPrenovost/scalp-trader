@@ -174,7 +174,7 @@ def detect_trend_direction(prices, lookback_period=30, short_window=20, long_win
     # print(f"Recent High: {recent_high}")
     # print(f"Recent Low: {recent_low}")
     # print(f"ATR: {atr.iloc[-1]}")
-    print(f"Trend: {trend[-1]}")
+    # print(f"Trend: {trend[-1]}")
     if trend[-1] == 'upward':
         return 'bullish'
     elif trend[-1] == 'downward':
@@ -284,7 +284,7 @@ if mode == 'test':
                 # CHARACTER TREND
                 #
                 change_of_character = detect_trend_direction(TEST_PRICE_DATA, 20)
-                print('change: ', change_of_character)
+                # print('change: ', change_of_character)
                 # visualize on chart
                 char_offset_price = price
                 if change_of_character == 'bullish':
@@ -1003,7 +1003,7 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                         LOCAL_TREND_DATA[symbol] = TEST_TREND_DATA
 
                 trend = determine_trend(LOCAL_PRICE_DATA[symbol], data_points_for_x_minutes, TREND_TIMEFRAME_PERCENT)
-                # print('trend: ', trend)
+                print('trend: ', trend)
                 offset_price = current_price
                 if trend == 'upward':
                     price_trend_offset = current_price * (10 / 100)
@@ -1021,7 +1021,7 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
 
                 # Detect change of character
                 change_of_character = detect_trend_direction(LOCAL_PRICE_DATA[symbol], CHARACTER_TREND_TIMEFRAME_PERCENT)
-                # print('change_of_character: ', change_of_character)
+                print('change_of_character: ', change_of_character)
                 char_offset_price = price
                 if change_of_character == 'bullish':
                     price_trend_offset = current_price * (18 / 100)
