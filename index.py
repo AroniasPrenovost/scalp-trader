@@ -233,9 +233,8 @@ if mode == 'test':
         enabled = asset['enabled']
         symbol = asset['symbol']
         if enabled:
-            print(f"Generating test data for {symbol}...")
-
             IS_TEST_MODE = True
+            print(f"Generating test data for {symbol}...")
 
             start_price = get_asset_price(symbol)
 
