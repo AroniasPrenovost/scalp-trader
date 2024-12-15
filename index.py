@@ -248,10 +248,7 @@ if mode == 'test':
             ENABLE_CHART = asset['enable_chart']
 
             #
-            #
-            # Initialize price data storage if not already done
-            #
-
+            # Initialize price data storage
             TEST_PRICE_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
             TEST_TREND_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
             TEST_CHARACTER_TREND_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
