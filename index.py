@@ -100,6 +100,10 @@ def get_asset_price(symbol):
         print(f"Error fetching product price for {symbol}: {e}")
         return None
 
+#
+#
+# Get trend
+#
 
 def determine_trend(prices, data_points_for_entire_interval, timeframe_percent):
     """
@@ -127,6 +131,11 @@ def determine_trend(prices, data_points_for_entire_interval, timeframe_percent):
         return 'upward'
     else:
         return 'neutral'
+
+#
+#
+# Get trend 2
+#
 
 def detect_trend_direction(prices, lookback_period=30, short_window=20, long_window=50, support_resistance_window=30, atr_window=14):
     """
