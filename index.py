@@ -54,6 +54,7 @@ last_calculated_support_resistance_pivot_prices = {}  # Store the last calculate
 LOCAL_TREND_DATA = {}
 LOCAL_CHARACTER_TREND_DATA = {}
 
+LOCAL_TREND_DIVERGENCE_DATA = {}
 UP_TREND_DATA = {}
 DOWN_TREND_DATA = {}
 
@@ -65,7 +66,7 @@ DOWN_TREND_DATA = {}
 # INTERVAL_SECONDS = 1
 # INTERVAL_MINUTES = 0.25
 INTERVAL_SECONDS = 5
-INTERVAL_MINUTES = 60
+INTERVAL_MINUTES = 30
 # INTERVAL_SECONDS = 15
 # INTERVAL_MINUTES = 240 # 4 hour
 
@@ -232,7 +233,7 @@ if mode == 'test':
         enabled = asset['enabled']
         symbol = asset['symbol']
         if enabled:
-            print(symbol)
+            print(f"Generating test data for {symbol}...")
 
             IS_TEST_MODE = True
 
@@ -254,11 +255,12 @@ if mode == 'test':
             TEST_PRICE_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
             TEST_TREND_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
             TEST_CHARACTER_TREND_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
+            TEST_TREND_DIVERGENCE_DATA = deque(maxlen=int((DATA_POINTS_FOR_X_MINUTES/2)))
 
             # UP_TREND_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES/2)
             # DOWN_TREND_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES/2)
 
-            raw_test_data = generate_test_price_data(start_price, DATA_POINTS_FOR_X_MINUTES, 0.000003)
+            raw_test_data = generate_test_price_data(start_price, DATA_POINTS_FOR_X_MINUTES, 0.00000003)
 
             # generate indicator visualizations
             for price in raw_test_data:
@@ -296,6 +298,14 @@ if mode == 'test':
                 # Append the calculated offset to the local trend data
                 TEST_CHARACTER_TREND_DATA.append(char_offset_price)
 
+                if (trend == 'upward' and change_of_character == 'bearish') or (trend == 'downward' and change_of_character == 'bullish'):
+                    # print(' ______ ')
+                    # print('trend: ', trend)
+                    # print('coc: ', change_of_character)
+                    # print('price: ', price)
+                    TEST_TREND_DIVERGENCE_DATA.append(price)
+
+            print('trend divergence(s): ', f"{len(TEST_TREND_DIVERGENCE_DATA)}/{len(TEST_PRICE_DATA)}")
 else:
     print(f"Running in {mode} mode")
 
@@ -906,21 +916,27 @@ def volume_based_strategy_recommendation(data):
 # Create chart
 #
 
-def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price, min_price, max_price, trend_data, character_trend_data):
-    if entry_price == 0:
-        entry_price = pivot
-
+def plot_graph(timeframe_minutes, symbol, price_data, pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price, min_price, max_price, trend_data, character_trend_data, diverg):
+    # init graph
     plt.figure()
 
+    # entry price (if it exists)
+    if entry_price > 0:
+        entry_price_width = 1.2
+        plt.axhline(y=entry_price, color='m', linewidth=entry_price_width, linestyle='-', label='entry price')
+
     # price data markers
-    plt.plot(list(price_data), marker='.', label='price', c='black')
+    plt.plot(list(price_data), marker=',', label='price', c='black')
 
     # trend data markers
-    plt.plot(list(trend_data), marker='|', label='trend (+/-)', c='orange')
+    plt.plot(list(trend_data), marker='|', label='trend (+/-)', c='cyan')
 
     # character trend data markerss
-    plt.plot(list(character_trend_data), marker='|', label='character trend +/-', c='green')
+    # plt.plot(list(character_trend_data), marker='|', label='character trend +/-', c='orange')
 
+    # Plot divergence markers
+    diverg_indices = [i for i, x in enumerate(price_data) if x in diverg]
+    plt.scatter(diverg_indices, [price_data[i] for i in diverg_indices], color='red', label='divergence', marker='x')
 
 
     # support, resistance, pivot levels
@@ -928,16 +944,11 @@ def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_per
     plt.axhline(y=support, color='b', linewidth=1.4, linestyle='--', label='support')
     plt.axhline(y=pivot, color='r', linewidth=1, linestyle=':', label='pivot')
 
-    entry_price_width = 1.2
-    if entry_price == 0:
-        entry_price_width = 0
-    plt.axhline(y=entry_price, color='m', linewidth=entry_price_width, linestyle='-', label='entry price')
-
-    plt.axhline(y=min_price, color='b', linewidth=1.2, linestyle='-', label='min price')
-    plt.axhline(y=max_price, color='b', linewidth=1.2, linestyle='-', label='max price')
+    plt.axhline(y=min_price, color='b', linewidth=1.2, linestyle='-', label=f"min price ({min_price})")
+    plt.axhline(y=max_price, color='b', linewidth=1.2, linestyle='-', label=f"max price ({max_price})")
 
     plt.title(f"{symbol}")
-    plt.xlabel("time")
+    plt.xlabel(f"time ({timeframe_minutes} minutes)")
     plt.ylabel("price")
     plt.legend()
 
@@ -962,7 +973,7 @@ def plot_graph(symbol, price_data, pivot, support, resistance, trading_range_per
 # main logic loop
 #
 
-def iterate_assets(interval_seconds, data_points_for_x_minutes):
+def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes):
     while True:
         client_accounts = client.get_accounts()
         config = load_config('config.json')
@@ -1002,8 +1013,14 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                     if IS_TEST_MODE == True:
                         LOCAL_TREND_DATA[symbol] = TEST_TREND_DATA
 
+
+                if symbol not in LOCAL_TREND_DIVERGENCE_DATA:
+                    LOCAL_TREND_DIVERGENCE_DATA[symbol] = deque(maxlen=int(data_points_for_x_minutes/2))
+                    if IS_TEST_MODE == True:
+                        LOCAL_TREND_DIVERGENCE_DATA[symbol] = TEST_TREND_DIVERGENCE_DATA
+
                 trend = determine_trend(LOCAL_PRICE_DATA[symbol], data_points_for_x_minutes, TREND_TIMEFRAME_PERCENT)
-                print('trend: ', trend)
+                # print('trend: ', trend)
                 offset_price = current_price
                 if trend == 'upward':
                     price_trend_offset = current_price * (10 / 100)
@@ -1021,8 +1038,8 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
 
                 # Detect change of character
                 change_of_character = detect_trend_direction(LOCAL_PRICE_DATA[symbol], CHARACTER_TREND_TIMEFRAME_PERCENT)
-                print('change_of_character: ', change_of_character)
-                char_offset_price = price
+                # print('change_of_character: ', change_of_character)
+                char_offset_price = current_price
                 if change_of_character == 'bullish':
                     price_trend_offset = current_price * (18 / 100)
                     char_offset_price = current_price + price_trend_offset
@@ -1042,8 +1059,8 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
                 # Indicators
                 #
 
-                # print('trend: ', trend)
-                # print('change_of_character: ', change_of_character)
+                print('trend: ', trend)
+                print('change_of_character: ', change_of_character)
 
                 if symbol not in VOLUME_BASED_RECOMMENDATIONS:
                     VOLUME_BASED_RECOMMENDATIONS[symbol] = 0
@@ -1259,7 +1276,20 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
 
                 # Indicators are passed into the plot graph
                 if ENABLE_CHART:
-                    plot_graph(symbol, LOCAL_PRICE_DATA[symbol], pivot, support, resistance, trading_range_percentage, current_price_position_within_trading_range, entry_price, minimum_price_in_chart, maximum_price_in_chart, LOCAL_TREND_DATA[symbol], LOCAL_CHARACTER_TREND_DATA[symbol])
+                    plot_graph(
+                        interval_minutes,
+                        symbol,
+                        LOCAL_PRICE_DATA[symbol],
+                        pivot,
+                        support, resistance,
+                        trading_range_percentage,
+                        current_price_position_within_trading_range,
+                        entry_price,
+                        minimum_price_in_chart,
+                        maximum_price_in_chart, LOCAL_TREND_DATA[symbol],
+                        LOCAL_CHARACTER_TREND_DATA[symbol],
+                        LOCAL_TREND_DIVERGENCE_DATA[symbol]
+                    )
 
                 print('\n')
 
@@ -1268,7 +1298,7 @@ def iterate_assets(interval_seconds, data_points_for_x_minutes):
 if __name__ == "__main__":
     while True:
         try:
-            iterate_assets(INTERVAL_SECONDS, DATA_POINTS_FOR_X_MINUTES)
+            iterate_assets(INTERVAL_MINUTES, INTERVAL_SECONDS, DATA_POINTS_FOR_X_MINUTES)
         except Exception as e:
             print(f"An error occurred: {e}. Restarting the program...")
             send_email_notification(
