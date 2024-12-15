@@ -135,7 +135,7 @@ def determine_trend(prices, data_points_for_entire_interval, timeframe_percent):
 # Get trend 2
 #
 
-def detect_trend_direction(prices, lookback_period=30, short_window=20, long_window=50, support_resistance_window=30, atr_window=14):
+def determine_trend_2(prices, lookback_period=30, short_window=20, long_window=50, support_resistance_window=30, atr_window=14):
     """
     Detects a change of character in the price data using moving averages, support/resistance levels, and ATR.
 
@@ -282,7 +282,7 @@ if mode == 'test':
                 #
                 # CHARACTER TREND
                 #
-                change_of_character = detect_trend_direction(TEST_PRICE_DATA, 20)
+                change_of_character = determine_trend_2(TEST_PRICE_DATA, 20)
                 # print('change: ', change_of_character)
                 # visualize on chart
                 char_offset_price = price
@@ -1034,7 +1034,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                         LOCAL_CHARACTER_TREND_DATA[symbol] = TEST_CHARACTER_TREND_DATA
 
                 # Detect change of character
-                change_of_character = detect_trend_direction(LOCAL_PRICE_DATA[symbol], CHARACTER_TREND_TIMEFRAME_PERCENT)
+                change_of_character = determine_trend_2(LOCAL_PRICE_DATA[symbol], CHARACTER_TREND_TIMEFRAME_PERCENT)
                 # print('change_of_character: ', change_of_character)
                 char_offset_price = current_price
                 if change_of_character == 'bullish':
