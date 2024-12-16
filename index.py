@@ -51,8 +51,8 @@ last_calculated_support_resistance_pivot_prices = {}  # Store the last calculate
 # Initialize a dictionary to store trend data for each asset
 #
 
-LOCAL_TREND_DATA = {}
-LOCAL_CHARACTER_TREND_DATA = {}
+LOCAL_TREND_1_DATA = {}
+LOCAL_TREND_2_DATA = {}
 # for mapping the divergent outcomes between these 2 ^
 LOCAL_UPWARD_TREND_DIVERGENCE_DATA = {}
 LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA = {}
@@ -224,6 +224,27 @@ def generate_test_price_data(start_price, data_points, trend=0.001, volatility=0
 
     return prices
 
+#
+#
+# Used for visualizing on the chart
+#
+
+def calculate_offset_price(price, trend, percentage):
+    """
+    Calculate the offset price based on the trend and percentage.
+
+    :param price: The original price.
+    :param trend: The trend direction ('upward', 'downward', 'bullish', 'bearish').
+    :param percentage: The percentage to offset the price.
+    :return: The offset price.
+    """
+    if trend in ['upward', 'bullish']:
+        price_trend_offset = price * (percentage / 100)
+        return price + price_trend_offset
+    elif trend in ['downward', 'bearish']:
+        price_trend_offset = price * (-percentage / 100)
+        return price + price_trend_offset
+    return price
 
 #
 #
@@ -251,16 +272,16 @@ if mode == 'test':
             TARGET_PROFIT_PERCENTAGE = asset['target_profit_percentage']
             TEST_DATA_TREND_RATE = asset['test_data_trend_rate']
             TEST_DATA_VOLATILITY_RATE = asset['test_data_volatility_rate']
-            TREND_TIMEFRAME_PERCENT = asset['trend_timeframe_percent']
-            CHARACTER_TREND_TIMEFRAME_PERCENT = asset['character_trend_timeframe_percent']
+            TREND_1_TIMEFRAME_PERCENT = asset['trend_1_timeframe_percent']
+            TREND_2_TIMEFRAME_PERCENT = asset['trend_2_timeframe_percent']
             READY_TO_TRADE = asset['ready_to_trade']
             ENABLE_CHART = asset['enable_chart']
 
             #
             # Initialize price data storage
             TEST_PRICE_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
-            TEST_TREND_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
-            TEST_CHARACTER_TREND_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
+            TEST_TREND_1_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
+            TEST_TREND_2_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
             TEST_UPWARD_TREND_DIVERGENCE_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
             TEST_DOWNWARD_TREND_DIVERGENCE_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
 
@@ -271,40 +292,25 @@ if mode == 'test':
                 TEST_PRICE_DATA.append(price)
                 #
                 #
-                # TREND
+                # TREND #1
                 #
-                trend = determine_trend_1(TEST_PRICE_DATA, DATA_POINTS_FOR_X_MINUTES, TREND_TIMEFRAME_PERCENT)
-                # visualize on chart
-                offset_price = price
-                if trend == 'upward':
-                    price_trend_offset = price * (10 / 100)
-                    offset_price = price + price_trend_offset
-                elif trend == 'downward':
-                    price_trend_offset = price * (-10 / 100)
-                    offset_price = price + price_trend_offset
-                TEST_TREND_DATA.append(offset_price)
+                trend_1 = determine_trend_1(TEST_PRICE_DATA, DATA_POINTS_FOR_X_MINUTES, TREND_1_TIMEFRAME_PERCENT)
+                trend_1_offset_price = calculate_offset_price(price, trend_1, 6)
+                TEST_TREND_1_DATA.append(trend_1_offset_price)
                 #
                 #
-                # CHARACTER TREND
+                # TREND #2
                 #
                 trend_2 = determine_trend_2(TEST_PRICE_DATA, 20)
-                # visualize on chart
-                char_offset_price = price
-                if trend_2 == 'bullish':
-                    price_trend_offset = price * (18 / 100)
-                    char_offset_price = price + price_trend_offset
-                elif trend_2 == 'bearish':
-                    price_trend_offset = price * (-18 / 100)
-                    char_offset_price = price + price_trend_offset
-                TEST_CHARACTER_TREND_DATA.append(char_offset_price)
+                trend_2_offset_price = calculate_offset_price(price, trend_2, 12)
+                TEST_TREND_2_DATA.append(trend_2_offset_price)
                 #
                 #
-                # visualize indicator disagreements
+                # visualize indicator divergences
                 #
-                if trend == 'upward' and trend_2 == 'bearish':
-                    # print('price: ', price)
+                if trend_1 == 'upward' and trend_2 == 'bearish':
                     TEST_UPWARD_TREND_DIVERGENCE_DATA.append(price)
-                elif trend == 'downward' and trend_2 == 'bullish':
+                elif trend_1 == 'downward' and trend_2 == 'bullish':
                     TEST_DOWNWARD_TREND_DIVERGENCE_DATA.append(price)
 
             print('upward trend divergence(s): ', f"{len(TEST_UPWARD_TREND_DIVERGENCE_DATA)}/{len(TEST_PRICE_DATA)}")
@@ -921,7 +927,7 @@ def volume_based_strategy_recommendation(data):
 
 def plot_graph(
     timeframe_minutes, symbol, price_data, pivot, support, resistance, trading_range_percentage,
-    current_price_position_within_trading_range, entry_price, min_price, max_price, trend_data, character_trend_data, up_diverg, down_diverg
+    current_price_position_within_trading_range, entry_price, min_price, max_price, trend_1_data, trend_2_data, up_diverg, down_diverg
 ):
     # init graph
     plt.figure(figsize=(12, 8))  # Set the figure size to 12x8 inches
@@ -934,11 +940,11 @@ def plot_graph(
     # price data markers
     plt.plot(list(price_data), marker=',', label='price', c='black')
 
-    # trend data markers
-    plt.plot(list(trend_data), marker=2, label='trend (+/-)', c='grey')
+    # trend 1 data markers
+    plt.plot(list(trend_1_data), marker=2, label='trend (+/-)', c='grey')
 
-    # character trend data markerss
-    plt.plot(list(character_trend_data), marker=3, label='character trend +/-', c='orange')
+    # trend 2 data markerss
+    plt.plot(list(trend_2_data), marker=3, label='trend 2 +/-', c='orange')
 
     # Plot upward divergence markers
     up_diverg_indices = [i for i, x in enumerate(price_data) if x in up_diverg]
@@ -992,8 +998,8 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
             symbol = asset['symbol']
             SHARES_TO_ACQUIRE = asset['shares_to_acquire']
             TARGET_PROFIT_PERCENTAGE = asset['target_profit_percentage']
-            TREND_TIMEFRAME_PERCENT = asset['trend_timeframe_percent']
-            CHARACTER_TREND_TIMEFRAME_PERCENT = asset['character_trend_timeframe_percent']
+            TREND_1_TIMEFRAME_PERCENT = asset['trend_1_timeframe_percent']
+            TREND_2_TIMEFRAME_PERCENT = asset['trend_2_timeframe_percent']
             READY_TO_TRADE = asset['ready_to_trade']
             ENABLE_CHART = asset['enable_chart']
 
@@ -1017,10 +1023,10 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 if current_price is not None:
                     LOCAL_PRICE_DATA[symbol].append(current_price)
 
-                if symbol not in LOCAL_TREND_DATA:
-                    LOCAL_TREND_DATA[symbol] = deque(maxlen=data_points_for_x_minutes)
+                if symbol not in LOCAL_TREND_1_DATA:
+                    LOCAL_TREND_1_DATA[symbol] = deque(maxlen=data_points_for_x_minutes)
                     if IS_TEST_MODE == True:
-                        LOCAL_TREND_DATA[symbol] = TEST_TREND_DATA
+                        LOCAL_TREND_1_DATA[symbol] = TEST_TREND_1_DATA
 
 
                 if symbol not in LOCAL_UPWARD_TREND_DIVERGENCE_DATA:
@@ -1033,35 +1039,21 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     if IS_TEST_MODE == True:
                         LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA[symbol] = TEST_DOWNWARD_TREND_DIVERGENCE_DATA
 
-                trend = determine_trend_1(LOCAL_PRICE_DATA[symbol], data_points_for_x_minutes, TREND_TIMEFRAME_PERCENT)
-                # print('trend: ', trend)
-                offset_price = current_price
-                if trend == 'upward':
-                    price_trend_offset = current_price * (10 / 100)
-                    offset_price = current_price + price_trend_offset
-                elif trend == 'downward':
-                    price_trend_offset = current_price * (-10 / 100)
-                    offset_price = current_price + price_trend_offset
-                # Append the calculated offset to the local trend data
-                LOCAL_TREND_DATA[symbol].append(offset_price)
+                trend_1 = determine_trend_1(LOCAL_PRICE_DATA[symbol], data_points_for_x_minutes, TREND_1_TIMEFRAME_PERCENT)
+                trend_1_offset_price = calculate_offset_price(price, trend_1, 6)
+                LOCAL_TREND_1_DATA[symbol].append(trend_1_offset_price)
 
-                if symbol not in LOCAL_CHARACTER_TREND_DATA:
-                    LOCAL_CHARACTER_TREND_DATA[symbol] = deque(maxlen=data_points_for_x_minutes)
+                # trend #2
+
+                if symbol not in LOCAL_TREND_2_DATA:
+                    LOCAL_TREND_2_DATA[symbol] = deque(maxlen=data_points_for_x_minutes)
                     if IS_TEST_MODE == True:
-                        LOCAL_CHARACTER_TREND_DATA[symbol] = TEST_CHARACTER_TREND_DATA
+                        LOCAL_TREND_2_DATA[symbol] = TEST_TREND_2_DATA
 
                 # Detect trend
-                trend_2 = determine_trend_2(LOCAL_PRICE_DATA[symbol], CHARACTER_TREND_TIMEFRAME_PERCENT)
-                # print('trend_2: ', trend_2)
-                char_offset_price = current_price
-                if trend_2 == 'bullish':
-                    price_trend_offset = current_price * (18 / 100)
-                    char_offset_price = current_price + price_trend_offset
-                elif trend_2 == 'bearish':
-                    price_trend_offset = current_price * (-18 / 100)
-                    char_offset_price = current_price + price_trend_offset
-                # Append the calculated offset to the local trend data
-                LOCAL_CHARACTER_TREND_DATA[symbol].append(char_offset_price)
+                trend_2 = determine_trend_2(LOCAL_PRICE_DATA[symbol], TREND_2_TIMEFRAME_PERCENT)
+                trend_2_offset_price = calculate_offset_price(current_price, trend_2, 12)
+                LOCAL_TREND_2_DATA[symbol].append(trend_2_offset_price)
 
                 # Only proceed if we have enough data
                 if len(LOCAL_PRICE_DATA[symbol]) < data_points_for_x_minutes:
@@ -1073,7 +1065,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 # Indicators
                 #
 
-                print('trend: ', trend)
+                print('trend_1: ', trend_1)
                 print('trend_2: ', trend_2)
 
                 if symbol not in VOLUME_BASED_RECOMMENDATIONS:
@@ -1125,7 +1117,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     last_order_type = detect_stored_coinbase_order_type(last_order)
                     # SELL-OFF
                     if last_order_type == 'buy':
-                        if trend == 'downward':
+                        if trend_1 == 'downward':
                             print('~ SELL OPPORTUNITY (downward trend detected) ~')
                             shares = last_order['order']['filled_size']
                             place_market_sell_order(symbol, shares)
@@ -1200,7 +1192,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 #
                 # BUY logic
                 elif last_order_type == 'none' or last_order_type == 'sell':
-                    if trend == 'upward': # volume_based_strategy == 'buy':
+                    if trend_1 == 'upward': # volume_based_strategy == 'buy':
                         print('signal: BUY')
                         if READY_TO_TRADE == True:
 
@@ -1300,8 +1292,8 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                         current_price_position_within_trading_range,
                         entry_price,
                         minimum_price_in_chart,
-                        maximum_price_in_chart, LOCAL_TREND_DATA[symbol],
-                        LOCAL_CHARACTER_TREND_DATA[symbol],
+                        maximum_price_in_chart, LOCAL_TREND_1_DATA[symbol],
+                        LOCAL_TREND_2_DATA[symbol],
                         LOCAL_UPWARD_TREND_DIVERGENCE_DATA[symbol],
                         LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA[symbol]
                     )
