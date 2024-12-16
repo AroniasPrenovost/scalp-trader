@@ -777,9 +777,9 @@ def calculate_bollinger_bands(prices, period=20, num_std_dev=2):
     prices_list = list(prices)  # Convert deque to list
     sma = calculate_sma(prices_list, period)
     std_dev = np.std(prices_list[-period:])
-    upper_band = sma + (num_std_dev * std_dev)
-    lower_band = sma - (num_std_dev * std_dev)
-    return upper_band, lower_band, sma
+    upper_bollinger_band = sma + (num_std_dev * std_dev)
+    lower_bollinger_band = sma - (num_std_dev * std_dev)
+    return upper_bollinger_band, lower_bollinger_band, sma
 
 #
 #
@@ -928,7 +928,8 @@ def volume_based_strategy_recommendation(data):
 
 def plot_graph(
     timeframe_minutes, symbol, price_data, pivot, support, resistance, trading_range_percentage,
-    current_price_position_within_trading_range, entry_price, min_price, max_price, trend_1_data, trend_2_data, up_diverg, down_diverg
+    current_price_position_within_trading_range, entry_price, min_price, max_price, trend_1_data,
+    trend_2_data, up_diverg, down_diverg, lower_bollinger_band, upper_bollinger_band
 ):
     # init graph
     plt.figure(figsize=(10, 8))  # Set the figure size to 12x8 inches
@@ -962,6 +963,10 @@ def plot_graph(
 
     plt.axhline(y=min_price, color='black', linewidth=1.2, linestyle=':', label=f"min price ({min_price})")
     plt.axhline(y=max_price, color='black', linewidth=1.2, linestyle=':', label=f"max price ({max_price})")
+
+    # bollinger bands
+    plt.axhline(y=lower_bollinger_band, color='magenta', linewidth=1.2, linestyle='-', label=f"low bollinger ({lower_bollinger_band})")
+    plt.axhline(y=upper_bollinger_band, color='green', linewidth=1.2, linestyle='-', label=f"high bollinger ({upper_bollinger_band})")
 
     plt.title(f"{symbol}")
     plt.xlabel(f"time range ({timeframe_minutes} minutes)")
@@ -1171,8 +1176,8 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 # print(f"SMA: {sma}")
                 macd_line, signal_line = calculate_macd(LOCAL_PRICE_DATA[symbol])
                 # print(f"MACD Line: {macd_line}, Signal Line: {signal_line}")
-                upper_band, lower_band, _ = calculate_bollinger_bands(LOCAL_PRICE_DATA[symbol])
-                # print(f"Bollinger Bands - Upper: {upper_band}, Lower: {lower_band}")
+                upper_bollinger_band, lower_bollinger_band, _ = calculate_bollinger_bands(LOCAL_PRICE_DATA[symbol])
+                # print(f"Bollinger Bands - Upper: {upper_bollinger_band}, Lower: {lower_bollinger_band}")
 
                 minimum_price_in_chart = min(LOCAL_PRICE_DATA[symbol])
                 maximum_price_in_chart = max(LOCAL_PRICE_DATA[symbol])
@@ -1213,47 +1218,48 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 #
                 # BUY logic
                 elif last_order_type == 'none' or last_order_type == 'sell':
-                    if trend_1 == 'upward': # volume_based_strategy == 'buy':
-                        print('signal: BUY')
-                        if READY_TO_TRADE == True:
+                    # if trend_1 == 'upward': # volume_based_strategy == 'buy':
+                    print('signal: BUY')
+                    if READY_TO_TRADE == True:
 
-                            if float(trading_range_percentage) < float(TARGET_PROFIT_PERCENTAGE):
-                                print('trading range smaller than target_profit_percentage')
-                                continue
+                        if float(trading_range_percentage) < float(TARGET_PROFIT_PERCENTAGE):
+                            print('trading range smaller than target_profit_percentage')
+                            continue
 
-                            # Calculate a buffer zone below the resistance
-                            buffer_zone = (resistance - support) * 0.04  # 5% below resistance
-                            anticipated_sell_price = resistance - buffer_zone
+                        # Calculate a buffer zone below the resistance
+                        buffer_zone = (resistance - support) * 0.04  # 5% below resistance
+                        anticipated_sell_price = resistance - buffer_zone
 
-                            # Calculate expected profit and profit percentage
-                            expected_profit = (anticipated_sell_price - current_price) * SHARES_TO_ACQUIRE
-                            exchange_fee = calculate_exchange_fee(anticipated_sell_price, SHARES_TO_ACQUIRE, 'taker')
-                            tax_owed = (federal_tax_rate / 100) * expected_profit
-                            print(f"anticipated_tax_owed: {tax_owed}")
+                        # Calculate expected profit and profit percentage
+                        expected_profit = (anticipated_sell_price - current_price) * SHARES_TO_ACQUIRE
+                        exchange_fee = calculate_exchange_fee(anticipated_sell_price, SHARES_TO_ACQUIRE, 'taker')
+                        tax_owed = (federal_tax_rate / 100) * expected_profit
+                        print(f"anticipated_tax_owed: {tax_owed}")
 
-                            net_expected_profit = expected_profit - exchange_fee - tax_owed
+                        net_expected_profit = expected_profit - exchange_fee - tax_owed
 
-                            expected_profit_percentage = (net_expected_profit / SHARES_TO_ACQUIRE) * 100
+                        expected_profit_percentage = (net_expected_profit / SHARES_TO_ACQUIRE) * 100
 
-                            print(f"anticipated_sell_price: {anticipated_sell_price}")
-                            print(f"expected_profit: {expected_profit}")
-                            print(f"net_expected_profit: {net_expected_profit}")
-                            print(f"expected_profit_percentage: {expected_profit_percentage:.2f}%")
+                        print(f"anticipated_sell_price: {anticipated_sell_price}")
+                        print(f"expected_profit: {expected_profit}")
+                        print(f"net_expected_profit: {net_expected_profit}")
+                        print(f"expected_profit_percentage: {expected_profit_percentage:.2f}%")
 
-                            # Buy signal: current price crosses above SMA
-                            if sma is not None and macd_line is not None and signal_line is not None:
-                                if current_price > sma and macd_line > signal_line:
-                                    print('~ BUY OPPORTUNITY (current_price > sma, MACD crossover)~')
-                                    place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                                elif current_price < lower_band:
-                                    print('~ BUY OPPORTUNITY (price below lower Bollinger Band)~')
-                                    place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                                elif current_price_position_within_trading_range < 6:
-                                    print('~ BUY OPPORTUNITY (current_price_position_within_trading_range < 6)~')
-                                    place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                                elif current_price < minimum_price_in_chart:
-                                    print('~ BUY OPPORTUNITY (current_price < minimum_price_in_chart)~')
-                                    place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                        if trend_1 == 'upward' and current_price < pivot: # volume_based_strategy == 'buy':
+                            print('~ BUY OPPORTUNITY (trend_1 == upward and current_price < pivot)~')
+                            place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+
+                        # Buy signal: current price crosses above SMA
+                        if sma is not None and macd_line is not None and signal_line is not None:
+                            if current_price > sma and macd_line > signal_line:
+                                print('~ BUY OPPORTUNITY (current_price > sma, MACD crossover)~')
+                                place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                            elif current_price < lower_bollinger_band:
+                                print('~ BUY OPPORTUNITY (price below lower Bollinger Band)~')
+                                place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                            elif current_price_position_within_trading_range < 6:
+                                print('~ BUY OPPORTUNITY (current_price_position_within_trading_range < 6)~')
+                                place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
 
 
                 #
@@ -1316,7 +1322,9 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                         maximum_price_in_chart, LOCAL_TREND_1_DATA[symbol],
                         LOCAL_TREND_2_DATA[symbol],
                         LOCAL_UPWARD_TREND_DIVERGENCE_DATA[symbol],
-                        LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA[symbol]
+                        LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA[symbol],
+                        lower_bollinger_band,
+                        upper_bollinger_band
                     )
 
                 print('\n')
