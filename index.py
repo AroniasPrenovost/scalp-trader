@@ -66,7 +66,7 @@ LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA = {}
 
 # INTERVAL_SECONDS = 1
 # INTERVAL_MINUTES = 0.25
-INTERVAL_SECONDS = 2
+INTERVAL_SECONDS = 1
 INTERVAL_MINUTES = 30
 # INTERVAL_SECONDS = 15
 # INTERVAL_MINUTES = 240 # 4 hour
@@ -936,8 +936,7 @@ def plot_graph(
 
     # entry price (if it exists)
     if entry_price > 0:
-        entry_price_width = 1.2
-        plt.axhline(y=entry_price, color='m', linewidth=entry_price_width, linestyle='-', label='entry price')
+        plt.axhline(y=entry_price, color='m', linewidth=1.2, linestyle='-', label='entry price')
 
     # price data markers
     plt.plot(list(price_data), marker=',', label='price', c='black')
@@ -945,14 +944,11 @@ def plot_graph(
     # trend 1 data markers
     plt.plot(list(trend_1_data), marker=',', label='trend (+/-)', c='tan')
 
-    # trend 2 data markerss
-    # plt.plot(list(trend_2_data), marker=',', label='trend 2 +/-', c='tan')
-
     # Plot upward divergence markers
     up_diverg_indices = [i for i, x in enumerate(price_data) if x in up_diverg]
     plt.scatter(up_diverg_indices, [price_data[i] for i in up_diverg_indices], color='green', label='up divergence', marker=2)
 
-    # Plot upward divergence markers
+    # Plot downward divergence markers
     down_diverg_indices = [i for i, x in enumerate(price_data) if x in down_diverg]
     plt.scatter(down_diverg_indices, [price_data[i] for i in down_diverg_indices], color='red', label='down divergence', marker=3)
 
@@ -961,24 +957,27 @@ def plot_graph(
     plt.axhline(y=support, color='black', linewidth=1.4, linestyle='--', label='support')
     plt.axhline(y=pivot, color='orange', linewidth=1.3, linestyle=':', label='pivot')
 
-    plt.axhline(y=min_price, color='black', linewidth=1.2, linestyle=':', label=f"min price ({min_price})")
-    plt.axhline(y=max_price, color='black', linewidth=1.2, linestyle=':', label=f"max price ({max_price})")
+    plt.axhline(y=min_price, color='black', linewidth=1.2, linestyle=':', label=f"min price ({min_price:.3f})")
+    plt.axhline(y=max_price, color='black', linewidth=1.2, linestyle=':', label=f"max price ({max_price:.3f})")
 
     # bollinger bands
-    plt.axhline(y=lower_bollinger_band, color='cyan', linewidth=1.2, linestyle=':', label=f"low bollinger ({lower_bollinger_band})")
-    # plt.axhline(y=upper_bollinger_band, color='green', linewidth=1.2, linestyle='-', label=f"high bollinger ({upper_bollinger_band})")
+    plt.axhline(y=lower_bollinger_band, color='cyan', linewidth=1.2, linestyle=':', label=f"low bollinger ({lower_bollinger_band:.3f})")
 
     plt.title(f"{symbol}")
     plt.xlabel(f"time range ({timeframe_minutes} minutes)")
     plt.ylabel("price")
-    plt.legend()
+    plt.legend(loc='lower left', fontsize='small')  # Make the legend smaller
 
     # Set y-axis minimum and maximum to ensure support and resistance are visible
     min_displayed_price = min(min(price_data), support, resistance, entry_price)
     max_displayed_price = max(max(price_data), support, resistance, entry_price)
 
-    # Set y-axis limits with a small buffer
-    plt.gca().set_ylim(min_displayed_price - 0.002, max_displayed_price + 0.002)
+    # Calculate a dynamic buffer based on the price range
+    price_range = max_displayed_price - min_displayed_price
+    buffer = price_range * 0.02  # 5% buffer
+
+    # Set y-axis limits with the dynamic buffer
+    plt.gca().set_ylim(min_displayed_price - buffer, max_displayed_price + buffer)
 
     # Set x-axis to show time points
     plt.gca().xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
