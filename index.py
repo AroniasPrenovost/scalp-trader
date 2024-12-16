@@ -288,7 +288,6 @@ if mode == 'test':
                 # CHARACTER TREND
                 #
                 trend_2 = determine_trend_2(TEST_PRICE_DATA, 20)
-                # print('change: ', trend_2)
                 # visualize on chart
                 char_offset_price = price
                 if trend_2 == 'bullish':
