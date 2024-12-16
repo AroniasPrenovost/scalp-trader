@@ -1248,18 +1248,21 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                         if trend_1 == 'upward' and current_price < pivot: # volume_based_strategy == 'buy':
                             print('~ BUY OPPORTUNITY (trend_1 == upward and current_price < pivot)~')
                             place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                        elif current_price < lower_bollinger_band:
+                            print('~ BUY OPPORTUNITY (current_price < lower_bollinger_band)~')
+                            place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
 
                         # Buy signal: current price crosses above SMA
-                        if sma is not None and macd_line is not None and signal_line is not None:
-                            if current_price > sma and macd_line > signal_line:
-                                print('~ BUY OPPORTUNITY (current_price > sma, MACD crossover)~')
-                                place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                            elif current_price < lower_bollinger_band:
-                                print('~ BUY OPPORTUNITY (price below lower Bollinger Band)~')
-                                place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                            elif current_price_position_within_trading_range < 6:
-                                print('~ BUY OPPORTUNITY (current_price_position_within_trading_range < 6)~')
-                                place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                        # if sma is not None and macd_line is not None and signal_line is not None:
+                        #     if current_price > sma and macd_line > signal_line:
+                        #         print('~ BUY OPPORTUNITY (current_price > sma, MACD crossover)~')
+                        #         place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                            # elif current_price < lower_bollinger_band:
+                            #     print('~ BUY OPPORTUNITY (price below lower Bollinger Band)~')
+                            #     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                            # elif current_price_position_within_trading_range < 6:
+                            #     print('~ BUY OPPORTUNITY (current_price_position_within_trading_range < 6)~')
+                            #     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
 
 
                 #
