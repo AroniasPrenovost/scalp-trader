@@ -950,11 +950,11 @@ def plot_graph(
 
     # Plot upward divergence markers
     up_diverg_indices = [i for i, x in enumerate(price_data) if x in up_diverg]
-    plt.scatter(up_diverg_indices, [price_data[i] for i in up_diverg_indices], color='green', label='up divergence', marker='^')
+    plt.scatter(up_diverg_indices, [price_data[i] for i in up_diverg_indices], color='green', label='up divergence', marker=2)
 
     # Plot upward divergence markers
     down_diverg_indices = [i for i, x in enumerate(price_data) if x in down_diverg]
-    plt.scatter(down_diverg_indices, [price_data[i] for i in down_diverg_indices], color='red', label='down divergence', marker='v')
+    plt.scatter(down_diverg_indices, [price_data[i] for i in down_diverg_indices], color='red', label='down divergence', marker=3)
 
     # support, resistance, pivot levels
     plt.axhline(y=resistance, color='black', linewidth=1.4, linestyle='--', label='resistance')
