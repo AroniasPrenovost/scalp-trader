@@ -52,9 +52,9 @@ last_calculated_support_resistance_pivot_prices = {}  # Store the last calculate
 #
 
 LOCAL_TREND_1_DATA = {}
-TREND_1_PRICE_OFFSET_PERCENT = 8
+TREND_1_PRICE_OFFSET_PERCENT = 3
 LOCAL_TREND_2_DATA = {}
-TREND_2_PRICE_OFFSET_PERCENT = 16
+TREND_2_PRICE_OFFSET_PERCENT = 6
 # for mapping the divergent outcomes between these 2 ^
 LOCAL_UPWARD_TREND_DIVERGENCE_DATA = {}
 LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA = {}
@@ -943,10 +943,10 @@ def plot_graph(
     plt.plot(list(price_data), marker=',', label='price', c='black')
 
     # trend 1 data markers
-    plt.plot(list(trend_1_data), marker=2, label='trend (+/-)', c='grey')
+    plt.plot(list(trend_1_data), marker=',', label='trend (+/-)', c='grey')
 
     # trend 2 data markerss
-    plt.plot(list(trend_2_data), marker=3, label='trend 2 +/-', c='orange')
+    plt.plot(list(trend_2_data), marker=',', label='trend 2 +/-', c='orange')
 
     # Plot upward divergence markers
     up_diverg_indices = [i for i, x in enumerate(price_data) if x in up_diverg]
@@ -957,12 +957,12 @@ def plot_graph(
     plt.scatter(down_diverg_indices, [price_data[i] for i in down_diverg_indices], color='red', label='down divergence', marker='v')
 
     # support, resistance, pivot levels
-    plt.axhline(y=resistance, color='b', linewidth=1.4, linestyle='--', label='resistance')
-    plt.axhline(y=support, color='b', linewidth=1.4, linestyle='--', label='support')
-    plt.axhline(y=pivot, color='r', linewidth=1, linestyle=':', label='pivot')
+    plt.axhline(y=resistance, color='black', linewidth=1.4, linestyle='--', label='resistance')
+    plt.axhline(y=support, color='black', linewidth=1.4, linestyle='--', label='support')
+    plt.axhline(y=pivot, color='cyan', linewidth=1.2, linestyle=':', label='pivot')
 
-    plt.axhline(y=min_price, color='b', linewidth=1.2, linestyle='-', label=f"min price ({min_price})")
-    plt.axhline(y=max_price, color='b', linewidth=1.2, linestyle='-', label=f"max price ({max_price})")
+    plt.axhline(y=min_price, color='black', linewidth=1.2, linestyle=':', label=f"min price ({min_price})")
+    plt.axhline(y=max_price, color='black', linewidth=1.2, linestyle=':', label=f"max price ({max_price})")
 
     plt.title(f"{symbol}")
     plt.xlabel(f"time ({timeframe_minutes} minutes)")
