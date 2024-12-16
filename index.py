@@ -52,9 +52,9 @@ last_calculated_support_resistance_pivot_prices = {}  # Store the last calculate
 #
 
 LOCAL_TREND_1_DATA = {}
-TREND_1_PRICE_OFFSET_PERCENT = 3
+TREND_1_PRICE_OFFSET_PERCENT = 2
 LOCAL_TREND_2_DATA = {}
-TREND_2_PRICE_OFFSET_PERCENT = 6
+TREND_2_PRICE_OFFSET_PERCENT = 4
 # for mapping the divergent outcomes between these 2 ^
 LOCAL_UPWARD_TREND_DIVERGENCE_DATA = {}
 LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA = {}
@@ -67,7 +67,7 @@ LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA = {}
 # INTERVAL_SECONDS = 1
 # INTERVAL_MINUTES = 0.25
 INTERVAL_SECONDS = 5
-INTERVAL_MINUTES = 30
+INTERVAL_MINUTES = 60
 # INTERVAL_SECONDS = 15
 # INTERVAL_MINUTES = 240 # 4 hour
 
@@ -943,10 +943,10 @@ def plot_graph(
     plt.plot(list(price_data), marker=',', label='price', c='black')
 
     # trend 1 data markers
-    plt.plot(list(trend_1_data), marker=',', label='trend (+/-)', c='grey')
+    # plt.plot(list(trend_1_data), marker=',', label='trend (+/-)', c='orange')
 
     # trend 2 data markerss
-    plt.plot(list(trend_2_data), marker=',', label='trend 2 +/-', c='orange')
+    # plt.plot(list(trend_2_data), marker=',', label='trend 2 +/-', c='tan')
 
     # Plot upward divergence markers
     up_diverg_indices = [i for i, x in enumerate(price_data) if x in up_diverg]
@@ -965,7 +965,7 @@ def plot_graph(
     plt.axhline(y=max_price, color='black', linewidth=1.2, linestyle=':', label=f"max price ({max_price})")
 
     plt.title(f"{symbol}")
-    plt.xlabel(f"time ({timeframe_minutes} minutes)")
+    plt.xlabel(f"time range ({timeframe_minutes} minutes)")
     plt.ylabel("price")
     plt.legend()
 
