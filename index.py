@@ -865,10 +865,9 @@ def volume_based_strategy_recommendation(data):
 #     volume_based_strategy = volume_based_strategy_recommendation(volume_data)
 #     print(f"volume-based trading strategy recommendation for {symbol}: {volume_based_strategy}")
 
-#
-#
+
+
 # Looks for trade recommendations based on volume
-#
 
 # def get_volume_based_recommendation_for_tradeable_assets(file_path):
 #     """
@@ -914,7 +913,7 @@ def volume_based_strategy_recommendation(data):
 #         print(f"Error decoding JSON from file: {file_path}")
 #     except Exception as e:
 #         print(f"An error occurred: {e}")
-#
+
 
 # Example usage
 # get_volume_based_recommendation_for_tradeable_assets('tradeable-coinbase-assets.json')
@@ -1022,6 +1021,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                         LOCAL_PRICE_DATA[symbol] = TEST_PRICE_DATA
 
                 current_price = get_asset_price(symbol)
+                
                 if current_price is not None:
                     LOCAL_PRICE_DATA[symbol].append(current_price)
 
@@ -1042,7 +1042,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                         LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA[symbol] = TEST_DOWNWARD_TREND_DIVERGENCE_DATA
 
                 trend_1 = determine_trend_1(LOCAL_PRICE_DATA[symbol], data_points_for_x_minutes, TREND_1_TIMEFRAME_PERCENT)
-                trend_1_offset_price = calculate_offset_price(price, trend_1, TREND_1_PRICE_OFFSET_PERCENT)
+                trend_1_offset_price = calculate_offset_price(current_price, trend_1, TREND_1_PRICE_OFFSET_PERCENT)
                 LOCAL_TREND_1_DATA[symbol].append(trend_1_offset_price)
 
                 # trend #2
