@@ -932,7 +932,7 @@ def plot_graph(
     trend_2_data, up_diverg, down_diverg, lower_bollinger_band, upper_bollinger_band
 ):
     # init graph
-    plt.figure(figsize=(10, 8))  # Set the figure size to 12x8 inches
+    plt.figure(figsize=(12, 8))  # Set the figure size to 12x8 inches
 
     # entry price (if it exists)
     if entry_price > 0:
@@ -943,7 +943,7 @@ def plot_graph(
     plt.plot(list(price_data), marker=',', label='price', c='black')
 
     # trend 1 data markers
-    # plt.plot(list(trend_1_data), marker=',', label='trend (+/-)', c='orange')
+    plt.plot(list(trend_1_data), marker=',', label='trend (+/-)', c='tan')
 
     # trend 2 data markerss
     # plt.plot(list(trend_2_data), marker=',', label='trend 2 +/-', c='tan')
@@ -959,14 +959,14 @@ def plot_graph(
     # support, resistance, pivot levels
     plt.axhline(y=resistance, color='black', linewidth=1.4, linestyle='--', label='resistance')
     plt.axhline(y=support, color='black', linewidth=1.4, linestyle='--', label='support')
-    plt.axhline(y=pivot, color='cyan', linewidth=1.2, linestyle=':', label='pivot')
+    plt.axhline(y=pivot, color='orange', linewidth=1.3, linestyle=':', label='pivot')
 
     plt.axhline(y=min_price, color='black', linewidth=1.2, linestyle=':', label=f"min price ({min_price})")
     plt.axhline(y=max_price, color='black', linewidth=1.2, linestyle=':', label=f"max price ({max_price})")
 
     # bollinger bands
-    plt.axhline(y=lower_bollinger_band, color='magenta', linewidth=1.2, linestyle='-', label=f"low bollinger ({lower_bollinger_band})")
-    plt.axhline(y=upper_bollinger_band, color='green', linewidth=1.2, linestyle='-', label=f"high bollinger ({upper_bollinger_band})")
+    plt.axhline(y=lower_bollinger_band, color='cyan', linewidth=1.2, linestyle=':', label=f"low bollinger ({lower_bollinger_band})")
+    # plt.axhline(y=upper_bollinger_band, color='green', linewidth=1.2, linestyle='-', label=f"high bollinger ({upper_bollinger_band})")
 
     plt.title(f"{symbol}")
     plt.xlabel(f"time range ({timeframe_minutes} minutes)")
