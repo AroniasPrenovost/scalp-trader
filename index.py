@@ -66,8 +66,8 @@ LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA = {}
 
 # INTERVAL_SECONDS = 1
 # INTERVAL_MINUTES = 0.25
-INTERVAL_SECONDS = 5
-INTERVAL_MINUTES = 120
+INTERVAL_SECONDS = 2
+INTERVAL_MINUTES = 30
 # INTERVAL_SECONDS = 15
 # INTERVAL_MINUTES = 240 # 4 hour
 
@@ -1021,7 +1021,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                         LOCAL_PRICE_DATA[symbol] = TEST_PRICE_DATA
 
                 current_price = get_asset_price(symbol)
-                
+
                 if current_price is not None:
                     LOCAL_PRICE_DATA[symbol].append(current_price)
 
