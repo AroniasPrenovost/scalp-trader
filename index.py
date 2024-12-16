@@ -104,7 +104,7 @@ def get_asset_price(symbol):
 # Get trend
 #
 
-def determine_trend(prices, data_points_for_entire_interval, timeframe_percent):
+def determine_trend_1(prices, data_points_for_entire_interval, timeframe_percent):
     """
     Determine the trend in the given price data.
 
@@ -271,7 +271,7 @@ if mode == 'test':
                 #
                 # TREND
                 #
-                trend = determine_trend(TEST_PRICE_DATA, DATA_POINTS_FOR_X_MINUTES, TREND_TIMEFRAME_PERCENT)
+                trend = determine_trend_1(TEST_PRICE_DATA, DATA_POINTS_FOR_X_MINUTES, TREND_TIMEFRAME_PERCENT)
                 # visualize on chart
                 offset_price = price
                 if trend == 'upward':
@@ -1032,7 +1032,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     if IS_TEST_MODE == True:
                         LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA[symbol] = TEST_DOWNWARD_TREND_DIVERGENCE_DATA
 
-                trend = determine_trend(LOCAL_PRICE_DATA[symbol], data_points_for_x_minutes, TREND_TIMEFRAME_PERCENT)
+                trend = determine_trend_1(LOCAL_PRICE_DATA[symbol], data_points_for_x_minutes, TREND_TIMEFRAME_PERCENT)
                 # print('trend: ', trend)
                 offset_price = current_price
                 if trend == 'upward':
