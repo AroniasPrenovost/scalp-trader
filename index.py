@@ -932,7 +932,7 @@ def plot_graph(
     current_price_position_within_trading_range, entry_price, min_price, max_price, trend_1_data, trend_2_data, up_diverg, down_diverg
 ):
     # init graph
-    plt.figure(figsize=(12, 8))  # Set the figure size to 12x8 inches
+    plt.figure(figsize=(10, 8))  # Set the figure size to 12x8 inches
 
     # entry price (if it exists)
     if entry_price > 0:
