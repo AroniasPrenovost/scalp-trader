@@ -980,6 +980,25 @@ def plot_graph(
 
     plt.grid(True)
     plt.figtext(0.5, 0.01, f"trade range %: {trading_range_percentage}, current position %: {current_price_position_within_trading_range}", ha="center", fontsize=8)
+    #
+    #
+    # Define the directory for saving screenshots
+    directory = 'screenshots'
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    # Check if screenshot already exists
+    filename = os.path.join(directory, f"{symbol}_chart.png")
+    if not os.path.exists(filename):
+        # Save the plot as an image file
+        plt.savefig(filename, dpi=300, bbox_inches='tight')
+        print(f"Chart saved as {filename}")
+    # else:
+        # print(f"File {filename} already exists. Skipping save.")
+    #
+    #
+    #
+
     plt.show(block=False)
     plt.pause(0.1)
     plt.close()
