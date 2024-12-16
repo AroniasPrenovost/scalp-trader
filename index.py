@@ -138,7 +138,7 @@ def determine_trend_1(prices, data_points_for_entire_interval, timeframe_percent
 
 def determine_trend_2(prices, lookback_period=30, short_window=20, long_window=50, support_resistance_window=30, atr_window=14):
     """
-    Detects a change of character in the price data using moving averages, support/resistance levels, and ATR.
+    Detects a trend in the price data using moving averages, support/resistance levels, and ATR.
 
     :param prices: deque of stock prices
     :param lookback_period: number of periods to look back for highs and lows
@@ -189,7 +189,7 @@ def determine_trend_2(prices, lookback_period=30, short_window=20, long_window=5
     elif trend[-1] == 'downward':
         return 'bearish'
 
-    # Determine change of character using ATR
+    # Determine trend using ATR
     if current_price > recent_high + atr.iloc[-1] and trend[-1] == 'upward':
         return 'bullish'
     elif current_price < recent_low - atr.iloc[-1] and trend[-1] == 'downward':
@@ -1051,7 +1051,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     if IS_TEST_MODE == True:
                         LOCAL_CHARACTER_TREND_DATA[symbol] = TEST_CHARACTER_TREND_DATA
 
-                # Detect change of character
+                # Detect trend
                 trend_2 = determine_trend_2(LOCAL_PRICE_DATA[symbol], CHARACTER_TREND_TIMEFRAME_PERCENT)
                 # print('trend_2: ', trend_2)
                 char_offset_price = current_price
