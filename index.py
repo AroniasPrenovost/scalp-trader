@@ -287,14 +287,14 @@ if mode == 'test':
                 #
                 # CHARACTER TREND
                 #
-                change_of_character = determine_trend_2(TEST_PRICE_DATA, 20)
-                # print('change: ', change_of_character)
+                trend_2 = determine_trend_2(TEST_PRICE_DATA, 20)
+                # print('change: ', trend_2)
                 # visualize on chart
                 char_offset_price = price
-                if change_of_character == 'bullish':
+                if trend_2 == 'bullish':
                     price_trend_offset = price * (18 / 100)
                     char_offset_price = price + price_trend_offset
-                elif change_of_character == 'bearish':
+                elif trend_2 == 'bearish':
                     price_trend_offset = price * (-18 / 100)
                     char_offset_price = price + price_trend_offset
                 TEST_CHARACTER_TREND_DATA.append(char_offset_price)
@@ -302,10 +302,10 @@ if mode == 'test':
                 #
                 # visualize indicator disagreements
                 #
-                if trend == 'upward' and change_of_character == 'bearish':
+                if trend == 'upward' and trend_2 == 'bearish':
                     # print('price: ', price)
                     TEST_UPWARD_TREND_DIVERGENCE_DATA.append(price)
-                elif trend == 'downward' and change_of_character == 'bullish':
+                elif trend == 'downward' and trend_2 == 'bullish':
                     TEST_DOWNWARD_TREND_DIVERGENCE_DATA.append(price)
 
             print('upward trend divergence(s): ', f"{len(TEST_UPWARD_TREND_DIVERGENCE_DATA)}/{len(TEST_PRICE_DATA)}")
@@ -939,7 +939,7 @@ def plot_graph(
     plt.plot(list(trend_data), marker=2, label='trend (+/-)', c='grey')
 
     # character trend data markerss
-    # plt.plot(list(character_trend_data), marker=3, label='character trend +/-', c='orange')
+    plt.plot(list(character_trend_data), marker=3, label='character trend +/-', c='orange')
 
     # Plot upward divergence markers
     up_diverg_indices = [i for i, x in enumerate(price_data) if x in up_diverg]
@@ -1052,13 +1052,13 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                         LOCAL_CHARACTER_TREND_DATA[symbol] = TEST_CHARACTER_TREND_DATA
 
                 # Detect change of character
-                change_of_character = determine_trend_2(LOCAL_PRICE_DATA[symbol], CHARACTER_TREND_TIMEFRAME_PERCENT)
-                # print('change_of_character: ', change_of_character)
+                trend_2 = determine_trend_2(LOCAL_PRICE_DATA[symbol], CHARACTER_TREND_TIMEFRAME_PERCENT)
+                # print('trend_2: ', trend_2)
                 char_offset_price = current_price
-                if change_of_character == 'bullish':
+                if trend_2 == 'bullish':
                     price_trend_offset = current_price * (18 / 100)
                     char_offset_price = current_price + price_trend_offset
-                elif change_of_character == 'bearish':
+                elif trend_2 == 'bearish':
                     price_trend_offset = current_price * (-18 / 100)
                     char_offset_price = current_price + price_trend_offset
                 # Append the calculated offset to the local trend data
@@ -1075,7 +1075,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 #
 
                 print('trend: ', trend)
-                print('change_of_character: ', change_of_character)
+                print('trend_2: ', trend_2)
 
                 if symbol not in VOLUME_BASED_RECOMMENDATIONS:
                     VOLUME_BASED_RECOMMENDATIONS[symbol] = 0
