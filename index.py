@@ -1218,8 +1218,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 #
                 # BUY logic
                 elif last_order_type == 'none' or last_order_type == 'sell':
-                    # if trend_1 == 'upward': # volume_based_strategy == 'buy':
-                    print('signal: BUY')
+                    print('looking to BUY')
                     if READY_TO_TRADE == True:
 
                         if float(trading_range_percentage) < float(TARGET_PROFIT_PERCENTAGE):
@@ -1252,7 +1251,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                             print('~ BUY OPPORTUNITY (current_price < lower_bollinger_band)~')
                             place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
 
-                        # Buy signal: current price crosses above SMA
+                        # Buy looking to current price crosses above SMA
                         # if sma is not None and macd_line is not None and signal_line is not None:
                         #     if current_price > sma and macd_line > signal_line:
                         #         print('~ BUY OPPORTUNITY (current_price > sma, MACD crossover)~')
@@ -1268,7 +1267,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 #
                 # SELL logic
                 elif last_order_type == 'buy': # and volume_based_strategy == 'sell':
-                    print('signal: SELL')
+                    print('looking to SELL')
                     if READY_TO_TRADE == True:
 
                         if owned_shares == 0:
