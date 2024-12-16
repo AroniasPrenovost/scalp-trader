@@ -249,6 +249,8 @@ if mode == 'test':
             symbol = asset['symbol']
             SHARES_TO_ACQUIRE = asset['shares_to_acquire']
             TARGET_PROFIT_PERCENTAGE = asset['target_profit_percentage']
+            TEST_DATA_TREND_RATE = asset['test_data_trend_rate']
+            TEST_DATA_VOLATILITY_RATE = asset['test_data_volatility_rate']
             TREND_TIMEFRAME_PERCENT = asset['trend_timeframe_percent']
             CHARACTER_TREND_TIMEFRAME_PERCENT = asset['character_trend_timeframe_percent']
             READY_TO_TRADE = asset['ready_to_trade']
@@ -262,7 +264,7 @@ if mode == 'test':
             TEST_UPWARD_TREND_DIVERGENCE_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
             TEST_DOWNWARD_TREND_DIVERGENCE_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
 
-            raw_test_data = generate_test_price_data(start_price, DATA_POINTS_FOR_X_MINUTES, 0.00000003)
+            raw_test_data = generate_test_price_data(start_price, DATA_POINTS_FOR_X_MINUTES, TEST_DATA_TREND_RATE, TEST_DATA_VOLATILITY_RATE)
 
             # generate indicator visualizations
             for price in raw_test_data:
