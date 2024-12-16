@@ -1079,11 +1079,12 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 # detect change in recommendation
                 if VOLUME_BASED_RECOMMENDATIONS[symbol] != volume_based_strategy:
                     print(f"strategy change: {str(VOLUME_BASED_RECOMMENDATIONS[symbol]).upper()} --> {str(volume_based_strategy).upper()}")
-                    # send_email_notification(
-                    #     subject=f"strategy change: {str(VOLUME_BASED_RECOMMENDATIONS[symbol]).upper()} --> {str(volume_based_strategy).upper()}",
-                    #     text_content=f"{str(VOLUME_BASED_RECOMMENDATIONS[symbol]).upper()} --> {str(volume_based_strategy).upper()}",
-                    #     html_content="strategy changed"
-                    # )
+                    if IS_TEST_MODE == False:
+                        send_email_notification(
+                            subject=f"strategy change: {str(VOLUME_BASED_RECOMMENDATIONS[symbol]).upper()} --> {str(volume_based_strategy).upper()}",
+                            text_content=f"{str(VOLUME_BASED_RECOMMENDATIONS[symbol]).upper()} --> {str(volume_based_strategy).upper()}",
+                            html_content="strategy changed"
+                        )
                     # overwrite stored swing trade recommendation
                     VOLUME_BASED_RECOMMENDATIONS[symbol] = volume_based_strategy
 
