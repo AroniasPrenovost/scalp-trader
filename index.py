@@ -52,7 +52,9 @@ last_calculated_support_resistance_pivot_prices = {}  # Store the last calculate
 #
 
 LOCAL_TREND_1_DATA = {}
+TREND_1_PRICE_OFFSET_PERCENT = 8
 LOCAL_TREND_2_DATA = {}
+TREND_2_PRICE_OFFSET_PERCENT = 16
 # for mapping the divergent outcomes between these 2 ^
 LOCAL_UPWARD_TREND_DIVERGENCE_DATA = {}
 LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA = {}
@@ -295,14 +297,14 @@ if mode == 'test':
                 # TREND #1
                 #
                 trend_1 = determine_trend_1(TEST_PRICE_DATA, DATA_POINTS_FOR_X_MINUTES, TREND_1_TIMEFRAME_PERCENT)
-                trend_1_offset_price = calculate_offset_price(price, trend_1, 6)
+                trend_1_offset_price = calculate_offset_price(price, trend_1, TREND_1_PRICE_OFFSET_PERCENT)
                 TEST_TREND_1_DATA.append(trend_1_offset_price)
                 #
                 #
                 # TREND #2
                 #
                 trend_2 = determine_trend_2(TEST_PRICE_DATA, 20)
-                trend_2_offset_price = calculate_offset_price(price, trend_2, 12)
+                trend_2_offset_price = calculate_offset_price(price, trend_2, TREND_2_PRICE_OFFSET_PERCENT)
                 TEST_TREND_2_DATA.append(trend_2_offset_price)
                 #
                 #
@@ -1040,7 +1042,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                         LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA[symbol] = TEST_DOWNWARD_TREND_DIVERGENCE_DATA
 
                 trend_1 = determine_trend_1(LOCAL_PRICE_DATA[symbol], data_points_for_x_minutes, TREND_1_TIMEFRAME_PERCENT)
-                trend_1_offset_price = calculate_offset_price(price, trend_1, 6)
+                trend_1_offset_price = calculate_offset_price(price, trend_1, TREND_1_PRICE_OFFSET_PERCENT)
                 LOCAL_TREND_1_DATA[symbol].append(trend_1_offset_price)
 
                 # trend #2
@@ -1050,9 +1052,8 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     if IS_TEST_MODE == True:
                         LOCAL_TREND_2_DATA[symbol] = TEST_TREND_2_DATA
 
-                # Detect trend
                 trend_2 = determine_trend_2(LOCAL_PRICE_DATA[symbol], TREND_2_TIMEFRAME_PERCENT)
-                trend_2_offset_price = calculate_offset_price(current_price, trend_2, 12)
+                trend_2_offset_price = calculate_offset_price(current_price, trend_2, TREND_2_PRICE_OFFSET_PERCENT)
                 LOCAL_TREND_2_DATA[symbol].append(trend_2_offset_price)
 
                 # Only proceed if we have enough data
