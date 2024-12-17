@@ -51,9 +51,9 @@ last_calculated_support_resistance_pivot_prices = {}  # Store the last calculate
 #
 
 LOCAL_TREND_1_DATA = {}
-TREND_1_PRICE_OFFSET_PERCENT = 2
+TREND_1_PRICE_OFFSET_PERCENT = 0.05
 LOCAL_TREND_2_DATA = {}
-TREND_2_PRICE_OFFSET_PERCENT = 4
+TREND_2_PRICE_OFFSET_PERCENT = 0.1
 # for mapping the divergent outcomes between these 2 ^
 LOCAL_UPWARD_TREND_DIVERGENCE_DATA = {}
 LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA = {}
@@ -65,8 +65,8 @@ LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA = {}
 
 # INTERVAL_SECONDS = 1
 # INTERVAL_MINUTES = 0.25
-INTERVAL_SECONDS = 1
-INTERVAL_MINUTES = 30
+INTERVAL_SECONDS = 2
+INTERVAL_MINUTES = 60
 # INTERVAL_SECONDS = 15
 # INTERVAL_MINUTES = 240 # 4 hour
 
@@ -941,11 +941,14 @@ def plot_graph(
     plt.plot(list(price_data), marker=',', label='price', c='black')
 
     # trend 1 data markers
-    plt.plot(list(trend_1_data), marker=',', label='trend (+/-)', c='tan')
+    # plt.plot(list(trend_1_data), marker=',', label='trend 1 (+/-)', c='tan')
+
+    # trend 2 data markers
+    # plt.plot(list(trend_2_data), marker=',', label='trend 2 (+/-)', c='yellow')
 
     # Plot upward divergence markers
     up_diverg_indices = [i for i, x in enumerate(price_data) if x in up_diverg]
-    plt.scatter(up_diverg_indices, [price_data[i] for i in up_diverg_indices], color='green', label='up divergence', marker=2)
+    plt.scatter(up_diverg_indices, [price_data[i] for i in up_diverg_indices], color='cyan', label='up divergence', marker=2)
 
     # Plot downward divergence markers
     down_diverg_indices = [i for i, x in enumerate(price_data) if x in down_diverg]
@@ -954,13 +957,13 @@ def plot_graph(
     # support, resistance, pivot levels
     plt.axhline(y=resistance, color='black', linewidth=1.4, linestyle='--', label='resistance')
     plt.axhline(y=support, color='black', linewidth=1.4, linestyle='--', label='support')
-    plt.axhline(y=pivot, color='orange', linewidth=1.3, linestyle=':', label='pivot')
+    plt.axhline(y=pivot, color='magenta', linewidth=1.3, linestyle=':', label='pivot')
 
-    plt.axhline(y=min_price, color='black', linewidth=1.2, linestyle=':', label=f"min price ({min_price:.3f})")
-    plt.axhline(y=max_price, color='black', linewidth=1.2, linestyle=':', label=f"max price ({max_price:.3f})")
+    plt.axhline(y=min_price, color='black', linewidth=1.6, linestyle=':', label=f"min price ({min_price:.4f})")
+    plt.axhline(y=max_price, color='black', linewidth=1.6, linestyle=':', label=f"max price ({max_price:.4f})")
 
     # bollinger bands
-    plt.axhline(y=lower_bollinger_band, color='cyan', linewidth=1.2, linestyle=':', label=f"low bollinger ({lower_bollinger_band:.3f})")
+    plt.axhline(y=lower_bollinger_band, color='cyan', linewidth=1.4, linestyle=':', label=f"low bollinger ({lower_bollinger_band:.4f})")
 
     plt.title(f"{symbol}")
     plt.xlabel(f"time range ({timeframe_minutes} minutes)")
@@ -968,18 +971,21 @@ def plot_graph(
     plt.legend(loc='lower left', fontsize='small')  # Make the legend smaller
 
     # Set y-axis minimum and maximum to ensure support and resistance are visible
-    min_displayed_price = min(min(price_data), support, resistance, entry_price)
-    max_displayed_price = max(max(price_data), support, resistance, entry_price)
+    min_displayed_price = min(min(price_data), support, resistance)
+    max_displayed_price = max(max(price_data), support, resistance)
 
     # Calculate a dynamic buffer based on the price range
     price_range = max_displayed_price - min_displayed_price
-    buffer = price_range * 0.02  # 5% buffer
+    buffer = price_range * 0.05  # 2% buffer
 
     # Set y-axis limits with the dynamic buffer
     plt.gca().set_ylim(min_displayed_price - buffer, max_displayed_price + buffer)
 
     # Set x-axis to show time points
     plt.gca().xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
+
+    # Format y-axis to show values to the 4th decimal place
+    plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.4f'))
 
     plt.grid(True)
     plt.figtext(0.5, 0.01, f"trade range %: {trading_range_percentage}, current position %: {current_price_position_within_trading_range}", ha="center", fontsize=8)
