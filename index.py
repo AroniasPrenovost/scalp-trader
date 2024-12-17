@@ -1251,7 +1251,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                         # if trend_1 == 'upward' and current_price < pivot: # volume_based_strategy == 'buy':
                         #     print('~ BUY OPPORTUNITY (trend_1 == upward and current_price < pivot)~')
                         #     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                        if current_price < lower_bollinger_band:
+                        if current_price < lower_bollinger_band and current_price < pivot:
                             if current_price_position_within_trading_range < 25:
                                 print('~ BUY OPPORTUNITY (current_price < lower_bollinger_band)~')
                                 place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
