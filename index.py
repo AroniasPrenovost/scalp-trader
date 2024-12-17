@@ -1,4 +1,3 @@
-# utils
 import os
 from dotenv import load_dotenv
 from json import dumps, load
