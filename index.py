@@ -65,8 +65,8 @@ LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA = {}
 
 # INTERVAL_SECONDS = 1
 # INTERVAL_MINUTES = 0.25
-INTERVAL_SECONDS = 1
-INTERVAL_MINUTES = 0.5
+INTERVAL_SECONDS = 5
+INTERVAL_MINUTES = 180
 # INTERVAL_SECONDS = 15
 # INTERVAL_MINUTES = 240 # 4 hour
 
@@ -302,7 +302,7 @@ if mode == 'test':
                 TEST_TREND_1_DATA.append(trend_1_offset_price)
                 #
                 #
-                # TREND #2
+                # TREND #2›
                 #
                 trend_2 = determine_trend_2(TEST_PRICE_DATA, 20)
                 trend_2_offset_price = calculate_offset_price(price, trend_2, TREND_2_PRICE_OFFSET_PERCENT)
@@ -311,9 +311,11 @@ if mode == 'test':
                 #
                 # visualize indicator divergences
                 #
-                if trend_1 == 'upward' and trend_2 == 'bearish':
+                upward_divergence = trend_1 == 'upward' and trend_2 == 'bearish'
+                if upward_divergence == True:
                     TEST_UPWARD_TREND_DIVERGENCE_DATA.append(price)
-                elif trend_1 == 'downward' and trend_2 == 'bullish':
+                downward_divergence = trend_1 == 'downward' and trend_2 == 'bullish'
+                if downward_divergence == True:
                     TEST_DOWNWARD_TREND_DIVERGENCE_DATA.append(price)
 
             print('upward trend divergence(s): ', f"{len(TEST_UPWARD_TREND_DIVERGENCE_DATA)}/{len(TEST_PRICE_DATA)}")
@@ -944,11 +946,11 @@ def plot_graph(
 
     # trend 1 data markers
     if trend_1_display == True:
-        plt.plot(list(trend_1_data), marker=',', label='trend 1 (+/-)', c='orange')
+        plt.plot(list(trend_1_data), marker=',', label='trend 1 (+/-)', c='orange', linewidth=0.5)
 
     # trend 2 data markers
     if trend_2_display == True:
-        plt.plot(list(trend_2_data), marker=',', label='trend 2 (+/-)', c='blue')
+        plt.plot(list(trend_2_data), marker=',', label='trend 2 (+/-)', c='blue', linewidth=0.5)
 
     # Plot upward divergence markers
     up_diverg_indices = [i for i, x in enumerate(price_data) if x in up_diverg]
@@ -1064,7 +1066,6 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     if IS_TEST_MODE == True:
                         LOCAL_TREND_1_DATA[symbol] = TEST_TREND_1_DATA
 
-
                 if symbol not in LOCAL_UPWARD_TREND_DIVERGENCE_DATA:
                     LOCAL_UPWARD_TREND_DIVERGENCE_DATA[symbol] = deque(maxlen=data_points_for_x_minutes)
                     if IS_TEST_MODE == True:
@@ -1103,10 +1104,18 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 print('trend_1: ', trend_1)
                 print('trend_2: ', trend_2)
 
+                # divergence visualizations
+                upward_divergence = trend_1 == 'upward' and trend_2 == 'bearish'
+                if upward_divergence == True:
+                    LOCAL_UPWARD_TREND_DIVERGENCE_DATA[symbol].append(current_price)
+                downward_divergence = trend_1 == 'downward' and trend_2 == 'bullish'
+                if downward_divergence == True:
+                    LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA[symbol].append(current_price)
+
+                # get trade recommendation based on volume
                 if symbol not in VOLUME_BASED_RECOMMENDATIONS:
                     VOLUME_BASED_RECOMMENDATIONS[symbol] = 0
 
-                # get trade recommendation based on volume
                 volume_data = fetch_coinmarketcap_volume_data(symbol)
                 # print(volume_data)
                 volume_based_strategy = volume_based_strategy_recommendation(volume_data) # ('buy', 'sell', 'hold')
@@ -1229,38 +1238,42 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 # BUY logic
                 elif last_order_type == 'none' or last_order_type == 'sell':
                     print('looking to BUY')
-                    if READY_TO_TRADE == True:
 
-                        if float(trading_range_percentage) < float(TARGET_PROFIT_PERCENTAGE):
-                            print('trading range smaller than target_profit_percentage')
-                            continue
+                    if float(trading_range_percentage) < float(TARGET_PROFIT_PERCENTAGE):
+                        print('trading range smaller than target_profit_percentage')
+                        continue
 
-                        # Calculate a buffer zone below the resistance
-                        buffer_zone = (resistance - support) * 0.04  # 5% below resistance
-                        anticipated_sell_price = resistance - buffer_zone
+                    # Calculate a buffer zone below the resistance
+                    buffer_zone = (resistance - support) * 0.04  # 5% below resistance
+                    anticipated_sell_price = resistance - buffer_zone
 
-                        # Calculate expected profit and profit percentage
-                        expected_profit = (anticipated_sell_price - current_price) * SHARES_TO_ACQUIRE
-                        exchange_fee = calculate_exchange_fee(anticipated_sell_price, SHARES_TO_ACQUIRE, 'taker')
-                        tax_owed = (federal_tax_rate / 100) * expected_profit
-                        print(f"anticipated_tax_owed: {tax_owed}")
+                    # Calculate expected profit and profit percentage
+                    expected_profit = (anticipated_sell_price - current_price) * SHARES_TO_ACQUIRE
+                    exchange_fee = calculate_exchange_fee(anticipated_sell_price, SHARES_TO_ACQUIRE, 'taker')
+                    tax_owed = (federal_tax_rate / 100) * expected_profit
+                    print(f"anticipated_tax_owed: {tax_owed}")
 
-                        net_expected_profit = expected_profit - exchange_fee - tax_owed
+                    net_expected_profit = expected_profit - exchange_fee - tax_owed
 
-                        expected_profit_percentage = (net_expected_profit / SHARES_TO_ACQUIRE) * 100
+                    expected_profit_percentage = (net_expected_profit / SHARES_TO_ACQUIRE) * 100
 
-                        print(f"anticipated_sell_price: {anticipated_sell_price}")
-                        print(f"expected_profit: {expected_profit}")
-                        print(f"net_expected_profit: {net_expected_profit}")
-                        print(f"expected_profit_percentage: {expected_profit_percentage:.2f}%")
+                    print(f"anticipated_sell_price: {anticipated_sell_price}")
+                    print(f"expected_profit: {expected_profit}")
+                    print(f"net_expected_profit: {net_expected_profit}")
+                    print(f"expected_profit_percentage: {expected_profit_percentage:.2f}%")
 
-                        # if trend_1 == 'upward' and current_price < pivot: # volume_based_strategy == 'buy':
-                        #     print('~ BUY OPPORTUNITY (trend_1 == upward and current_price < pivot)~')
-                        #     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                        if current_price < lower_bollinger_band and current_price < pivot:
-                            if current_price_position_within_trading_range < 25:
+                    # if trend_1 == 'upward' and current_price < pivot: # volume_based_strategy == 'buy':
+                    #     print('~ BUY OPPORTUNITY (trend_1 == upward and current_price < pivot)~')
+                    #     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                    if current_price < lower_bollinger_band:
+                        if current_price < pivot:
+                            if current_price_position_within_trading_range < 50:
+                            # if upward_divergence == True: # (need to add this)
                                 print('~ BUY OPPORTUNITY (current_price < lower_bollinger_band)~')
-                                place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                                if READY_TO_TRADE == True:
+                                    place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                                else:
+                                    print('trading disabled')
 
 
                         # Buy looking to current price crosses above SMA
@@ -1280,46 +1293,54 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 # SELL logic
                 elif last_order_type == 'buy': # and volume_based_strategy == 'sell':
                     print('looking to SELL')
-                    if READY_TO_TRADE == True:
 
-                        if owned_shares == 0:
-                            print('something went wrong with local buy/sell order data')
-                            continue
+                    if owned_shares == 0:
+                        print('something went wrong with local buy/sell order data')
+                        continue
 
-                        entry_price = float(last_order['order']['average_filled_price'])
-                        print(f"entry_price: {entry_price}")
+                    entry_price = float(last_order['order']['average_filled_price'])
+                    print(f"entry_price: {entry_price}")
 
-                        entry_position_value_after_fees = float(last_order['order']['total_value_after_fees'])
-                        print(f"entry_position_value_after_fees: {entry_position_value_after_fees}")
+                    entry_position_value_after_fees = float(last_order['order']['total_value_after_fees'])
+                    print(f"entry_position_value_after_fees: {entry_position_value_after_fees}")
 
-                        number_of_shares = float(last_order['order']['filled_size'])
-                        print('number_of_shares: ', number_of_shares)
+                    number_of_shares = float(last_order['order']['filled_size'])
+                    print('number_of_shares: ', number_of_shares)
 
-                        # calculate profits if we were going to sell now
-                        pre_tax_profit = (current_price - entry_price) * number_of_shares
+                    # calculate profits if we were going to sell now
+                    pre_tax_profit = (current_price - entry_price) * number_of_shares
 
-                        sell_now_exchange_fee = calculate_exchange_fee(current_price, number_of_shares, 'taker')
-                        print(f"sell_now_exchange_fee: {sell_now_exchange_fee}")
+                    sell_now_exchange_fee = calculate_exchange_fee(current_price, number_of_shares, 'taker')
+                    print(f"sell_now_exchange_fee: {sell_now_exchange_fee}")
 
-                        sell_now_tax_owed = (federal_tax_rate / 100) * pre_tax_profit
-                        print(f"sell_now_taxes_owed: {sell_now_tax_owed}")
+                    sell_now_tax_owed = (federal_tax_rate / 100) * pre_tax_profit
+                    print(f"sell_now_taxes_owed: {sell_now_tax_owed}")
 
-                        potential_profit = (current_price * number_of_shares) - entry_position_value_after_fees - sell_now_exchange_fee - sell_now_tax_owed
-                        print(f"potential_profit_USD: {potential_profit}")
+                    potential_profit = (current_price * number_of_shares) - entry_position_value_after_fees - sell_now_exchange_fee - sell_now_tax_owed
+                    print(f"potential_profit_USD: {potential_profit}")
 
-                        potential_profit_percentage = (potential_profit / entry_position_value_after_fees) * 100
-                        print(f"potential_profit_percentage: {potential_profit_percentage:.2f}%")
+                    potential_profit_percentage = (potential_profit / entry_position_value_after_fees) * 100
+                    print(f"potential_profit_percentage: {potential_profit_percentage:.2f}%")
 
-                        if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
-                            if current_price >= resistance:
-                                print('~ SELL OPPORTUNITY (price near resistance) ~')
-                                place_market_sell_order(symbol, number_of_shares)
-                            elif sma is not None and current_price < sma:
-                                print('~ SELL OPPORTUNITY (price < SMA) ~')
+                    if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
+                        if current_price >= resistance:
+                            print('~ SELL OPPORTUNITY (price near resistance) ~')
+                            if READY_TO_TRADE == True:
                                 place_market_sell_order(symbol, number_of_shares)
                             else:
-                                print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
+                                print('trading disabled')
+                        elif sma is not None and current_price < sma:
+                            print('~ SELL OPPORTUNITY (price < SMA) ~')
+                            if READY_TO_TRADE == True:
                                 place_market_sell_order(symbol, number_of_shares)
+                            else:
+                                print('trading disabled')
+                        else:
+                            print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
+                            if READY_TO_TRADE == True:
+                                place_market_sell_order(symbol, number_of_shares)
+                            else:
+                                print('trading disabled')
 
                 # Indicators are passed into the plot graph
                 if ENABLE_CHART:
