@@ -65,8 +65,8 @@ LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA = {}
 
 # INTERVAL_SECONDS = 1
 # INTERVAL_MINUTES = 0.25
-INTERVAL_SECONDS = 5
-INTERVAL_MINUTES = 240
+INTERVAL_SECONDS = 1
+INTERVAL_MINUTES = 0.5
 # INTERVAL_SECONDS = 15
 # INTERVAL_MINUTES = 240 # 4 hour
 
@@ -274,7 +274,9 @@ if mode == 'test':
             TEST_DATA_TREND_RATE = asset['test_data_trend_rate']
             TEST_DATA_VOLATILITY_RATE = asset['test_data_volatility_rate']
             TREND_1_TIMEFRAME_PERCENT = asset['trend_1_timeframe_percent']
+            TREND_1_DISPLAY = asset['trend_1_display']
             TREND_2_TIMEFRAME_PERCENT = asset['trend_2_timeframe_percent']
+            TREND_2_DISPLAY = asset['trend_2_display']
             READY_TO_TRADE = asset['ready_to_trade']
             ENABLE_CHART = asset['enable_chart']
 
@@ -927,8 +929,8 @@ def volume_based_strategy_recommendation(data):
 
 def plot_graph(
     timeframe_minutes, symbol, price_data, pivot, support, resistance, trading_range_percentage,
-    current_price_position_within_trading_range, entry_price, min_price, max_price, trend_1_data,
-    trend_2_data, up_diverg, down_diverg, lower_bollinger_band, upper_bollinger_band
+    current_price_position_within_trading_range, entry_price, min_price, max_price, trend_1_data, trend_1_display,
+    trend_2_data, trend_2_display, up_diverg, down_diverg, lower_bollinger_band, upper_bollinger_band
 ):
     # init graph
     plt.figure(figsize=(12, 8))  # Set the figure size to 12x8 inches
@@ -941,10 +943,12 @@ def plot_graph(
     plt.plot(list(price_data), marker=',', label='price', c='black')
 
     # trend 1 data markers
-    plt.plot(list(trend_1_data), marker=',', label='trend 1 (+/-)', c='orange')
+    if trend_1_display == True:
+        plt.plot(list(trend_1_data), marker=',', label='trend 1 (+/-)', c='orange')
 
     # trend 2 data markers
-    plt.plot(list(trend_2_data), marker=',', label='trend 2 (+/-)', c='blue')
+    if trend_2_display == True:
+        plt.plot(list(trend_2_data), marker=',', label='trend 2 (+/-)', c='blue')
 
     # Plot upward divergence markers
     up_diverg_indices = [i for i, x in enumerate(price_data) if x in up_diverg]
@@ -1028,7 +1032,9 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
             SHARES_TO_ACQUIRE = asset['shares_to_acquire']
             TARGET_PROFIT_PERCENTAGE = asset['target_profit_percentage']
             TREND_1_TIMEFRAME_PERCENT = asset['trend_1_timeframe_percent']
+            TREND_1_DISPLAY = asset['trend_1_display']
             TREND_2_TIMEFRAME_PERCENT = asset['trend_2_timeframe_percent']
+            TREND_2_DISPLAY = asset['trend_2_display']
             READY_TO_TRADE = asset['ready_to_trade']
             ENABLE_CHART = asset['enable_chart']
 
@@ -1327,8 +1333,11 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                         current_price_position_within_trading_range,
                         entry_price,
                         minimum_price_in_chart,
-                        maximum_price_in_chart, LOCAL_TREND_1_DATA[symbol],
+                        maximum_price_in_chart,
+                        LOCAL_TREND_1_DATA[symbol],
+                        TREND_1_DISPLAY,
                         LOCAL_TREND_2_DATA[symbol],
+                        TREND_2_DISPLAY,
                         LOCAL_UPWARD_TREND_DIVERGENCE_DATA[symbol],
                         LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA[symbol],
                         lower_bollinger_band,
