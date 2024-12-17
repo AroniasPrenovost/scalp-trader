@@ -1248,12 +1248,14 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                         print(f"net_expected_profit: {net_expected_profit}")
                         print(f"expected_profit_percentage: {expected_profit_percentage:.2f}%")
 
-                        if trend_1 == 'upward' and current_price < pivot: # volume_based_strategy == 'buy':
-                            print('~ BUY OPPORTUNITY (trend_1 == upward and current_price < pivot)~')
-                            place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                        elif current_price < lower_bollinger_band:
-                            print('~ BUY OPPORTUNITY (current_price < lower_bollinger_band)~')
-                            place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                        # if trend_1 == 'upward' and current_price < pivot: # volume_based_strategy == 'buy':
+                        #     print('~ BUY OPPORTUNITY (trend_1 == upward and current_price < pivot)~')
+                        #     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                        if current_price < lower_bollinger_band:
+                            if current_price_position_within_trading_range < 25:
+                                print('~ BUY OPPORTUNITY (current_price < lower_bollinger_band)~')
+                                place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+
 
                         # Buy looking to current price crosses above SMA
                         # if sma is not None and macd_line is not None and signal_line is not None:
