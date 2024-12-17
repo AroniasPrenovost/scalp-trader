@@ -199,6 +199,32 @@ def determine_trend_2(prices, lookback_period=30, short_window=20, long_window=5
         return 'none'
 
 
+def calculate_fibonacci_levels(prices):
+    """
+    Calculate Fibonacci retracement levels for a given set of stock prices.
+
+    :param prices: deque of stock prices
+    :return: dictionary containing Fibonacci levels
+    """
+    if not prices or len(prices) < 2:
+        raise ValueError("Prices deque must contain at least two elements.")
+
+    high = max(prices)
+    low = min(prices)
+
+    # Calculate Fibonacci levels
+    diff = high - low
+    levels = {
+        'level_0': high,
+        'level_23.6': high - 0.236 * diff,
+        'level_38.2': high - 0.382 * diff,
+        'level_50': high - 0.5 * diff,
+        'level_61.8': high - 0.618 * diff,
+        'level_100': low
+    }
+
+    return levels
+
 #
 #
 # Generating test data
@@ -1200,6 +1226,11 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
                 minimum_price_in_chart = min(LOCAL_PRICE_DATA[symbol])
                 maximum_price_in_chart = max(LOCAL_PRICE_DATA[symbol])
+
+                # Calculate Fibonacci levels
+                fibonacci_levels = calculate_fibonacci_levels(LOCAL_PRICE_DATA[symbol])
+                print(f"Fibonacci Levels: {fibonacci_levels}")
+
                 #
                 #
                 # current holdings
@@ -1208,7 +1239,8 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 asset_holdings = get_current_asset_holdings(symbol, client_accounts)
                 # print('asset_holdings: ', asset_holdings)
                 owned_shares = asset_holdings['available_balance'] if asset_holdings else 0
-                print('owned_shares: ', owned_shares)
+                if owned_shares > 0:
+                    print('owned_shares: ', owned_shares)
 
                 #
                 #
