@@ -65,8 +65,8 @@ LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA = {}
 
 # INTERVAL_SECONDS = 1
 # INTERVAL_MINUTES = 0.25
-INTERVAL_SECONDS = 2
-INTERVAL_MINUTES = 60
+INTERVAL_SECONDS = 5
+INTERVAL_MINUTES = 240
 # INTERVAL_SECONDS = 15
 # INTERVAL_MINUTES = 240 # 4 hour
 
@@ -941,10 +941,10 @@ def plot_graph(
     plt.plot(list(price_data), marker=',', label='price', c='black')
 
     # trend 1 data markers
-    # plt.plot(list(trend_1_data), marker=',', label='trend 1 (+/-)', c='tan')
+    plt.plot(list(trend_1_data), marker=',', label='trend 1 (+/-)', c='orange')
 
     # trend 2 data markers
-    # plt.plot(list(trend_2_data), marker=',', label='trend 2 (+/-)', c='yellow')
+    plt.plot(list(trend_2_data), marker=',', label='trend 2 (+/-)', c='blue')
 
     # Plot upward divergence markers
     up_diverg_indices = [i for i, x in enumerate(price_data) if x in up_diverg]
