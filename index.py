@@ -84,6 +84,13 @@ DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
 
 #
 #
+# Store the last exception error
+#
+
+LAST_EXCEPTION_ERROR = None
+
+#
+#
 # Coinbase API and taxes
 #
 
@@ -1505,10 +1512,15 @@ if __name__ == "__main__":
         try:
             iterate_assets(INTERVAL_MINUTES, INTERVAL_SECONDS, DATA_POINTS_FOR_X_MINUTES)
         except Exception as e:
-            print(f"An error occurred: {e}. Restarting the program...")
-            send_email_notification(
-                subject="App crashed - restarting - scalp-scripts",
-                text_content=f"An error occurred: {e}. Restarting the program...",
-                html_content=f"An error occurred: {e}. Restarting the program..."
-            )
+            current_exception_error = str(e)
+            print(f"An error occurred: {current_exception_error}. Restarting the program...")
+            if current_exception_error != LAST_EXCEPTION_ERROR: # Check if the current error is different from the last error
+                send_email_notification(
+                    subject="App crashed - restarting - scalp-scripts",
+                    text_content=f"An error occurred: {current_exception_error}. Restarting the program...",
+                    html_content=f"An error occurred: {current_exception_error}. Restarting the program..."
+                )
+                LAST_EXCEPTION_ERROR = current_exception_error # Update the last exception error
+            else:
+                print('(Same error as last time)')
             time.sleep(10)  # Wait 10 seconds before restarting
