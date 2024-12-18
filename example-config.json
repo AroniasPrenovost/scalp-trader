@@ -2,17 +2,35 @@
   "assets": [
       {
         "enabled": true,
-        "symbol": "XRP-USD",
-        "target_profit_percentage": 1,
-        "shares_to_acquire": 125,
-        "trend_timeframe_percent": 0
+        "title": "matic 4 hour trader",
+        "ready_to_trade": false,
+        "symbol": "MATIC-USD",
+        "target_profit_percentage": 0.75,
+        "shares_to_acquire": 40,
+        "test_data_trend_rate": 0.0000001,
+        "test_data_volatility_rate": 0.00019,
+        "trend_1_timeframe_percent": 0.05,
+        "trend_1_display": false,
+        "trend_2_timeframe_percent": 20,
+        "trend_2_display": false,
+        "enable_graph_display": false,
+        "enable_graph_screenshot": true
       },
       {
         "enabled": false,
-        "symbol": "ADA-USD",
+        "title": "placeholder_1",
+        "ready_to_trade": false,
+        "symbol": "CRO-USD",
         "target_profit_percentage": 1,
         "shares_to_acquire": 1,
-        "trend_timeframe_percent": 0
+        "test_data_trend_rate": 0.001,
+        "test_data_volatility_rate": 0.025,
+        "trend_1_timeframe_percent": 0,
+        "trend_1_display": false,
+        "trend_2_timeframe_percent": 0.2,
+        "trend_2_display": false,
+        "enable_graph_display": false,
+        "enable_graph_screenshot": false
       }
     ]
 }

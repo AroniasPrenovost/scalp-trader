@@ -70,8 +70,8 @@ LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA = {}
 #
 
 # ------------------
-# INTERVAL_SECONDS = 1
-# INTERVAL_MINUTES = 0.25
+# INTERVAL_SECONDS = 2
+# INTERVAL_MINUTES = 1.5
 # ------------------
 # INTERVAL_SECONDS = 2
 # INTERVAL_MINUTES = 15
@@ -319,7 +319,6 @@ if mode == 'test':
 
             #
             # Initialize price data storage
-            TEST_PRICE_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
             TEST_TREND_1_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
             TEST_TREND_2_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
             TEST_UPWARD_TREND_DIVERGENCE_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
@@ -327,21 +326,25 @@ if mode == 'test':
 
             raw_test_data = generate_test_price_data(start_price, DATA_POINTS_FOR_X_MINUTES, TEST_DATA_TREND_RATE, TEST_DATA_VOLATILITY_RATE)
 
-            # generate indicator visualizations
+            if symbol not in LOCAL_PRICE_DATA:
+                LOCAL_PRICE_DATA[symbol] = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
+
             for price in raw_test_data:
-                TEST_PRICE_DATA.append(price)
+                # append the test prices directly to the local price data
+                LOCAL_PRICE_DATA[symbol].append(price)
+
                 #
                 #
                 # TREND #1
                 #
-                trend_1 = determine_trend_1(TEST_PRICE_DATA, DATA_POINTS_FOR_X_MINUTES, TREND_1_TIMEFRAME_PERCENT)
+                trend_1 = determine_trend_1(LOCAL_PRICE_DATA[symbol], DATA_POINTS_FOR_X_MINUTES, TREND_1_TIMEFRAME_PERCENT)
                 trend_1_offset_price = calculate_offset_price(price, trend_1, TREND_1_PRICE_OFFSET_PERCENT)
                 TEST_TREND_1_DATA.append(trend_1_offset_price)
                 #
                 #
                 # TREND #2›
                 #
-                trend_2 = determine_trend_2(TEST_PRICE_DATA, 20)
+                trend_2 = determine_trend_2(LOCAL_PRICE_DATA[symbol], 20)
                 trend_2_offset_price = calculate_offset_price(price, trend_2, TREND_2_PRICE_OFFSET_PERCENT)
                 TEST_TREND_2_DATA.append(trend_2_offset_price)
                 #
@@ -355,8 +358,8 @@ if mode == 'test':
                 if downward_divergence == True:
                     TEST_DOWNWARD_TREND_DIVERGENCE_DATA.append(price)
 
-            print('upward trend divergence(s): ', f"{len(TEST_UPWARD_TREND_DIVERGENCE_DATA)}/{len(TEST_PRICE_DATA)}")
-            print('downward trend divergence(s): ', f"{len(TEST_DOWNWARD_TREND_DIVERGENCE_DATA)}/{len(TEST_PRICE_DATA)}")
+            print('upward trend divergence(s): ', f"{len(TEST_UPWARD_TREND_DIVERGENCE_DATA)}/{len(LOCAL_PRICE_DATA[symbol])}")
+            print('downward trend divergence(s): ', f"{len(TEST_DOWNWARD_TREND_DIVERGENCE_DATA)}/{len(LOCAL_PRICE_DATA[symbol])}")
 else:
     print(f"Running in {mode} mode")
 
@@ -724,7 +727,28 @@ def calculate_support_resistance_1(prices):
 
 
 def calculate_support_resistance_2(prices):
-    # todo
+        """
+        Calculate support and resistance levels using the 15-minute rule for a given set of stock prices.
+
+        :param prices: deque of stock prices
+        :return: tuple containing pivot, support, and resistance levels
+        """
+        if not prices or len(prices) < 15:
+            raise ValueError("Prices deque must contain at least fifteen elements for the 15-minute rule.")
+
+        # Use the first 15 minutes to determine high and low
+        first_15_min_prices = list(prices)[:15]
+        high = max(first_15_min_prices)
+        low = min(first_15_min_prices)
+
+        # Calculate pivot point
+        pivot = (high + low) / 2
+
+        # Calculate support and resistance levels
+        resistance = high
+        support = low
+
+        return pivot, support, resistance
 
 #
 #
@@ -1122,8 +1146,6 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
                 if symbol not in LOCAL_PRICE_DATA:
                     LOCAL_PRICE_DATA[symbol] = deque(maxlen=data_points_for_x_minutes)
-                    if IS_TEST_MODE == True:
-                        LOCAL_PRICE_DATA[symbol] = TEST_PRICE_DATA
 
                 current_price = get_asset_price(symbol)
 
