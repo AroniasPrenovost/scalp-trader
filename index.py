@@ -84,11 +84,12 @@ DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
 
 #
 #
-# Store the last exception error
+# Store the last error and manage number of errors before killing program
 #
 
 LAST_EXCEPTION_ERROR = None
-
+SAME_ERROR_COUNT = 0
+MAX_SAME_ERROR_COUNT = 4
 #
 #
 # Coinbase API and taxes
@@ -1229,6 +1230,9 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 # Indicators
                 #
 
+                raise Exception("Sorry, no numbers below zero")
+
+
                 print('trend_1: ', trend_1)
                 print('trend_2: ', trend_2)
 
@@ -1522,5 +1526,16 @@ if __name__ == "__main__":
                 )
                 LAST_EXCEPTION_ERROR = current_exception_error # Update the last exception error
             else:
-                print('(Same error as last time)')
+                SAME_ERROR_COUNT += 1
+                if SAME_ERROR_COUNT == MAX_SAME_ERROR_COUNT:
+                    print(F"quitting program, {MAX_SAME_ERROR_COUNT}+ instances of same error")
+                    send_email_notification(
+                        subject="App crashed - restarting - scalp-scripts",
+                        text_content=f"An error occurred: {current_exception_error}. QUITTING the program...",
+                        html_content=f"An error occurred: {current_exception_error}. QUITTING the program..."
+                    )
+                    quit()
+                else:
+                    print(f"Same error as last time ({SAME_ERROR_COUNT}/{MAX_SAME_ERROR_COUNT})")
+
             time.sleep(10)  # Wait 10 seconds before restarting
