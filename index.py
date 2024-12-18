@@ -24,10 +24,10 @@ def load_config(file_path):
         return load(file)
 
 
-# Define the SCREENSHOT_FOLDER for saving screenshots
-SCREENSHOT_FOLDER = 'screenshots'
-if not os.path.exists(SCREENSHOT_FOLDER):
-    os.makedirs(SCREENSHOT_FOLDER)
+# Define the GRAPH_SCREENSHOT_FOLDER for saving screenshots
+GRAPH_SCREENSHOT_FOLDER = 'screenshots'
+if not os.path.exists(GRAPH_SCREENSHOT_FOLDER):
+    os.makedirs(GRAPH_SCREENSHOT_FOLDER)
 
 #
 #
@@ -310,7 +310,8 @@ if mode == 'test':
             TREND_2_TIMEFRAME_PERCENT = asset['trend_2_timeframe_percent']
             TREND_2_DISPLAY = asset['trend_2_display']
             READY_TO_TRADE = asset['ready_to_trade']
-            ENABLE_CHART = asset['enable_chart']
+            ENABLE_GRAPH_DISPLAY = asset['enable_graph_display']
+            ENABLE_GRAPH_SCREENSHOT = asset['enable_graph_screenshot']
 
             #
             # Initialize price data storage
@@ -962,10 +963,18 @@ def volume_based_strategy_recommendation(data):
 #
 
 def plot_graph(
-    timeframe_minutes, symbol, price_data, pivot, support, resistance, trading_range_percentage,
-    current_price_position_within_trading_range, entry_price, min_price, max_price, trend_1_data, trend_1_display,
-    trend_2_data, trend_2_display, up_diverg, down_diverg, lower_bollinger_band, upper_bollinger_band
+    enable_display, enable_screenshot,
+    timeframe_minutes, symbol, price_data,
+    pivot, support, resistance,
+    trading_range_percentage, current_price_position_within_trading_range, entry_price, min_price, max_price,
+    trend_1_data, trend_1_display,
+    trend_2_data, trend_2_display,
+    up_diverg, down_diverg,
+    lower_bollinger_band, upper_bollinger_band
 ):
+    if enable_display == False and enable_screenshot == False:
+        return
+
     # init graph
     plt.figure(figsize=(12, 8))  # Set the figure size to 12x8 inches
 
@@ -1027,22 +1036,19 @@ def plot_graph(
 
     plt.grid(True)
     plt.figtext(0.5, 0.01, f"trade range %: {trading_range_percentage}, current position %: {current_price_position_within_trading_range}", ha="center", fontsize=8)
-    #
-    #
-    # Overwrite existing screenshot and save new one
-    filename = os.path.join(SCREENSHOT_FOLDER, f"{symbol}_chart.png")
-    if os.path.exists(filename):
-        os.remove(filename)
-    plt.savefig(filename, dpi=300, bbox_inches='tight')
-    print(f"Chart saved as {filename}")
-    #
-    #
-    #
 
-    # Disables chart from rendering for the user
-    # plt.show(block=False)
-    # plt.pause(0.1)
-    # plt.close()
+    #
+    #
+    if enable_screenshot == True:
+        filename = os.path.join(GRAPH_SCREENSHOT_FOLDER, f"{symbol}_chart.png")
+        if os.path.exists(filename):
+            os.remove(filename) # Overwrite existing screenshot and save new one
+        plt.savefig(filename, dpi=300, bbox_inches='tight')
+        print(f"Chart saved as {filename}")
+    elif enable_display == True:
+        plt.show(block=False)
+        plt.pause(0.1)
+        plt.close()
 
 #
 #
@@ -1064,7 +1070,8 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
             TREND_2_TIMEFRAME_PERCENT = asset['trend_2_timeframe_percent']
             TREND_2_DISPLAY = asset['trend_2_display']
             READY_TO_TRADE = asset['ready_to_trade']
-            ENABLE_CHART = asset['enable_chart']
+            ENABLE_GRAPH_DISPLAY = asset['enable_graph_display']
+            ENABLE_GRAPH_SCREENSHOT = asset['enable_graph_screenshot']
 
             if enabled:
                 print(symbol)
@@ -1375,27 +1382,28 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                                 print('trading disabled')
 
                 # Indicators are passed into the plot graph
-                if ENABLE_CHART:
-                    plot_graph(
-                        interval_minutes,
-                        symbol,
-                        LOCAL_PRICE_DATA[symbol],
-                        pivot,
-                        support, resistance,
-                        trading_range_percentage,
-                        current_price_position_within_trading_range,
-                        entry_price,
-                        minimum_price_in_chart,
-                        maximum_price_in_chart,
-                        LOCAL_TREND_1_DATA[symbol],
-                        TREND_1_DISPLAY,
-                        LOCAL_TREND_2_DATA[symbol],
-                        TREND_2_DISPLAY,
-                        LOCAL_UPWARD_TREND_DIVERGENCE_DATA[symbol],
-                        LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA[symbol],
-                        lower_bollinger_band,
-                        upper_bollinger_band
-                    )
+                plot_graph(
+                    ENABLE_GRAPH_DISPLAY,
+                    ENABLE_GRAPH_SCREENSHOT,
+                    interval_minutes,
+                    symbol,
+                    LOCAL_PRICE_DATA[symbol],
+                    pivot,
+                    support, resistance,
+                    trading_range_percentage,
+                    current_price_position_within_trading_range,
+                    entry_price,
+                    minimum_price_in_chart,
+                    maximum_price_in_chart,
+                    LOCAL_TREND_1_DATA[symbol],
+                    TREND_1_DISPLAY,
+                    LOCAL_TREND_2_DATA[symbol],
+                    TREND_2_DISPLAY,
+                    LOCAL_UPWARD_TREND_DIVERGENCE_DATA[symbol],
+                    LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA[symbol],
+                    lower_bollinger_band,
+                    upper_bollinger_band
+                )
 
                 print('\n')
 
