@@ -73,11 +73,11 @@ LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA = {}
 # INTERVAL_SECONDS = 1
 # INTERVAL_MINUTES = 0.25
 # ------------------
-INTERVAL_SECONDS = 2
-INTERVAL_MINUTES = 15
+# INTERVAL_SECONDS = 2
+# INTERVAL_MINUTES = 15
 # ------------------
-# INTERVAL_SECONDS = 15
-# INTERVAL_MINUTES = 240 # 4 hour
+INTERVAL_SECONDS = 15
+INTERVAL_MINUTES = 240 # 4 hour
 # ------------------
 
 DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
@@ -697,28 +697,6 @@ def calculate_transaction_cost(entry_price, number_of_shares, fee_type):
 # Determine support and resistance levels
 #
 
-def should_recalculate_support_resistance(prices, last_calculated_price, price_change_threshold=1.0):
-    """
-    Determine if support and resistance levels should be recalculated based on significant price movement.
-
-    :param prices: deque of stock prices
-    :param last_calculated_price: the price at the last calculation of support/resistance
-    :param price_change_threshold: the percentage change required to trigger a recalculation
-    :return: boolean indicating whether to recalculate support and resistance
-    """
-    if not prices:
-        return False
-
-    current_price = prices[-1]
-    price_change_percentage = abs((current_price - last_calculated_price) / last_calculated_price) * 100
-
-    return price_change_percentage >= price_change_threshold
-
-#
-#
-# Determine support and resistance levels
-#
-
 def calculate_support_resistance_1(prices):
     """
     Calculate support and resistance levels using pivot points for a given set of stock prices.
@@ -746,29 +724,54 @@ def calculate_support_resistance_1(prices):
 
 
 def calculate_support_resistance_2(prices):
+    # todo
+
+#
+#
+# Check if support and resistance levels should be recalculated
+#
+
+def should_recalculate_support_resistance_1(prices, last_calculated_price, price_change_threshold=1.0):
     """
-    Calculate support and resistance levels using the 15-minute rule for a given set of stock prices.
+    Determine if support and resistance levels should be recalculated based on significant price movement.
 
     :param prices: deque of stock prices
-    :return: tuple containing pivot, support, and resistance levels
+    :param last_calculated_price: the price at the last calculation of support/resistance
+    :param price_change_threshold: the percentage change required to trigger a recalculation
+    :return: boolean indicating whether to recalculate support and resistance
+    """
+    if not prices:
+        return False
+
+    current_price = prices[-1]
+    price_change_percentage = abs((current_price - last_calculated_price) / last_calculated_price) * 100
+
+    return price_change_percentage >= price_change_threshold
+
+
+def should_recalculate_support_resistance_2(prices, last_calculated_price, price_change_threshold=1.0):
+    """
+    Determine if support and resistance levels should be recalculated based on significant price movement.
+
+    :param prices: deque of stock prices
+    :param last_calculated_price: the price at the last calculation of support/resistance
+    :param price_change_threshold: the percentage change required to trigger a recalculation
+    :return: boolean indicating whether to recalculate support and resistance
     """
     if not prices or len(prices) < 15:
-        raise ValueError("Prices deque must contain at least fifteen elements for the 15-minute rule.")
+        return False
 
     # Use the first 15 minutes to determine high and low
     first_15_min_prices = list(prices)[:15]
     high = max(first_15_min_prices)
     low = min(first_15_min_prices)
-    close = prices[-1]  # Assuming the last price is the closing price
 
-    # Calculate pivot point
-    pivot = (high + low + close) / 3
+    # Check if the current price exceeds the high or falls below the low of the first 15 minutes
+    current_price = prices[-1]
+    if current_price > high or current_price < low:
+        return True
 
-    # Calculate support and resistance levels
-    resistance = high
-    support = low
-
-    return pivot, support, resistance
+    return False
 
 #
 #
@@ -1004,6 +1007,9 @@ def plot_graph(
     lower_bollinger_band, upper_bollinger_band
 ):
     if enable_display == False and enable_screenshot == False:
+        if plt.get_fignums():  # Check if there are any open figures
+            print('there are open figures')
+            plt.close('all')  # Close all open figures to free up memory
         return
 
     # init graph
@@ -1068,18 +1074,17 @@ def plot_graph(
     plt.grid(True)
     plt.figtext(0.5, 0.01, f"trade range %: {trading_range_percentage}, current position %: {current_price_position_within_trading_range}", ha="center", fontsize=8)
 
-    #
-    #
     if enable_screenshot == True:
         filename = os.path.join(GRAPH_SCREENSHOT_FOLDER, f"{symbol}_chart.png")
         if os.path.exists(filename):
             os.remove(filename) # Overwrite existing screenshot and save new one
         plt.savefig(filename, dpi=300, bbox_inches='tight')
+        plt.close('all')
         print(f"Chart saved as {filename}")
     elif enable_display == True:
         plt.show(block=False)
         plt.pause(0.1)
-        plt.close()
+        plt.close('')
 
 #
 #
@@ -1205,8 +1210,8 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
                 # Calculate and set levels if empty not set yet
                 if levels == {}:
-                    # pivot, support, resistance = calculate_support_resistance_1(LOCAL_PRICE_DATA[symbol])
-                    pivot, support, resistance = calculate_support_resistance_2(LOCAL_PRICE_DATA[symbol])
+                    pivot, support, resistance = calculate_support_resistance_1(LOCAL_PRICE_DATA[symbol])
+                    # pivot, support, resistance = calculate_support_resistance_2(LOCAL_PRICE_DATA[symbol])
                     last_calculated_support_resistance_pivot_prices[symbol] = current_price  # Update the last calculated price
 
                     # Store the calculated support and resistance levels
@@ -1222,7 +1227,8 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 resistance = levels.get('resistance', 0)
 
                 # Check if we should recalculate support and resistance levels
-                if should_recalculate_support_resistance(LOCAL_PRICE_DATA[symbol], last_calculated_support_resistance_pivot_prices[symbol]):
+                if should_recalculate_support_resistance_1(LOCAL_PRICE_DATA[symbol], last_calculated_support_resistance_pivot_prices[symbol]):
+                # if should_recalculate_support_resistance_2(LOCAL_PRICE_DATA[symbol], last_calculated_support_resistance_pivot_prices[symbol]):
                     last_order = get_last_order_from_local_json_ledger(symbol)
                     last_order_type = detect_stored_coinbase_order_type(last_order)
                     # SELL-OFF
@@ -1233,8 +1239,8 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                             place_market_sell_order(symbol, shares)
 
                     # recalculate support
-                    # pivot, support, resistance = calculate_support_resistance_1(LOCAL_PRICE_DATA[symbol])
-                    pivot, support, resistance = calculate_support_resistance_2(LOCAL_PRICE_DATA[symbol])
+                    pivot, support, resistance = calculate_support_resistance_1(LOCAL_PRICE_DATA[symbol])
+                    # pivot, support, resistance = calculate_support_resistance_2(LOCAL_PRICE_DATA[symbol])
                     # Update the last calculated price
                     last_calculated_support_resistance_pivot_prices[symbol] = current_price
 
