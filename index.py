@@ -76,14 +76,17 @@ LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA = {}
 # INTERVAL_SECONDS = 2
 # INTERVAL_MINUTES = 15
 # ------------------
-INTERVAL_SECONDS = 15
+INTERVAL_SECONDS = 5
 INTERVAL_MINUTES = 240 # 4 hour
 # ------------------
 
 DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
 
 #
-START_TIME = time.time()
+APP_START_TIME_DATA = {} # time.time()
+# SCREENSHOT_INTERVAL_SECONDS = 15
+SCREENSHOT_INTERVAL_SECONDS = 2 * 60 * 60  # 2 hour in seconds
+# SCREENSHOT_INTERVAL_SECONDS = 4 * 60 * 60  # 4 hours in seconds
 #
 
 #
@@ -1074,75 +1077,83 @@ def plot_graph(
             plt.close('all')  # Close all open figures to free up memory
         return
 
-    # init graph
-    plt.figure(figsize=(12, 8))  # Set the figure size to 12x8 inches
+    current_time = time.time()
+    time_since_start = current_time - APP_START_TIME_DATA[symbol]
 
-    # entry price (if it exists)
-    if entry_price > 0:
-        plt.axhline(y=entry_price, color='m', linewidth=1.2, linestyle='-', label='entry price')
+    if enable_screenshot and time_since_start >= SCREENSHOT_INTERVAL_SECONDS:
+        # Reset APP_START_TIME_DATA to current time after taking a screenshot
+        APP_START_TIME_DATA[symbol] = current_time
 
-    # price data markers
-    plt.plot(list(price_data), marker=',', label='price', c='black')
+        # init graph
+        plt.figure(figsize=(12, 8)) # 12x8 inches
 
-    # trend 1 data markers
-    if trend_1_display == True:
-        plt.plot(list(trend_1_data), marker=',', label='trend 1 (+/-)', c='orange', linewidth=0.5)
+        # entry price (if it exists)
+        if entry_price > 0:
+            plt.axhline(y=entry_price, color='m', linewidth=1.2, linestyle='-', label='entry price')
 
-    # trend 2 data markers
-    if trend_2_display == True:
-        plt.plot(list(trend_2_data), marker=',', label='trend 2 (+/-)', c='blue', linewidth=0.5)
+        # price data markers
+        plt.plot(list(price_data), marker=',', label='price', c='black')
 
-    # Plot upward divergence markers
-    up_diverg_indices = [i for i, x in enumerate(price_data) if x in up_diverg]
-    plt.scatter(up_diverg_indices, [price_data[i] for i in up_diverg_indices], color='cyan', label='up divergence', marker=2)
+        # trend 1 data markers
+        if trend_1_display == True:
+            plt.plot(list(trend_1_data), marker=',', label='trend 1 (+/-)', c='orange', linewidth=0.5)
 
-    # Plot downward divergence markers
-    down_diverg_indices = [i for i, x in enumerate(price_data) if x in down_diverg]
-    plt.scatter(down_diverg_indices, [price_data[i] for i in down_diverg_indices], color='red', label='down divergence', marker=3)
+        # trend 2 data markers
+        if trend_2_display == True:
+            plt.plot(list(trend_2_data), marker=',', label='trend 2 (+/-)', c='blue', linewidth=0.5)
 
-    # support, resistance, pivot levels
-    plt.axhline(y=resistance, color='black', linewidth=1.4, linestyle='--', label='resistance')
-    plt.axhline(y=support, color='black', linewidth=1.4, linestyle='--', label='support')
-    plt.axhline(y=pivot, color='magenta', linewidth=1.3, linestyle=':', label='pivot')
+        # Plot upward divergence markers
+        up_diverg_indices = [i for i, x in enumerate(price_data) if x in up_diverg]
+        plt.scatter(up_diverg_indices, [price_data[i] for i in up_diverg_indices], color='cyan', label='up divergence', marker=2)
 
-    plt.axhline(y=min_price, color='brown', linewidth=1.6, linestyle='-', label=f"min price ({min_price:.4f})")
-    plt.axhline(y=max_price, color='brown', linewidth=1.6, linestyle='-', label=f"max price ({max_price:.4f})")
+        # Plot downward divergence markers
+        down_diverg_indices = [i for i, x in enumerate(price_data) if x in down_diverg]
+        plt.scatter(down_diverg_indices, [price_data[i] for i in down_diverg_indices], color='red', label='down divergence', marker=3)
 
-    # bollinger bands
-    plt.axhline(y=lower_bollinger_band, color='cyan', linewidth=1.4, linestyle='-.', label=f"low bollinger ({lower_bollinger_band:.4f})")
+        # support, resistance, pivot levels
+        plt.axhline(y=resistance, color='black', linewidth=1.4, linestyle='--', label='resistance')
+        plt.axhline(y=support, color='black', linewidth=1.4, linestyle='--', label='support')
+        plt.axhline(y=pivot, color='magenta', linewidth=1.3, linestyle=':', label='pivot')
 
-    plt.title(f"{symbol}")
-    plt.xlabel(f"time range ({timeframe_minutes} minutes)")
-    plt.ylabel("price")
-    plt.legend(loc='lower left', fontsize='small')  # Make the legend smaller
+        plt.axhline(y=min_price, color='brown', linewidth=1.6, linestyle='-', label=f"min price ({min_price:.4f})")
+        plt.axhline(y=max_price, color='brown', linewidth=1.6, linestyle='-', label=f"max price ({max_price:.4f})")
 
-    # Set y-axis minimum and maximum to ensure support and resistance are visible
-    min_displayed_price = min(min(price_data), support, resistance, lower_bollinger_band)
-    max_displayed_price = max(max(price_data), support, resistance, upper_bollinger_band)
+        # bollinger bands
+        plt.axhline(y=lower_bollinger_band, color='cyan', linewidth=1.4, linestyle='-.', label=f"low bollinger ({lower_bollinger_band:.4f})")
 
-    # Calculate a dynamic buffer based on the price range
-    price_range = max_displayed_price - min_displayed_price
-    buffer = price_range * 0.05  # 2% buffer
+        plt.title(f"{symbol}")
+        plt.xlabel(f"time range ({timeframe_minutes} minutes)")
+        plt.ylabel("price")
+        plt.legend(loc='lower left', fontsize='small')  # Make the legend smaller
 
-    # Set y-axis limits with the dynamic buffer
-    plt.gca().set_ylim(min_displayed_price - buffer, max_displayed_price + buffer)
+        # Set y-axis minimum and maximum to ensure support and resistance are visible
+        min_displayed_price = min(min(price_data), support, resistance, lower_bollinger_band)
+        max_displayed_price = max(max(price_data), support, resistance, upper_bollinger_band)
 
-    # Set x-axis to show time points
-    plt.gca().xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
+        # Calculate a dynamic buffer based on the price range
+        price_range = max_displayed_price - min_displayed_price
+        buffer = price_range * 0.05  # 2% buffer
 
-    # Format y-axis to show values to the 4th decimal place
-    plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.4f'))
+        # Set y-axis limits with the dynamic buffer
+        plt.gca().set_ylim(min_displayed_price - buffer, max_displayed_price + buffer)
 
-    plt.grid(True)
-    plt.figtext(0.5, 0.01, f"trade range %: {trading_range_percentage}, current position %: {current_price_position_within_trading_range}", ha="center", fontsize=8)
+        # Set x-axis to show time points
+        plt.gca().xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
 
-    if enable_screenshot == True:
-        filename = os.path.join(GRAPH_SCREENSHOT_FOLDER, f"{symbol}_chart.png")
+        # Format y-axis to show values to the 4th decimal place
+        plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.4f'))
+
+        plt.grid(True)
+        plt.figtext(0.5, 0.01, f"trade range %: {trading_range_percentage}, current position %: {current_price_position_within_trading_range}", ha="center", fontsize=8)
+
+        # save new screenshot
+        filename = os.path.join(GRAPH_SCREENSHOT_FOLDER, f"{symbol}_chart_{current_time}.png")
         if os.path.exists(filename):
             os.remove(filename) # Overwrite existing screenshot and save new one
         plt.savefig(filename, dpi=300, bbox_inches='tight')
         plt.close('all')
         print(f"Chart saved as {filename}")
+
     elif enable_display == True:
         plt.show(block=False)
         plt.pause(0.1)
@@ -1185,6 +1196,9 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 #
                 # Initialize price data storage if not already done
                 #
+
+                if symbol not in APP_START_TIME_DATA:
+                    APP_START_TIME_DATA[symbol] = time.time()
 
                 if symbol not in LOCAL_PRICE_DATA:
                     LOCAL_PRICE_DATA[symbol] = deque(maxlen=data_points_for_x_minutes)
