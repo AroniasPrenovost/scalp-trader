@@ -1381,7 +1381,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                             else:
                                 print('trading disabled')
 
-                # Indicators are passed into the plot graph
+                # Visualize indicators in a graph
                 plot_graph(
                     ENABLE_GRAPH_DISPLAY,
                     ENABLE_GRAPH_SCREENSHOT,
