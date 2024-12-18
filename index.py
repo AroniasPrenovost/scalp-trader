@@ -719,7 +719,7 @@ def should_recalculate_support_resistance(prices, last_calculated_price, price_c
 # Determine support and resistance levels
 #
 
-def calculate_support_resistance(prices):
+def calculate_support_resistance_1(prices):
     """
     Calculate support and resistance levels using pivot points for a given set of stock prices.
 
@@ -740,6 +740,33 @@ def calculate_support_resistance(prices):
     # Calculate support and resistance levels
     resistance = (2 * pivot) - low
     support = (2 * pivot) - high
+
+    return pivot, support, resistance
+
+
+
+def calculate_support_resistance_2(prices):
+    """
+    Calculate support and resistance levels using the 15-minute rule for a given set of stock prices.
+
+    :param prices: deque of stock prices
+    :return: tuple containing pivot, support, and resistance levels
+    """
+    if not prices or len(prices) < 15:
+        raise ValueError("Prices deque must contain at least fifteen elements for the 15-minute rule.")
+
+    # Use the first 15 minutes to determine high and low
+    first_15_min_prices = list(prices)[:15]
+    high = max(first_15_min_prices)
+    low = min(first_15_min_prices)
+    close = prices[-1]  # Assuming the last price is the closing price
+
+    # Calculate pivot point
+    pivot = (high + low + close) / 3
+
+    # Calculate support and resistance levels
+    resistance = high
+    support = low
 
     return pivot, support, resistance
 
@@ -1178,7 +1205,8 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
                 # Calculate and set levels if empty not set yet
                 if levels == {}:
-                    pivot, support, resistance = calculate_support_resistance(LOCAL_PRICE_DATA[symbol])
+                    # pivot, support, resistance = calculate_support_resistance_1(LOCAL_PRICE_DATA[symbol])
+                    pivot, support, resistance = calculate_support_resistance_2(LOCAL_PRICE_DATA[symbol])
                     last_calculated_support_resistance_pivot_prices[symbol] = current_price  # Update the last calculated price
 
                     # Store the calculated support and resistance levels
@@ -1205,7 +1233,8 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                             place_market_sell_order(symbol, shares)
 
                     # recalculate support
-                    pivot, support, resistance = calculate_support_resistance(LOCAL_PRICE_DATA[symbol])
+                    # pivot, support, resistance = calculate_support_resistance_1(LOCAL_PRICE_DATA[symbol])
+                    pivot, support, resistance = calculate_support_resistance_2(LOCAL_PRICE_DATA[symbol])
                     # Update the last calculated price
                     last_calculated_support_resistance_pivot_prices[symbol] = current_price
 
