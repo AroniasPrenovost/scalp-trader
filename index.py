@@ -326,10 +326,8 @@ if mode == 'test':
 
             raw_test_data = generate_test_price_data(start_price, DATA_POINTS_FOR_X_MINUTES, TEST_DATA_TREND_RATE, TEST_DATA_VOLATILITY_RATE)
             raw_test_data.reverse()
-
             if symbol not in LOCAL_PRICE_DATA:
                 LOCAL_PRICE_DATA[symbol] = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
-
             for price in raw_test_data:
                 # append the test prices directly to the local price data
                 LOCAL_PRICE_DATA[symbol].append(price)
