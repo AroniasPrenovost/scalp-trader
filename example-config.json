@@ -15,7 +15,7 @@
         "trend_2_timeframe_percent": 20,
         "trend_2_display": false,
         "enable_graph_display": false,
-        "enable_graph_screenshot": true
+        "enable_graph_screenshot": false
       },
       {
         "enabled": false,

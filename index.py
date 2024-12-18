@@ -85,7 +85,7 @@ DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
 #
 APP_START_TIME_DATA = {} # time.time()
 # SCREENSHOT_INTERVAL_SECONDS = 15
-SCREENSHOT_INTERVAL_SECONDS = 2 * 60 * 60  # 2 hour in seconds
+SCREENSHOT_INTERVAL_SECONDS = 1 * 60 * 60  # 1 hour in seconds
 # SCREENSHOT_INTERVAL_SECONDS = 4 * 60 * 60  # 4 hours in seconds
 #
 
@@ -1072,17 +1072,21 @@ def plot_graph(
     lower_bollinger_band, upper_bollinger_band
 ):
     if enable_display == False and enable_screenshot == False:
-        if plt.get_fignums():  # Check if there are any open figures
-            print('there are open figures')
+        open_figure_count = plt.get_fignums() # Check if there are any open figures
+        if open_figure_count > 0:
+            print(f"{open_figure_count} open figures closed")
             plt.close('all')  # Close all open figures to free up memory
         return
 
     current_time = time.time()
     time_since_start = current_time - APP_START_TIME_DATA[symbol]
 
-    if enable_screenshot and time_since_start >= SCREENSHOT_INTERVAL_SECONDS:
+    flag = False
+    if enable_screenshot or enable_display:
         # Reset APP_START_TIME_DATA to current time after taking a screenshot
-        APP_START_TIME_DATA[symbol] = current_time
+        if time_since_start >= SCREENSHOT_INTERVAL_SECONDS:
+            flag = True
+            APP_START_TIME_DATA[symbol] = current_time
 
         # init graph
         plt.figure(figsize=(12, 8)) # 12x8 inches
@@ -1147,17 +1151,18 @@ def plot_graph(
         plt.figtext(0.5, 0.01, f"trade range %: {trading_range_percentage}, current position %: {current_price_position_within_trading_range}", ha="center", fontsize=8)
 
         # save new screenshot
-        filename = os.path.join(GRAPH_SCREENSHOT_FOLDER, f"{symbol}_chart_{current_time}.png")
-        if os.path.exists(filename):
-            os.remove(filename) # Overwrite existing screenshot and save new one
-        plt.savefig(filename, dpi=300, bbox_inches='tight')
-        plt.close('all')
-        print(f"Chart saved as {filename}")
+        if flag == True:
+            filename = os.path.join(GRAPH_SCREENSHOT_FOLDER, f"{symbol}_chart_{current_time}.png")
+            if os.path.exists(filename):
+                os.remove(filename) # Overwrite existing screenshot and save new one
+            plt.savefig(filename, dpi=300, bbox_inches='tight')
+            plt.close('all')
+            print(f"Chart saved as {filename}")
 
-    elif enable_display == True:
-        plt.show(block=False)
-        plt.pause(0.1)
-        plt.close('')
+        if enable_display == True:
+            plt.show(block=False)
+            plt.pause(0.1)
+            plt.close('')
 
 #
 #
