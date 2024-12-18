@@ -83,6 +83,10 @@ INTERVAL_MINUTES = 240 # 4 hour
 DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
 
 #
+START_TIME = time.time()
+#
+
+#
 #
 # Store the last error and manage number of errors before killing program
 #
