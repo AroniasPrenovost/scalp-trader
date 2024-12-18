@@ -1230,9 +1230,6 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 # Indicators
                 #
 
-                raise Exception("Sorry, no numbers below zero")
-
-
                 print('trend_1: ', trend_1)
                 print('trend_2: ', trend_2)
 
