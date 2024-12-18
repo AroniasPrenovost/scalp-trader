@@ -23,6 +23,12 @@ def load_config(file_path):
     with open(file_path, 'r') as file:
         return load(file)
 
+
+# Define the SCREENSHOT_FOLDER for saving screenshots
+SCREENSHOT_FOLDER = 'screenshots'
+if not os.path.exists(SCREENSHOT_FOLDER):
+    os.makedirs(SCREENSHOT_FOLDER)
+
 #
 #
 # Initialize a dictionary to store price data for each asset
@@ -1023,26 +1029,20 @@ def plot_graph(
     plt.figtext(0.5, 0.01, f"trade range %: {trading_range_percentage}, current position %: {current_price_position_within_trading_range}", ha="center", fontsize=8)
     #
     #
-    # Define the directory for saving screenshots
-    directory = 'screenshots'
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-
-    # Check if screenshot already exists
-    filename = os.path.join(directory, f"{symbol}_chart.png")
-    if not os.path.exists(filename):
-        # Save the plot as an image file
-        plt.savefig(filename, dpi=300, bbox_inches='tight')
-        print(f"Chart saved as {filename}")
-    # else:
-        # print(f"File {filename} already exists. Skipping save.")
+    # Overwrite existing screenshot and save new one
+    filename = os.path.join(SCREENSHOT_FOLDER, f"{symbol}_chart.png")
+    if os.path.exists(filename):
+        os.remove(filename)
+    plt.savefig(filename, dpi=300, bbox_inches='tight')
+    print(f"Chart saved as {filename}")
     #
     #
     #
 
-    plt.show(block=False)
-    plt.pause(0.1)
-    plt.close()
+    # Disables chart from rendering for the user
+    # plt.show(block=False)
+    # plt.pause(0.1)
+    # plt.close()
 
 #
 #
