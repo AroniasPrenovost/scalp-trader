@@ -84,8 +84,8 @@ DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
 
 #
 APP_START_TIME_DATA = {} # time.time()
-# SCREENSHOT_INTERVAL_SECONDS = 15
-SCREENSHOT_INTERVAL_SECONDS = 1 * 60 * 60  # 1 hour in seconds
+SCREENSHOT_INTERVAL_SECONDS = 15
+# SCREENSHOT_INTERVAL_SECONDS = 1 * 60 * 60  # 1 hour in seconds
 # SCREENSHOT_INTERVAL_SECONDS = 4 * 60 * 60  # 4 hours in seconds
 #
 
@@ -97,6 +97,7 @@ SCREENSHOT_INTERVAL_SECONDS = 1 * 60 * 60  # 1 hour in seconds
 LAST_EXCEPTION_ERROR = None
 SAME_ERROR_COUNT = 0
 MAX_SAME_ERROR_COUNT = 4
+
 #
 #
 # Coinbase API and taxes
@@ -856,20 +857,20 @@ def calculate_trading_range_percentage(num1, num2):
 #
 #
 
-def calculate_current_price_position_within_trading_range(current_price, support, resistance):
+def calculate_current_price_position_within_trading_range(current_price, min, max):
     """
     Calculate the position of the current price within the trading range.
 
     :param current_price: The current price of the asset
-    :param support: The support level price
-    :param resistance: The resistance level price
+    :param min: The min price
+    :param max: The max price
     :return: The position of the current price within the trading range as a percentage
     """
-    if resistance == support:
+    if max == min:
         return 0.0  # Avoid division by zero
 
-    trading_range = resistance - support
-    position_within_range = ((current_price - support) / trading_range) * 100
+    trading_range = max - min
+    position_within_range = ((current_price - min) / trading_range) * 100
 
     return round(position_within_range, 2)
 
@@ -1340,10 +1341,13 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 print(f"support: {support}")
                 print(f"resistance: {resistance}")
 
-                trading_range_percentage = calculate_trading_range_percentage(min(LOCAL_PRICE_DATA[symbol]), max(LOCAL_PRICE_DATA[symbol]))
+                minimum_price_in_chart = min(LOCAL_PRICE_DATA[symbol])
+                maximum_price_in_chart = max(LOCAL_PRICE_DATA[symbol])
+
+                trading_range_percentage = calculate_trading_range_percentage(minimum_price_in_chart, maximum_price_in_chart)
                 print(f"trading_range_percentage: {trading_range_percentage}%")
 
-                current_price_position_within_trading_range = calculate_current_price_position_within_trading_range(current_price, support, resistance)
+                current_price_position_within_trading_range = calculate_current_price_position_within_trading_range(current_price, minimum_price_in_chart, maximum_price_in_chart)
                 print(f"current_price_position_within_trading_range: {current_price_position_within_trading_range}%")
 
                 sma = calculate_sma(LOCAL_PRICE_DATA[symbol], period=20)
@@ -1352,9 +1356,6 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 # print(f"MACD Line: {macd_line}, Signal Line: {signal_line}")
                 upper_bollinger_band, lower_bollinger_band, _ = calculate_bollinger_bands(LOCAL_PRICE_DATA[symbol])
                 # print(f"Bollinger Bands - Upper: {upper_bollinger_band}, Lower: {lower_bollinger_band}")
-
-                minimum_price_in_chart = min(LOCAL_PRICE_DATA[symbol])
-                maximum_price_in_chart = max(LOCAL_PRICE_DATA[symbol])
 
                 # Calculate Fibonacci levels
                 fibonacci_levels = calculate_fibonacci_levels(LOCAL_PRICE_DATA[symbol])
@@ -1428,7 +1429,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     #     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
                     if current_price < pivot:
                         if current_price < lower_bollinger_band:
-                            if current_price_position_within_trading_range < 50:
+                            if current_price_position_within_trading_range < 25:
                             # if upward_divergence == True: # (need to add this)
                                 print('~ BUY OPPORTUNITY (current_price < lower_bollinger_band)~')
                                 if READY_TO_TRADE == True:
