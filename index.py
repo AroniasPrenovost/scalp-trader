@@ -325,6 +325,7 @@ if mode == 'test':
             TEST_DOWNWARD_TREND_DIVERGENCE_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
 
             raw_test_data = generate_test_price_data(start_price, DATA_POINTS_FOR_X_MINUTES, TEST_DATA_TREND_RATE, TEST_DATA_VOLATILITY_RATE)
+            raw_test_data.reverse()
 
             if symbol not in LOCAL_PRICE_DATA:
                 LOCAL_PRICE_DATA[symbol] = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
@@ -700,31 +701,58 @@ def calculate_transaction_cost(entry_price, number_of_shares, fee_type):
 # Determine support and resistance levels
 #
 
-def calculate_support_resistance_1(prices):
+def calculate_support_resistance_1(prices, window_size):
     """
-    Calculate support and resistance levels using pivot points for a given set of stock prices.
+    Calculate support, resistance, and pivot levels using local maxima/minima and traditional pivot calculation.
 
     :param prices: deque of stock prices
+    :param window_size: number of periods to consider for local maxima/minima
     :return: tuple containing pivot, support, and resistance levels
     """
-    if not prices or len(prices) < 3:
-        raise ValueError("Prices deque must contain at least three elements.")
+    if len(prices) < window_size:
+        raise ValueError("Prices deque must contain at least 'window_size' elements.")
 
-    # Calculate high, low, and close prices
+    prices_series = pd.Series(list(prices))
+
+    # Calculate local maxima and minima
+    local_max = prices_series.rolling(window=window_size, center=True).max()
+    local_min = prices_series.rolling(window=window_size, center=True).min()
+
+    # Determine resistance as the average of local maxima
+    resistance = local_max.mean()
+
+    # Determine support as the average of local minima
+    support = local_min.mean()
+
+    # Calculate pivot point using the last high, low, and close prices
     high = max(prices)
     low = min(prices)
     close = prices[-1]  # Assuming the last price is the closing price
-
-    # Calculate pivot point
     pivot = (high + low + close) / 3
 
-    # Calculate support and resistance levels
-    resistance = (2 * pivot) - low
-    support = (2 * pivot) - high
-
     return pivot, support, resistance
-
-
+    # """
+    # Calculate support and resistance levels using pivot points for a given set of stock prices.
+    #
+    # :param prices: deque of stock prices
+    # :return: tuple containing pivot, support, and resistance levels
+    # """
+    # if not prices or len(prices) < 3:
+    #     raise ValueError("Prices deque must contain at least three elements.")
+    #
+    # # Calculate high, low, and close prices
+    # high = max(prices)
+    # low = min(prices)
+    # close = prices[-1]  # Assuming the last price is the closing price
+    #
+    # # Calculate pivot point
+    # pivot = (high + low + close) / 3
+    #
+    # # Calculate support and resistance levels
+    # resistance = (2 * pivot) - low
+    # support = (2 * pivot) - high
+    #
+    # return pivot, support, resistance
 
 def calculate_support_resistance_2(prices):
         """
@@ -1067,11 +1095,11 @@ def plot_graph(
     plt.axhline(y=support, color='black', linewidth=1.4, linestyle='--', label='support')
     plt.axhline(y=pivot, color='magenta', linewidth=1.3, linestyle=':', label='pivot')
 
-    plt.axhline(y=min_price, color='black', linewidth=1.6, linestyle=':', label=f"min price ({min_price:.4f})")
-    plt.axhline(y=max_price, color='black', linewidth=1.6, linestyle=':', label=f"max price ({max_price:.4f})")
+    plt.axhline(y=min_price, color='brown', linewidth=1.6, linestyle='-', label=f"min price ({min_price:.4f})")
+    plt.axhline(y=max_price, color='brown', linewidth=1.6, linestyle='-', label=f"max price ({max_price:.4f})")
 
     # bollinger bands
-    plt.axhline(y=lower_bollinger_band, color='cyan', linewidth=1.4, linestyle=':', label=f"low bollinger ({lower_bollinger_band:.4f})")
+    plt.axhline(y=lower_bollinger_band, color='cyan', linewidth=1.4, linestyle='-.', label=f"low bollinger ({lower_bollinger_band:.4f})")
 
     plt.title(f"{symbol}")
     plt.xlabel(f"time range ({timeframe_minutes} minutes)")
@@ -1079,8 +1107,8 @@ def plot_graph(
     plt.legend(loc='lower left', fontsize='small')  # Make the legend smaller
 
     # Set y-axis minimum and maximum to ensure support and resistance are visible
-    min_displayed_price = min(min(price_data), support, resistance)
-    max_displayed_price = max(max(price_data), support, resistance)
+    min_displayed_price = min(min(price_data), support, resistance, lower_bollinger_band)
+    max_displayed_price = max(max(price_data), support, resistance, upper_bollinger_band)
 
     # Calculate a dynamic buffer based on the price range
     price_range = max_displayed_price - min_displayed_price
@@ -1125,13 +1153,17 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
             symbol = asset['symbol']
             SHARES_TO_ACQUIRE = asset['shares_to_acquire']
             TARGET_PROFIT_PERCENTAGE = asset['target_profit_percentage']
+
+            READY_TO_TRADE = asset['ready_to_trade']
+            ENABLE_GRAPH_DISPLAY = asset['enable_graph_display']
+            ENABLE_GRAPH_SCREENSHOT = asset['enable_graph_screenshot']
+
+            # indicators
+            SUPPORT_RESISTANCE_WINDOW_SIZE = asset['support_resistance_window_size']
             TREND_1_TIMEFRAME_PERCENT = asset['trend_1_timeframe_percent']
             TREND_1_DISPLAY = asset['trend_1_display']
             TREND_2_TIMEFRAME_PERCENT = asset['trend_2_timeframe_percent']
             TREND_2_DISPLAY = asset['trend_2_display']
-            READY_TO_TRADE = asset['ready_to_trade']
-            ENABLE_GRAPH_DISPLAY = asset['enable_graph_display']
-            ENABLE_GRAPH_SCREENSHOT = asset['enable_graph_screenshot']
 
             if enabled:
                 print(symbol)
@@ -1232,7 +1264,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
                 # Calculate and set levels if empty not set yet
                 if levels == {}:
-                    pivot, support, resistance = calculate_support_resistance_1(LOCAL_PRICE_DATA[symbol])
+                    pivot, support, resistance = calculate_support_resistance_1(LOCAL_PRICE_DATA[symbol], SUPPORT_RESISTANCE_WINDOW_SIZE)
                     # pivot, support, resistance = calculate_support_resistance_2(LOCAL_PRICE_DATA[symbol])
                     last_calculated_support_resistance_pivot_prices[symbol] = current_price  # Update the last calculated price
 
@@ -1261,7 +1293,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                             place_market_sell_order(symbol, shares)
 
                     # recalculate support
-                    pivot, support, resistance = calculate_support_resistance_1(LOCAL_PRICE_DATA[symbol])
+                    pivot, support, resistance = calculate_support_resistance_1(LOCAL_PRICE_DATA[symbol], SUPPORT_RESISTANCE_WINDOW_SIZE)
                     # pivot, support, resistance = calculate_support_resistance_2(LOCAL_PRICE_DATA[symbol])
                     # Update the last calculated price
                     last_calculated_support_resistance_pivot_prices[symbol] = current_price
