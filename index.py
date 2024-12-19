@@ -28,6 +28,16 @@ def load_config(file_path):
 GRAPH_SCREENSHOT_FOLDER = 'screenshots'
 if not os.path.exists(GRAPH_SCREENSHOT_FOLDER):
     os.makedirs(GRAPH_SCREENSHOT_FOLDER)
+else:
+    # Iterate through all existing files in directory and delete them
+    for filename in os.listdir(GRAPH_SCREENSHOT_FOLDER):
+        file_path = os.path.join(GRAPH_SCREENSHOT_FOLDER, filename)
+        try:
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+                print(f"Deleted file: {file_path}")
+        except Exception as e:
+            print(f"Failed to delete {file_path}. Reason: {e}")
 
 #
 #
