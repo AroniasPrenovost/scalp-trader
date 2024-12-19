@@ -96,7 +96,7 @@ SCREENSHOT_INTERVAL_SECONDS = 1 * 60 * 60  # 1 hour
 
 LAST_EXCEPTION_ERROR = None
 SAME_ERROR_COUNT = 0
-MAX_SAME_ERROR_COUNT = 4
+MAX_SAME_ERROR_COUNT = 8
 
 #
 #
@@ -1167,6 +1167,10 @@ def plot_graph(
 
 def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes):
     while True:
+
+        global LAST_EXCEPTION_ERROR
+        global SAME_ERROR_COUNT
+
         client_accounts = client.get_accounts()
         config = load_config('config.json')
 
@@ -1188,6 +1192,8 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
             ENABLE_GRAPH_DISPLAY = asset['enable_graph_display']
             ENABLE_GRAPH_SCREENSHOT = asset['enable_graph_screenshot']
+
+            ENABLE_TEST_FAILURE = asset['enable_test_failure']
 
             if enabled:
                 print(symbol)
@@ -1245,6 +1251,14 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 if len(LOCAL_PRICE_DATA[symbol]) < data_points_for_x_minutes:
                     print(f"Waiting for more data... ({len(LOCAL_PRICE_DATA[symbol])}/{data_points_for_x_minutes})\n")
                     continue
+
+                #
+                #
+                #
+                #
+
+                if ENABLE_TEST_FAILURE == True:
+                    raise Exception('~~ test failure ~~')
 
                 #
                 #
@@ -1531,6 +1545,9 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     upper_bollinger_band
                 )
 
+                # Clear errors if they've shown to be non-consecutive
+                LAST_EXCEPTION_ERROR = None
+                SAME_ERROR_COUNT = 0
                 print('\n')
 
         time.sleep(interval_seconds)
@@ -1549,6 +1566,7 @@ if __name__ == "__main__":
                     html_content=f"An error occurred: {current_exception_error}. Restarting the program..."
                 )
                 LAST_EXCEPTION_ERROR = current_exception_error # Update the last exception error
+                print('\n')
             else:
                 SAME_ERROR_COUNT += 1
                 if SAME_ERROR_COUNT == MAX_SAME_ERROR_COUNT:
@@ -1561,5 +1579,6 @@ if __name__ == "__main__":
                     quit()
                 else:
                     print(f"Same error as last time ({SAME_ERROR_COUNT}/{MAX_SAME_ERROR_COUNT})")
+                    print('\n')
 
             time.sleep(10)  # Wait 10 seconds before restarting
