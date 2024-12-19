@@ -85,7 +85,7 @@ DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
 #
 APP_START_TIME_DATA = {} # time.time()
 SCREENSHOT_INTERVAL_SECONDS = 15
-# SCREENSHOT_INTERVAL_SECONDS = 2 * 60 * 60  # 2 hour in seconds
+# SCREENSHOT_INTERVAL_SECONDS = 1 * 60 * 60  # 1 hour in seconds
 # SCREENSHOT_INTERVAL_SECONDS = 4 * 60 * 60  # 4 hours in seconds
 #
 
@@ -1423,13 +1423,14 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     #     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
                     if current_price < pivot:
                         if current_price < lower_bollinger_band:
-                            if current_price_position_within_trading_range < 50:
-                            # if upward_divergence == True: # (need to add this)
-                                print('~ BUY OPPORTUNITY (current_price < lower_bollinger_band)~')
-                                if READY_TO_TRADE == True:
-                                    place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                                else:
-                                    print('trading disabled')
+                            if downward_divergence == True:
+                                if current_price_position_within_trading_range < 30:
+                                # if upward_divergence == True: # (need to add this)
+                                    print('~ BUY OPPORTUNITY (current_price < lower_bollinger_band)~')
+                                    if READY_TO_TRADE == True:
+                                        place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                                    else:
+                                        print('trading disabled')
 
 
                         # Buy looking to current price crosses above SMA
