@@ -1365,8 +1365,8 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 # Check if we should recalculate support and resistance levels
                 if should_recalculate_support_resistance_1(LOCAL_PRICE_DATA[symbol], last_calculated_support_resistance_pivot_prices[symbol]):
                 # if should_recalculate_support_resistance_2(LOCAL_PRICE_DATA[symbol], last_calculated_support_resistance_pivot_prices[symbol]):
-                    last_order = get_last_order_from_local_json_ledger(symbol)
-                    last_order_type = detect_stored_coinbase_order_type(last_order)
+                    # last_order = get_last_order_from_local_json_ledger(symbol)
+                    # last_order_type = detect_stored_coinbase_order_type(last_order)
                     # SELL-OFF logic (might revisit if it turns out to be necessary)
                     # if last_order_type == 'buy':
                     #     if trend_1 == 'downward':
