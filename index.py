@@ -24,35 +24,6 @@ def load_config(file_path):
         return load(file)
 
 
-# Define the GRAPH_SCREENSHOT_DIRECTORY for saving screenshots
-GRAPH_SCREENSHOT_DIRECTORY = 'screenshots'
-if not os.path.exists(GRAPH_SCREENSHOT_DIRECTORY):
-    os.makedirs(GRAPH_SCREENSHOT_DIRECTORY)
-else:
-    # Iterate through all existing files in directory and delete them
-    for filename in os.listdir(GRAPH_SCREENSHOT_DIRECTORY):
-        file_path = os.path.join(GRAPH_SCREENSHOT_DIRECTORY, filename)
-        try:
-            if os.path.isfile(file_path):
-                os.unlink(file_path)
-                print(f"Deleted file: {file_path}")
-        except Exception as e:
-            print(f"Failed to delete {file_path}. Reason: {e}")
-
-def delete_screenshots_older_than_x(folder_path, hours=8):
-    current_time = time.time()
-    for filename in os.listdir(folder_path):
-        file_path = os.path.join(folder_path, filename)
-        if os.path.isfile(file_path):
-            file_mod_time = os.path.getmtime(file_path)
-            # Check if the file is older than the specified hours
-            if current_time - file_mod_time > hours * 3600:
-                try:
-                    os.remove(file_path)
-                    print(f"Deleted old screenshot: {file_path}")
-                except Exception as e:
-                    print(f"Failed to delete {file_path}. Reason: {e}")
-
 #
 #
 # Initialize a dictionary to store price data for each asset
@@ -77,16 +48,16 @@ last_calculated_support_resistance_pivot_prices = {}  # Store the last calculate
 
 #
 #
-# Initialize a dictionary to store trend data for each asset
+# Time tracking
 #
 
-LOCAL_TREND_1_DATA = {}
-TREND_1_PRICE_OFFSET_PERCENT = 0.05
-LOCAL_TREND_2_DATA = {}
-TREND_2_PRICE_OFFSET_PERCENT = 0.1
-# for mapping the divergent outcomes between these 2 ^
-LOCAL_UPWARD_TREND_DIVERGENCE_DATA = {}
-LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA = {}
+APP_START_TIME_DATA = {} # global data to help manage time
+
+# SCREENSHOT_INTERVAL_SECONDS = 15           # 15 seconds
+# SCREENSHOT_INTERVAL_SECONDS = 30 * 60      # 30 minutes
+SCREENSHOT_INTERVAL_SECONDS = 1 * 60 * 60  # 1 hour
+# SCREENSHOT_INTERVAL_SECONDS = 4 * 60 * 60  # 4 hours
+SCREENSHOT_MAX_AGE_HOURS = 12
 
 #
 #
@@ -107,13 +78,6 @@ INTERVAL_MINUTES = 240 # 4 hour
 DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
 
 #
-APP_START_TIME_DATA = {} # time.time()
-# SCREENSHOT_INTERVAL_SECONDS = 15
-SCREENSHOT_INTERVAL_SECONDS = 1 * 60 * 60  # 1 hour
-# SCREENSHOT_INTERVAL_SECONDS = 4 * 60 * 60  # 4 hours
-#
-
-#
 #
 # Store the last error and manage number of errors before killing program
 #
@@ -121,6 +85,56 @@ SCREENSHOT_INTERVAL_SECONDS = 1 * 60 * 60  # 1 hour
 LAST_EXCEPTION_ERROR = None
 SAME_ERROR_COUNT = 0
 MAX_SAME_ERROR_COUNT = 8
+
+
+#
+#
+# Initialize a dictionary to store trend data for each asset
+#
+
+LOCAL_TREND_1_DATA = {}
+TREND_1_PRICE_OFFSET_PERCENT = 0.05 # for visibility on graph
+LOCAL_TREND_2_DATA = {}
+TREND_2_PRICE_OFFSET_PERCENT = 0.1 # for visibility on graph
+# for mapping the divergent outcomes between these 2 ^
+LOCAL_UPWARD_TREND_DIVERGENCE_DATA = {}
+LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA = {}
+
+#
+#
+# Define the GRAPH_SCREENSHOT_DIRECTORY for saving screenshots
+#
+print('the final test')
+
+GRAPH_SCREENSHOT_DIRECTORY = 'screenshots'
+if not os.path.exists(GRAPH_SCREENSHOT_DIRECTORY):
+    os.makedirs(GRAPH_SCREENSHOT_DIRECTORY)
+else:
+    # Iterate through all existing files in directory and delete them
+    for filename in os.listdir(GRAPH_SCREENSHOT_DIRECTORY):
+        file_path = os.path.join(GRAPH_SCREENSHOT_DIRECTORY, filename)
+        try:
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+                print(f"Deleted file: {file_path}")
+        except Exception as e:
+            print(f"Failed to delete {file_path}. Reason: {e}")
+
+def delete_screenshots_older_than_x(folder_path, c_time, hours):
+    # c_time = time.time()
+    for filename in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, filename)
+        if os.path.isfile(file_path):
+            file_mod_time = os.path.getmtime(file_path)
+            # Check if the file is older than the specified hours
+            if c_time - file_mod_time > hours * 3600:
+                try:
+                    os.remove(file_path)
+                    print(f"Deleted old screenshot: {file_path}")
+                except Exception as e:
+                    print(f"Failed to delete {file_path}. Reason: {e}")
+
+
 
 #
 #
@@ -381,9 +395,9 @@ if mode == 'test':
                 TEST_TREND_1_DATA.append(trend_1_offset_price)
                 #
                 #
-                # TREND #2›
+                # TREND #2
                 #
-                trend_2 = determine_trend_2(LOCAL_PRICE_DATA[symbol], 20)
+                trend_2 = determine_trend_2(LOCAL_PRICE_DATA[symbol], TREND_2_TIMEFRAME_PERCENT)
                 trend_2_offset_price = calculate_offset_price(price, trend_2, TREND_2_PRICE_OFFSET_PERCENT)
                 TEST_TREND_2_DATA.append(trend_2_offset_price)
                 #
@@ -881,20 +895,20 @@ def calculate_trading_range_percentage(num1, num2):
 #
 #
 
-def calculate_current_price_position_within_trading_range(current_price, support, resistance):
+def calculate_current_price_position_within_trading_range(current_price, min, max):
     """
     Calculate the position of the current price within the trading range.
 
     :param current_price: The current price of the asset
-    :param support: The support level price
-    :param resistance: The resistance level price
+    :param min: The min level price
+    :param max: The max level price
     :return: The position of the current price within the trading range as a percentage
     """
-    if resistance == support:
+    if max == min:
         return 0.0  # Avoid division by zero
 
-    trading_range = resistance - support
-    position_within_range = ((current_price - support) / trading_range) * 100
+    trading_range = max - min
+    position_within_range = ((current_price - min) / trading_range) * 100
 
     return round(position_within_range, 2)
 
@@ -1087,6 +1101,7 @@ def volume_based_strategy_recommendation(data):
 #
 
 def plot_graph(
+    current_timestamp,
     enable_display, enable_screenshot,
     timeframe_minutes, symbol, price_data,
     pivot, support, resistance,
@@ -1102,12 +1117,11 @@ def plot_graph(
             plt.close('all')  # Close all open figures to free up memory
         return
 
-    current_time = time.time()
-    time_since_start = current_time - APP_START_TIME_DATA[symbol]
+    time_since_start = current_timestamp - APP_START_TIME_DATA[symbol]
 
     if enable_screenshot and time_since_start >= SCREENSHOT_INTERVAL_SECONDS:
         # Reset APP_START_TIME_DATA to current time after taking a screenshot
-        APP_START_TIME_DATA[symbol] = current_time
+        APP_START_TIME_DATA[symbol] = current_timestamp
 
         # init graph
         plt.figure(figsize=(12, 8)) # 12x8 inches
@@ -1172,7 +1186,7 @@ def plot_graph(
         plt.figtext(0.5, 0.01, f"trade range %: {trading_range_percentage}, current position %: {current_price_position_within_trading_range}", ha="center", fontsize=8)
 
         # save new screenshot
-        filename = os.path.join(GRAPH_SCREENSHOT_DIRECTORY, f"{symbol}_chart_{current_time}.png")
+        filename = os.path.join(GRAPH_SCREENSHOT_DIRECTORY, f"{symbol}_chart_{current_timestamp}.png")
         if os.path.exists(filename):
             os.remove(filename) # Overwrite existing screenshot and save new one
         plt.savefig(filename, dpi=300, bbox_inches='tight')
@@ -1352,12 +1366,12 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 # if should_recalculate_support_resistance_2(LOCAL_PRICE_DATA[symbol], last_calculated_support_resistance_pivot_prices[symbol]):
                     last_order = get_last_order_from_local_json_ledger(symbol)
                     last_order_type = detect_stored_coinbase_order_type(last_order)
-                    # SELL-OFF
-                    if last_order_type == 'buy':
-                        if trend_1 == 'downward':
-                            print('~ SELL OPPORTUNITY (downward trend detected) ~')
-                            shares = last_order['order']['filled_size']
-                            place_market_sell_order(symbol, shares)
+                    # SELL-OFF logic (might revisit if it turns out to be necessary)
+                    # if last_order_type == 'buy':
+                    #     if trend_1 == 'downward':
+                    #         print('~ SELL OPPORTUNITY (downward trend detected) ~')
+                    #         shares = last_order['order']['filled_size']
+                    #         place_market_sell_order(symbol, shares)
 
                     # recalculate support
                     pivot, support, resistance = calculate_support_resistance_1(LOCAL_PRICE_DATA[symbol], SUPPORT_RESISTANCE_WINDOW_SIZE)
@@ -1378,10 +1392,14 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 print(f"support: {support}")
                 print(f"resistance: {resistance}")
 
-                trading_range_percentage = calculate_trading_range_percentage(min(LOCAL_PRICE_DATA[symbol]), max(LOCAL_PRICE_DATA[symbol]))
+                # trade range
+                minimum_price_in_chart = min(LOCAL_PRICE_DATA[symbol])
+                maximum_price_in_chart = max(LOCAL_PRICE_DATA[symbol])
+
+                trading_range_percentage = calculate_trading_range_percentage(minimum_price_in_chart, maximum_price_in_chart)
                 print(f"trading_range_percentage: {trading_range_percentage}%")
 
-                current_price_position_within_trading_range = calculate_current_price_position_within_trading_range(current_price, support, resistance)
+                current_price_position_within_trading_range = calculate_current_price_position_within_trading_range(current_price, minimum_price_in_chart, maximum_price_in_chart)
                 print(f"current_price_position_within_trading_range: {current_price_position_within_trading_range}%")
                 print('buy_at_price_position_percentage: ', BUY_AT_PRICE_POSITION_PERCENTAGE)
 
@@ -1391,9 +1409,6 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 # print(f"MACD Line: {macd_line}, Signal Line: {signal_line}")
                 upper_bollinger_band, lower_bollinger_band, _ = calculate_bollinger_bands(LOCAL_PRICE_DATA[symbol])
                 # print(f"Bollinger Bands - Upper: {upper_bollinger_band}, Lower: {lower_bollinger_band}")
-
-                minimum_price_in_chart = min(LOCAL_PRICE_DATA[symbol])
-                maximum_price_in_chart = max(LOCAL_PRICE_DATA[symbol])
 
                 # Calculate Fibonacci levels
                 fibonacci_levels = calculate_fibonacci_levels(LOCAL_PRICE_DATA[symbol])
@@ -1420,7 +1435,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 last_order = get_last_order_from_local_json_ledger(symbol)
                 last_order_type = detect_stored_coinbase_order_type(last_order)
 
-                if READY_TO_TRADE == False:
+                if READY_TO_TRADE == True:
                     print('ready_to_trade: ', READY_TO_TRADE)
 
                 #
@@ -1544,8 +1559,12 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                             else:
                                 print('trading disabled')
 
+                # call it once instead of twice for the following functions
+                current_time = time.time()
+
                 # Visualize indicators in a graph
                 plot_graph(
+                    current_time,
                     ENABLE_GRAPH_DISPLAY,
                     ENABLE_GRAPH_SCREENSHOT,
                     interval_minutes,
@@ -1568,10 +1587,10 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     upper_bollinger_band
                 )
 
-                # Clear errors if they've shown to be non-consecutive
+                delete_screenshots_older_than_x(GRAPH_SCREENSHOT_DIRECTORY, current_time, SCREENSHOT_MAX_AGE_HOURS)
+                # Clear errors if they're non-consecutive
                 LAST_EXCEPTION_ERROR = None
                 SAME_ERROR_COUNT = 0
-                delete_screenshots_older_than_x(GRAPH_SCREENSHOT_DIRECTORY)
                 print('\n')
 
         time.sleep(interval_seconds)
