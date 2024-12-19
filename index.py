@@ -1125,7 +1125,7 @@ def plot_graph(
         APP_START_TIME_DATA[symbol] = current_timestamp
 
         # init graph
-        plt.figure(figsize=(12, 8)) # 12x8 inches
+        plt.figure(figsize=(9, 7)) # 10x8 inches
 
         # entry price (if it exists)
         if entry_price > 0:
