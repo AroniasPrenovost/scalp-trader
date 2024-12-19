@@ -1552,9 +1552,9 @@ if __name__ == "__main__":
             else:
                 SAME_ERROR_COUNT += 1
                 if SAME_ERROR_COUNT == MAX_SAME_ERROR_COUNT:
-                    print(F"quitting program, {MAX_SAME_ERROR_COUNT}+ instances of same error")
+                    print(F"Quitting program: {MAX_SAME_ERROR_COUNT}+ instances of same error ({current_exception_error})")
                     send_email_notification(
-                        subject="App crashed - restarting - scalp-scripts",
+                        subject="Quitting program - scalp-scripts",
                         text_content=f"An error occurred: {current_exception_error}. QUITTING the program...",
                         html_content=f"An error occurred: {current_exception_error}. QUITTING the program..."
                     )
