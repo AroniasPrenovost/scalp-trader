@@ -97,6 +97,7 @@ SCREENSHOT_INTERVAL_SECONDS = 1 * 60 * 60  # 1 hour in seconds
 LAST_EXCEPTION_ERROR = None
 SAME_ERROR_COUNT = 0
 MAX_SAME_ERROR_COUNT = 4
+
 #
 #
 # Coinbase API and taxes
