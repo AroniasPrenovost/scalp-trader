@@ -1172,12 +1172,11 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         for asset in config['assets']:
             enabled = asset['enabled']
             symbol = asset['symbol']
-            SHARES_TO_ACQUIRE = asset['shares_to_acquire']
-            TARGET_PROFIT_PERCENTAGE = asset['target_profit_percentage']
 
             READY_TO_TRADE = asset['ready_to_trade']
-            ENABLE_GRAPH_DISPLAY = asset['enable_graph_display']
-            ENABLE_GRAPH_SCREENSHOT = asset['enable_graph_screenshot']
+            TARGET_PROFIT_PERCENTAGE = asset['target_profit_percentage']
+            BUY_AT_PRICE_POSITION_PERCENTAGE = asset['buy_at_price_position_percentage']
+            SHARES_TO_ACQUIRE = asset['shares_to_acquire']
 
             # indicators
             SUPPORT_RESISTANCE_WINDOW_SIZE = asset['support_resistance_window_size']
@@ -1185,6 +1184,9 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
             TREND_1_DISPLAY = asset['trend_1_display']
             TREND_2_TIMEFRAME_PERCENT = asset['trend_2_timeframe_percent']
             TREND_2_DISPLAY = asset['trend_2_display']
+
+            ENABLE_GRAPH_DISPLAY = asset['enable_graph_display']
+            ENABLE_GRAPH_SCREENSHOT = asset['enable_graph_screenshot']
 
             if enabled:
                 print(symbol)
@@ -1255,9 +1257,11 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 upward_divergence = trend_1 == 'upward' and trend_2 == 'bearish'
                 if upward_divergence == True:
                     LOCAL_UPWARD_TREND_DIVERGENCE_DATA[symbol].append(current_price)
+                    print('divergence: UP')
                 downward_divergence = trend_1 == 'downward' and trend_2 == 'bullish'
                 if downward_divergence == True:
                     LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA[symbol].append(current_price)
+                    print('divergence: DOWN')
 
                 # get trade recommendation based on volume
                 if symbol not in VOLUME_BASED_RECOMMENDATIONS:
@@ -1340,6 +1344,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
                 current_price_position_within_trading_range = calculate_current_price_position_within_trading_range(current_price, support, resistance)
                 print(f"current_price_position_within_trading_range: {current_price_position_within_trading_range}%")
+                print('buy_at_price_position_percentage: ', BUY_AT_PRICE_POSITION_PERCENTAGE)
 
                 sma = calculate_sma(LOCAL_PRICE_DATA[symbol], period=20)
                 # print(f"SMA: {sma}")
@@ -1418,32 +1423,34 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     print(f"net_expected_profit: {net_expected_profit}")
                     print(f"expected_profit_percentage: {expected_profit_percentage:.2f}%")
 
-                    # if trend_1 == 'upward' and current_price < pivot: # volume_based_strategy == 'buy':
-                    #     print('~ BUY OPPORTUNITY (trend_1 == upward and current_price < pivot)~')
-                    #     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                    #
+                    # Strategy #1
+                    #
                     if current_price < pivot:
                         if current_price < lower_bollinger_band:
                             if downward_divergence == True:
-                                if current_price_position_within_trading_range < 30:
-                                # if upward_divergence == True: # (need to add this)
-                                    print('~ BUY OPPORTUNITY (current_price < lower_bollinger_band)~')
-                                    if READY_TO_TRADE == True:
-                                        place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                                    else:
-                                        print('trading disabled')
+                                if current_price_position_within_trading_range < BUY_AT_PRICE_POSITION_PERCENTAGE:
+                                    if downward_divergence == True:
+                                        print('~ BUY OPPORTUNITY (current price < pivot, current_price < lower_bollinger_band, downward divergece, position is good)~')
+                                        if READY_TO_TRADE == True:
+                                            place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                                        else:
+                                            print('trading disabled')
 
-
-                        # Buy looking to current price crosses above SMA
-                        # if sma is not None and macd_line is not None and signal_line is not None:
-                        #     if current_price > sma and macd_line > signal_line:
-                        #         print('~ BUY OPPORTUNITY (current_price > sma, MACD crossover)~')
-                        #         place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                            # elif current_price < lower_bollinger_band:
-                            #     print('~ BUY OPPORTUNITY (price below lower Bollinger Band)~')
-                            #     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                            # elif current_price_position_within_trading_range < 6:
-                            #     print('~ BUY OPPORTUNITY (current_price_position_within_trading_range < 6)~')
-                            #     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                    #
+                    # Strategy #1
+                    #
+                    # Buy looking to current price crosses above SMA
+                    # if sma is not None and macd_line is not None and signal_line is not None:
+                    #     if current_price > sma and macd_line > signal_line:
+                    #         print('~ BUY OPPORTUNITY (current_price > sma, MACD crossover)~')
+                    #         place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                        # elif current_price < lower_bollinger_band:
+                        #     print('~ BUY OPPORTUNITY (price below lower Bollinger Band)~')
+                        #     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                        # elif current_price_position_within_trading_range < 6:
+                        #     print('~ BUY OPPORTUNITY (current_price_position_within_trading_range < 6)~')
+                        #     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
 
 
                 #
