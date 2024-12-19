@@ -1455,12 +1455,11 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                         if current_price < lower_bollinger_band:
                             if downward_divergence == True:
                                 if current_price_position_within_trading_range < BUY_AT_PRICE_POSITION_PERCENTAGE:
-                                    if downward_divergence == True:
-                                        print('~ BUY OPPORTUNITY (current price < pivot, current_price < lower_bollinger_band, downward divergece, position is good)~')
-                                        if READY_TO_TRADE == True:
-                                            place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                                        else:
-                                            print('trading disabled')
+                                    print('~ BUY OPPORTUNITY (current price < pivot, current_price < lower_bollinger_band, downward divergece, position is good)~')
+                                    if READY_TO_TRADE == True:
+                                        place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                                    else:
+                                        print('trading disabled')
 
                     #
                     # Strategy #2
