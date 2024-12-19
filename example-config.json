@@ -2,37 +2,40 @@
   "assets": [
       {
         "enabled": true,
+        "symbol": "MATIC-USD",
         "title": "matic 4 hour trader",
         "ready_to_trade": false,
-        "symbol": "MATIC-USD",
-        "target_profit_percentage": 0.5,
-        "shares_to_acquire": 40,
+        "target_profit_percentage": 1,
+        "buy_at_price_position_percentage": 28,
+        "shares_to_acquire": 50,
         "support_resistance_window_size": 20,
         "test_data_trend_rate": 0.0000001,
         "test_data_volatility_rate": 0.00085,
-        "trend_1_timeframe_percent": 0.05,
+        "trend_1_timeframe_percent": 0.02,
         "trend_1_display": false,
         "trend_2_timeframe_percent": 20,
         "trend_2_display": false,
         "enable_graph_display": false,
-        "enable_graph_screenshot": true
+        "enable_graph_screenshot": true,
+        "enable_test_failure": false
       },
       {
         "enabled": false,
         "title": "placeholder_1",
         "ready_to_trade": false,
-        "symbol": "CRO-USD",
         "target_profit_percentage": 1,
-        "shares_to_acquire": 1,
+        "buy_at_price_position_percentage": 28,
+        "shares_to_acquire": 50,
         "support_resistance_window_size": 20,
-        "test_data_trend_rate": 0.001,
-        "test_data_volatility_rate": 0.025,
-        "trend_1_timeframe_percent": 0,
+        "test_data_trend_rate": 0.0000001,
+        "test_data_volatility_rate": 0.00085,
+        "trend_1_timeframe_percent": 0.02,
         "trend_1_display": false,
-        "trend_2_timeframe_percent": 0.2,
+        "trend_2_timeframe_percent": 20,
         "trend_2_display": false,
         "enable_graph_display": false,
-        "enable_graph_screenshot": false
+        "enable_graph_screenshot": true,
+        "enable_test_failure": false
       }
     ]
 }
