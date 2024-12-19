@@ -1438,7 +1438,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                                             print('trading disabled')
 
                     #
-                    # Strategy #1
+                    # Strategy #2
                     #
                     # Buy looking to current price crosses above SMA
                     # if sma is not None and macd_line is not None and signal_line is not None:
