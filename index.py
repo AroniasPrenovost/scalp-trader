@@ -24,20 +24,34 @@ def load_config(file_path):
         return load(file)
 
 
-# Define the GRAPH_SCREENSHOT_FOLDER for saving screenshots
-GRAPH_SCREENSHOT_FOLDER = 'screenshots'
-if not os.path.exists(GRAPH_SCREENSHOT_FOLDER):
-    os.makedirs(GRAPH_SCREENSHOT_FOLDER)
+# Define the GRAPH_SCREENSHOT_DIRECTORY for saving screenshots
+GRAPH_SCREENSHOT_DIRECTORY = 'screenshots'
+if not os.path.exists(GRAPH_SCREENSHOT_DIRECTORY):
+    os.makedirs(GRAPH_SCREENSHOT_DIRECTORY)
 else:
     # Iterate through all existing files in directory and delete them
-    for filename in os.listdir(GRAPH_SCREENSHOT_FOLDER):
-        file_path = os.path.join(GRAPH_SCREENSHOT_FOLDER, filename)
+    for filename in os.listdir(GRAPH_SCREENSHOT_DIRECTORY):
+        file_path = os.path.join(GRAPH_SCREENSHOT_DIRECTORY, filename)
         try:
             if os.path.isfile(file_path):
                 os.unlink(file_path)
                 print(f"Deleted file: {file_path}")
         except Exception as e:
             print(f"Failed to delete {file_path}. Reason: {e}")
+
+def delete_screenshots_older_than_x(folder_path, hours=8):
+    current_time = time.time()
+    for filename in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, filename)
+        if os.path.isfile(file_path):
+            file_mod_time = os.path.getmtime(file_path)
+            # Check if the file is older than the specified hours
+            if current_time - file_mod_time > hours * 3600:
+                try:
+                    os.remove(file_path)
+                    print(f"Deleted old screenshot: {file_path}")
+                except Exception as e:
+                    print(f"Failed to delete {file_path}. Reason: {e}")
 
 #
 #
@@ -94,8 +108,8 @@ DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
 
 #
 APP_START_TIME_DATA = {} # time.time()
-# SCREENSHOT_INTERVAL_SECONDS = 15
-SCREENSHOT_INTERVAL_SECONDS = 1 * 60 * 60  # 1 hour
+SCREENSHOT_INTERVAL_SECONDS = 15
+# SCREENSHOT_INTERVAL_SECONDS = 1 * 60 * 60  # 1 hour
 # SCREENSHOT_INTERVAL_SECONDS = 4 * 60 * 60  # 4 hours
 #
 
@@ -1158,7 +1172,7 @@ def plot_graph(
         plt.figtext(0.5, 0.01, f"trade range %: {trading_range_percentage}, current position %: {current_price_position_within_trading_range}", ha="center", fontsize=8)
 
         # save new screenshot
-        filename = os.path.join(GRAPH_SCREENSHOT_FOLDER, f"{symbol}_chart_{current_time}.png")
+        filename = os.path.join(GRAPH_SCREENSHOT_DIRECTORY, f"{symbol}_chart_{current_time}.png")
         if os.path.exists(filename):
             os.remove(filename) # Overwrite existing screenshot and save new one
         plt.savefig(filename, dpi=300, bbox_inches='tight')
@@ -1557,6 +1571,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 # Clear errors if they've shown to be non-consecutive
                 LAST_EXCEPTION_ERROR = None
                 SAME_ERROR_COUNT = 0
+                delete_screenshots_older_than_x(GRAPH_SCREENSHOT_DIRECTORY)
                 print('\n')
 
         time.sleep(interval_seconds)
