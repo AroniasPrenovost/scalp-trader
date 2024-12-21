@@ -3,11 +3,12 @@
       {
         "enabled": true,
         "symbol": "MATIC-USD",
-        "title": "matic 4 hour trader",
-        "ready_to_trade": false,
-        "target_profit_percentage": 1,
-        "buy_at_price_position_percentage": 28,
-        "shares_to_acquire": 50,
+        "title": "MATIC 4-hour chart",
+        "ready_to_trade": true,
+        "target_profit_percentage": 1.1,
+        "buy_at_price_position_percentage": 22,
+        "buy_at_divergence_count": 3,
+        "shares_to_acquire": 100,
         "support_resistance_window_size": 20,
         "test_data_trend_rate": 0.0000001,
         "test_data_volatility_rate": 0.00085,
@@ -21,11 +22,13 @@
       },
       {
         "enabled": false,
-        "title": "placeholder_1",
-        "ready_to_trade": false,
-        "target_profit_percentage": 1,
-        "buy_at_price_position_percentage": 28,
-        "shares_to_acquire": 50,
+        "symbol": "BTC-USD",
+        "title": "BTC 4-hour trader",
+        "ready_to_trade": true,
+        "target_profit_percentage": 1.1,
+        "buy_at_price_position_percentage": 22,
+        "buy_at_divergence_count": 5,
+        "shares_to_acquire": 0.000001,
         "support_resistance_window_size": 20,
         "test_data_trend_rate": 0.0000001,
         "test_data_volatility_rate": 0.00085,
@@ -36,6 +39,6 @@
         "enable_graph_display": false,
         "enable_graph_screenshot": true,
         "enable_test_failure": false
-      }
+      },
     ]
 }

@@ -1167,6 +1167,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
             READY_TO_TRADE = asset['ready_to_trade']
             TARGET_PROFIT_PERCENTAGE = asset['target_profit_percentage']
             BUY_AT_PRICE_POSITION_PERCENTAGE = asset['buy_at_price_position_percentage']
+            BUY_AT_DIVERGENCE_COUNT = asset['buy_at_divergence_count']
             SHARES_TO_ACQUIRE = asset['shares_to_acquire']
 
             # indicators
@@ -1411,6 +1412,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     if current_price < pivot:
                         if current_price < lower_bollinger_band:
                             if downward_divergence == True:
+                                # TODO: calculate how many divergences are currently below the pivot and lower bollinger line BUY_AT_DIVERGENCE_COUNT
                                 if current_price_position_within_trading_range < BUY_AT_PRICE_POSITION_PERCENTAGE:
                                     print('~ BUY OPPORTUNITY (current price < pivot, current_price < lower_bollinger_band, downward divergece, position is good)~')
                                     if READY_TO_TRADE == True:
