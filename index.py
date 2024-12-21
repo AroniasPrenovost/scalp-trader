@@ -58,7 +58,7 @@ APP_START_TIME_DATA = {} # global data to help manage time
 # SCREENSHOT_INTERVAL_SECONDS = 1 * 60 * 60  # 1 hour
 SCREENSHOT_INTERVAL_SECONDS = 2 * 60 * 60  # 2 hours
 # SCREENSHOT_INTERVAL_SECONDS = 4 * 60 * 60  # 4 hours
-SCREENSHOT_MAX_AGE_HOURS = 24
+MAX_SCREENSHOT_AGE_HOURS = 24
 
 #
 #
@@ -105,7 +105,6 @@ LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA = {}
 #
 # Define the GRAPH_SCREENSHOT_DIRECTORY for saving screenshots
 #
-print('the final test')
 
 GRAPH_SCREENSHOT_DIRECTORY = 'screenshots'
 if not os.path.exists(GRAPH_SCREENSHOT_DIRECTORY):
@@ -1167,7 +1166,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
             READY_TO_TRADE = asset['ready_to_trade']
             TARGET_PROFIT_PERCENTAGE = asset['target_profit_percentage']
             BUY_AT_PRICE_POSITION_PERCENTAGE = asset['buy_at_price_position_percentage']
-            BUY_AT_DIVERGENCE_COUNT = asset['buy_at_divergence_count']
+            BUY_AT_DOWNWARD_DIVERGENCE_COUNT = asset['buy_at_downward_divergence_count']
             SHARES_TO_ACQUIRE = asset['shares_to_acquire']
 
             # indicators
@@ -1353,7 +1352,6 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 fibonacci_levels = calculate_fibonacci_levels(LOCAL_PRICE_DATA[symbol])
                 print(f"Fibonacci Levels: {fibonacci_levels}")
 
-
                 #
                 #
                 # Manage order data (order types, order info, etc.) in local ledger
@@ -1387,39 +1385,34 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                         print('trading range smaller than target_profit_percentage')
                         continue
 
-                    # Calculate a buffer zone below the resistance
-                    buffer_zone = (resistance - support) * 0.04  # 5% below resistance
-                    anticipated_sell_price = resistance - buffer_zone
-
-                    # Calculate expected profit and profit percentage
-                    expected_profit = (anticipated_sell_price - current_price) * SHARES_TO_ACQUIRE
-                    exchange_fee = calculate_exchange_fee(anticipated_sell_price, SHARES_TO_ACQUIRE, 'taker')
-                    tax_owed = (federal_tax_rate / 100) * expected_profit
-                    print(f"anticipated_tax_owed: {tax_owed}")
-
-                    net_expected_profit = expected_profit - exchange_fee - tax_owed
-
-                    expected_profit_percentage = (net_expected_profit / SHARES_TO_ACQUIRE) * 100
-
-                    print(f"anticipated_sell_price: {anticipated_sell_price}")
-                    print(f"expected_profit: {expected_profit}")
-                    print(f"net_expected_profit: {net_expected_profit}")
-                    print(f"expected_profit_percentage: {expected_profit_percentage:.2f}%")
-
                     #
                     # Strategy #1
                     #
                     if current_price < pivot:
                         if current_price < lower_bollinger_band:
                             if downward_divergence == True:
-                                # TODO: calculate how many divergences are currently below the pivot and lower bollinger line BUY_AT_DIVERGENCE_COUNT
-                                if current_price_position_within_trading_range < BUY_AT_PRICE_POSITION_PERCENTAGE:
-                                    print('~ BUY OPPORTUNITY (current price < pivot, current_price < lower_bollinger_band, downward divergece, position is good)~')
-                                    if READY_TO_TRADE == True:
-                                        place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                                    else:
-                                        print('trading disabled')
+                                # Determine the lower of the pivot and lower Bollinger band
+                                lower_threshold = min(pivot, lower_bollinger_band)
+                                # Track number of divergences
+                                downward_divergence_count_below_threshold = 0
+                                # Iterate backward through the price data from current price
+                                recent_prices = list(LOCAL_PRICE_DATA[symbol])
+                                for price in reversed(recent_prices):
+                                    if price > lower_threshold:
+                                        # print(' price broke threshold: ', price)
+                                        break
+                                    if price in LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA[symbol]:
+                                        downward_divergence_count_below_threshold += 1
 
+                                print(f"downward_divergence_count_below_threshold: {downward_divergence_count_below_threshold}")
+
+                                if downward_divergence_count_below_threshold >= BUY_AT_DOWNWARD_DIVERGENCE_COUNT:
+                                    if current_price_position_within_trading_range < BUY_AT_PRICE_POSITION_PERCENTAGE:
+                                        print('~ BUY OPPORTUNITY (current price < pivot, current_price < lower_bollinger_band, downward divergence, position is good)~')
+                                        if READY_TO_TRADE == True:
+                                            place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                                        else:
+                                            print('trading disabled')
                     #
                     # Strategy #2
                     #
@@ -1513,7 +1506,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     upper_bollinger_band
                 )
 
-                delete_screenshots_older_than_x(GRAPH_SCREENSHOT_DIRECTORY, current_time, SCREENSHOT_MAX_AGE_HOURS)
+                delete_screenshots_older_than_x(GRAPH_SCREENSHOT_DIRECTORY, current_time, MAX_SCREENSHOT_AGE_HOURS)
                 # Clear errors if they're non-consecutive
                 LAST_EXCEPTION_ERROR = None
                 SAME_ERROR_COUNT = 0
