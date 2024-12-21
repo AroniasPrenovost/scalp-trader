@@ -507,34 +507,6 @@ def fetch_coinmarketcap_volume_data(symbol):
         return None
 
 
-
-#
-#
-# Get your current position
-#
-
-def get_current_asset_holdings(symbol, accounts):
-    try:
-        modified_symbol = symbol.split('-')[0] # DOUBLECHECK THIS WORKS FOR ALL ACCOUNTS
-
-        for account in accounts['accounts']:
-            if account['currency'] == modified_symbol:
-                balance = account['balance']
-                available_balance = float((account['available_balance']['value'])) # note this could be a number like 0.0000000564
-                # print(account)
-
-                return {
-                    'currency': modified_symbol,
-                    'balance': balance,
-                    'available_balance': available_balance
-                }
-
-        print(f"No holdings found for asset: {symbol}.")
-        return None
-    except Exception as e:
-        print(f"Error fetching position for asset {symbol}: {e}")
-        return None
-
 #
 #
 # Save order data to local json ledger
@@ -853,30 +825,6 @@ def should_recalculate_support_resistance_1(prices, last_calculated_price, price
 
     return price_change_percentage >= price_change_threshold
 
-
-def should_recalculate_support_resistance_2(prices, last_calculated_price, price_change_threshold=1.0):
-    """
-    Determine if support and resistance levels should be recalculated based on significant price movement.
-
-    :param prices: deque of stock prices
-    :param last_calculated_price: the price at the last calculation of support/resistance
-    :param price_change_threshold: the percentage change required to trigger a recalculation
-    :return: boolean indicating whether to recalculate support and resistance
-    """
-    if not prices or len(prices) < 15:
-        return False
-
-    # Use the first 15 minutes to determine high and low
-    first_15_min_prices = list(prices)[:15]
-    high = max(first_15_min_prices)
-    low = min(first_15_min_prices)
-
-    # Check if the current price exceeds the high or falls below the low of the first 15 minutes
-    current_price = prices[-1]
-    if current_price > high or current_price < low:
-        return True
-
-    return False
 
 #
 #
@@ -1210,7 +1158,6 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         global LAST_EXCEPTION_ERROR
         global SAME_ERROR_COUNT
 
-        client_accounts = client.get_accounts()
         config = load_config('config.json')
 
         for asset in config['assets']:
@@ -1364,16 +1311,6 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
                 # Check if we should recalculate support and resistance levels
                 if should_recalculate_support_resistance_1(LOCAL_PRICE_DATA[symbol], last_calculated_support_resistance_pivot_prices[symbol]):
-                # if should_recalculate_support_resistance_2(LOCAL_PRICE_DATA[symbol], last_calculated_support_resistance_pivot_prices[symbol]):
-                    # last_order = get_last_order_from_local_json_ledger(symbol)
-                    # last_order_type = detect_stored_coinbase_order_type(last_order)
-                    # SELL-OFF logic (might revisit if it turns out to be necessary)
-                    # if last_order_type == 'buy':
-                    #     if trend_1 == 'downward':
-                    #         print('~ SELL OPPORTUNITY (downward trend detected) ~')
-                    #         shares = last_order['order']['filled_size']
-                    #         place_market_sell_order(symbol, shares)
-
                     # recalculate support
                     pivot, support, resistance = calculate_support_resistance_1(LOCAL_PRICE_DATA[symbol], SUPPORT_RESISTANCE_WINDOW_SIZE)
                     # pivot, support, resistance = calculate_support_resistance_2(LOCAL_PRICE_DATA[symbol])
@@ -1415,20 +1352,10 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 fibonacci_levels = calculate_fibonacci_levels(LOCAL_PRICE_DATA[symbol])
                 print(f"Fibonacci Levels: {fibonacci_levels}")
 
-                #
-                #
-                # current holdings
-                #
-
-                asset_holdings = get_current_asset_holdings(symbol, client_accounts)
-                # print('asset_holdings: ', asset_holdings)
-                owned_shares = asset_holdings['available_balance'] if asset_holdings else 0
-                if owned_shares > 0:
-                    print('owned_shares: ', owned_shares)
 
                 #
                 #
-                # Manage order data/types in local ledger
+                # Manage order data (order types, order info, etc.) in local ledger
                 #
 
                 entry_price = 0
@@ -1511,10 +1438,6 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 # SELL logic
                 elif last_order_type == 'buy': # and volume_based_strategy == 'sell':
                     print('looking to SELL')
-
-                    if owned_shares == 0:
-                        print('something went wrong with local buy/sell order data')
-                        continue
 
                     entry_price = float(last_order['order']['average_filled_price'])
                     print(f"entry_price: {entry_price}")
