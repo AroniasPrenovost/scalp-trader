@@ -5,3 +5,5 @@ config.json
 *_orders.json
 
 /screenshots
+
+.DS_Store
