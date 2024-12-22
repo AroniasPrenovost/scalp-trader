@@ -1072,7 +1072,7 @@ def plot_graph(
     if buy_or_sell_event or (enable_screenshot and time_since_start >= SCREENSHOT_INTERVAL_SECONDS):
         # Reset APP_START_TIME_DATA to current time after taking a screenshot
         if buy_or_sell_event == False:
-                APP_START_TIME_DATA[symbol] = current_timestamp
+            APP_START_TIME_DATA[symbol] = current_timestamp
 
         # init graph
         plt.figure(figsize=(9, 7)) # 10x8 inches
