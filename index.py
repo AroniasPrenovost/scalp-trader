@@ -1139,7 +1139,12 @@ def plot_graph(
 
         # legend
         plt.title(f"{symbol}")
-        plt.xlabel(f"time range ({timeframe_minutes} minutes)")
+        timeframe_phrase = ''
+        if timeframe_minutes > 60:
+            timeframe_phrase = f"{timeframe_minutes/60} hours"
+        else:
+            timeframe_phrase = f"{timeframe_minutes} minutes"
+        plt.xlabel(f"time range ({timeframe_phrase})")
         plt.ylabel("price")
         plt.legend(loc='lower left', fontsize='small')
 
