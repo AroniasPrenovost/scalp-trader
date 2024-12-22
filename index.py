@@ -53,10 +53,10 @@ last_calculated_support_resistance_pivot_prices = {}  # Store the last calculate
 
 APP_START_TIME_DATA = {} # global data to help manage time
 
-# SCREENSHOT_INTERVAL_SECONDS = 15           # 15 seconds
+SCREENSHOT_INTERVAL_SECONDS = 15           # 15 seconds
 # SCREENSHOT_INTERVAL_SECONDS = 30 * 60      # 30 minutes
 # SCREENSHOT_INTERVAL_SECONDS = 1 * 60 * 60  # 1 hour
-SCREENSHOT_INTERVAL_SECONDS = 2 * 60 * 60  # 2 hours
+# SCREENSHOT_INTERVAL_SECONDS = 2 * 60 * 60  # 2 hours
 # SCREENSHOT_INTERVAL_SECONDS = 4 * 60 * 60  # 4 hours
 MAX_SCREENSHOT_AGE_HOURS = 16
 
@@ -1057,7 +1057,8 @@ def plot_graph(
     trend_1_data, trend_1_display,
     trend_2_data, trend_2_display,
     up_diverg, down_diverg,
-    lower_bollinger_band, upper_bollinger_band
+    lower_bollinger_band, upper_bollinger_band,
+    fib_levels
 ):
     if enable_display == False and enable_screenshot == False:
         if plt.get_fignums():  # Check if there are any open figures
@@ -1102,16 +1103,20 @@ def plot_graph(
         plt.axhline(y=support, color='black', linewidth=1.4, linestyle='--', label='support')
         plt.axhline(y=pivot, color='magenta', linewidth=1.3, linestyle=':', label='pivot')
 
-        plt.axhline(y=min_price, color='brown', linewidth=1.6, linestyle='-', label=f"min price ({min_price:.4f})")
-        plt.axhline(y=max_price, color='brown', linewidth=1.6, linestyle='-', label=f"max price ({max_price:.4f})")
+        # plt.axhline(y=min_price, color='brown', linewidth=1.5, linestyle='-', label=f"min price ({min_price:.4f})")
+        # plt.axhline(y=max_price, color='brown', linewidth=1.5, linestyle='-', label=f"max price ({max_price:.4f})")
 
         # bollinger bands
-        plt.axhline(y=lower_bollinger_band, color='cyan', linewidth=1.4, linestyle='-.', label=f"low bollinger ({lower_bollinger_band:.4f})")
+        plt.axhline(y=lower_bollinger_band, color='deepskyblue', linewidth=1.4, linestyle='-.', label=f"lower bollinger ({lower_bollinger_band:.4f})")
+        # plt.axhline(y=upper_bollinger_band, color='deepskyblue', linewidth=1.4, linestyle='-.', label=f"upper bollinger ({lower_bollinger_band:.4f})")
 
-        plt.title(f"{symbol}")
-        plt.xlabel(f"time range ({timeframe_minutes} minutes)")
-        plt.ylabel("price")
-        plt.legend(loc='lower left', fontsize='small')  # Make the legend smaller
+        # Plot Fibonacci Levels with cycling colors
+        # example: {'level_0': 0.4821, 'level_23.6': 0.4770732, 'level_38.2': 0.4739634, 'level_50': 0.47145, 'level_61.8': 0.4689366, 'level_100': 0.4608}
+        colors = ['cadetblue', 'blue', 'green', 'orange', 'lime', 'lavender']
+        for i, (level_name, level_price) in enumerate(fib_levels.items()):
+            color = colors[i % len(colors)]  # Cycle through the colors
+            plt.axhline(y=level_price, color=color, linewidth=0.9, linestyle='--', label=f"Fibonacci {level_name} ({level_price:.4f})")
+
 
         # Set y-axis minimum and maximum to ensure support and resistance are visible
         min_displayed_price = min(min(price_data), support, resistance, lower_bollinger_band)
@@ -1129,6 +1134,12 @@ def plot_graph(
 
         # Format y-axis to show values to the 4th decimal place
         plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.4f'))
+
+        # legend
+        plt.title(f"{symbol}")
+        plt.xlabel(f"time range ({timeframe_minutes} minutes)")
+        plt.ylabel("price")
+        plt.legend(loc='lower left', fontsize='small')
 
         plt.grid(True)
         plt.figtext(0.5, 0.01, f"trade range %: {trading_range_percentage}, current position %: {current_price_position_within_trading_range}", ha="center", fontsize=8)
@@ -1166,6 +1177,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
             READY_TO_TRADE = asset['ready_to_trade']
             TARGET_PROFIT_PERCENTAGE = asset['target_profit_percentage']
             BUY_AT_PRICE_POSITION_PERCENTAGE = asset['buy_at_price_position_percentage']
+            ALERT_DOWNWARD_DIVERGENCE = asset['alert_downward_divergence']
             BUY_AT_DOWNWARD_DIVERGENCE_COUNT = asset['buy_at_downward_divergence_count']
             SHARES_TO_ACQUIRE = asset['shares_to_acquire']
 
@@ -1394,7 +1406,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                             # Determine the lower of the pivot and lower Bollinger band
                             lower_threshold = min(pivot, lower_bollinger_band)
                             # Track number of divergences
-                            downward_divergence_count_below_threshold = 0
+                            downward_divergence_below_threshold_count = 0
                             # Iterate backward through the price data from current price
                             recent_prices = list(LOCAL_PRICE_DATA[symbol])
                             for price in reversed(recent_prices):
@@ -1402,11 +1414,19 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                                     # print(' price broke threshold: ', price)
                                     break
                                 if price in LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA[symbol]:
-                                    downward_divergence_count_below_threshold += 1
+                                    downward_divergence_below_threshold_count += 1
 
-                            print(f"downward_divergence_count_below_threshold: {downward_divergence_count_below_threshold}")
+                            print(f"downward_divergence_below_threshold_count: {downward_divergence_below_threshold_count}")
+                            print('ALERT_DOWNWARD_DIVERGENCE: ', ALERT_DOWNWARD_DIVERGENCE)
+                            print('BUY_AT_DOWNWARD_DIVERGENCE_COUNT: ', BUY_AT_DOWNWARD_DIVERGENCE_COUNT)
+                            if downward_divergence_below_threshold_count > 2 and ALERT_DOWNWARD_DIVERGENCE == True:
+                                send_email_notification(
+                                    subject=f"downward divergence count: {downward_divergence_below_threshold_count}",
+                                    text_content=f"downward dv - {downward_divergence_below_threshold_count}",
+                                    html_content=f"downward dv - {downward_divergence_below_threshold_count}"
+                                )
 
-                            if downward_divergence_count_below_threshold >= BUY_AT_DOWNWARD_DIVERGENCE_COUNT:
+                            if downward_divergence_below_threshold_count >= BUY_AT_DOWNWARD_DIVERGENCE_COUNT:
                                 print('~ BUY OPPORTUNITY (current price < pivot, current_price < lower_bollinger_band, downward divergence, position is good)~')
                                 if READY_TO_TRADE == True:
                                     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
@@ -1502,7 +1522,8 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     LOCAL_UPWARD_TREND_DIVERGENCE_DATA[symbol],
                     LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA[symbol],
                     lower_bollinger_band,
-                    upper_bollinger_band
+                    upper_bollinger_band,
+                    fibonacci_levels
                 )
 
                 delete_screenshots_older_than_x(GRAPH_SCREENSHOT_DIRECTORY, current_time, MAX_SCREENSHOT_AGE_HOURS)
