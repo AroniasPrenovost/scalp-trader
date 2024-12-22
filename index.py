@@ -53,10 +53,10 @@ last_calculated_support_resistance_pivot_prices = {}  # Store the last calculate
 
 APP_START_TIME_DATA = {} # global data to help manage time
 
-# SCREENSHOT_INTERVAL_SECONDS = 15           # 15 seconds
+SCREENSHOT_INTERVAL_SECONDS = 15           # 15 seconds
 # SCREENSHOT_INTERVAL_SECONDS = 30 * 60      # 30 minutes
 # SCREENSHOT_INTERVAL_SECONDS = 1 * 60 * 60  # 1 hour
-SCREENSHOT_INTERVAL_SECONDS = 2 * 60 * 60  # 2 hours
+# SCREENSHOT_INTERVAL_SECONDS = 2 * 60 * 60  # 2 hours
 # SCREENSHOT_INTERVAL_SECONDS = 4 * 60 * 60  # 4 hours
 MAX_SCREENSHOT_AGE_HOURS = 16
 
@@ -94,12 +94,16 @@ MAX_SAME_ERROR_COUNT = 8
 #
 
 LOCAL_TREND_1_DATA = {}
+TEST_TREND_1_DATA = {}
 TREND_1_PRICE_OFFSET_PERCENT = 0.05 # for visibility on graph
 LOCAL_TREND_2_DATA = {}
+TEST_TREND_2_DATA = {}
 TREND_2_PRICE_OFFSET_PERCENT = 0.1 # for visibility on graph
 # for mapping the divergent outcomes between these 2 ^
 LOCAL_UPWARD_TREND_DIVERGENCE_DATA = {}
+TEST_UPWARD_TREND_DIVERGENCE_DATA = {}
 LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA = {}
+TEST_DOWNWARD_TREND_DIVERGENCE_DATA = {}
 
 #
 #
@@ -373,17 +377,27 @@ if mode == 'test':
 
             #
             # Initialize price data storage
-            TEST_TREND_1_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
-            TEST_TREND_2_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
-            TEST_UPWARD_TREND_DIVERGENCE_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
-            TEST_DOWNWARD_TREND_DIVERGENCE_DATA = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
+
+            if symbol not in TEST_TREND_1_DATA:
+                TEST_TREND_1_DATA[symbol] = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
+
+            if symbol not in TEST_TREND_2_DATA:
+                TEST_TREND_2_DATA[symbol] = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
+
+            if symbol not in TEST_UPWARD_TREND_DIVERGENCE_DATA:
+                TEST_UPWARD_TREND_DIVERGENCE_DATA[symbol] = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
+
+            if symbol not in TEST_DOWNWARD_TREND_DIVERGENCE_DATA:
+                TEST_DOWNWARD_TREND_DIVERGENCE_DATA[symbol] = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
 
             raw_test_data = generate_test_price_data(start_price, DATA_POINTS_FOR_X_MINUTES, TEST_DATA_TREND_RATE, TEST_DATA_VOLATILITY_RATE)
             raw_test_data.reverse()
+
+            # populate local price data array with generated test prices
             if symbol not in LOCAL_PRICE_DATA:
                 LOCAL_PRICE_DATA[symbol] = deque(maxlen=DATA_POINTS_FOR_X_MINUTES)
+
             for price in raw_test_data:
-                # append the test prices directly to the local price data
                 LOCAL_PRICE_DATA[symbol].append(price)
 
                 #
@@ -392,24 +406,24 @@ if mode == 'test':
                 #
                 trend_1 = determine_trend_1(LOCAL_PRICE_DATA[symbol], DATA_POINTS_FOR_X_MINUTES, TREND_1_TIMEFRAME_PERCENT)
                 trend_1_offset_price = calculate_offset_price(price, trend_1, TREND_1_PRICE_OFFSET_PERCENT)
-                TEST_TREND_1_DATA.append(trend_1_offset_price)
+                TEST_TREND_1_DATA[symbol].append(trend_1_offset_price)
                 #
                 #
                 # TREND #2
                 #
                 trend_2 = determine_trend_2(LOCAL_PRICE_DATA[symbol], TREND_2_TIMEFRAME_PERCENT)
                 trend_2_offset_price = calculate_offset_price(price, trend_2, TREND_2_PRICE_OFFSET_PERCENT)
-                TEST_TREND_2_DATA.append(trend_2_offset_price)
+                TEST_TREND_2_DATA[symbol].append(trend_2_offset_price)
                 #
                 #
                 # visualize indicator divergences
                 #
                 upward_divergence = trend_1 == 'upward' and trend_2 == 'bearish'
                 if upward_divergence == True:
-                    TEST_UPWARD_TREND_DIVERGENCE_DATA.append(price)
+                    TEST_UPWARD_TREND_DIVERGENCE_DATA[symbol].append(price)
                 downward_divergence = trend_1 == 'downward' and trend_2 == 'bullish'
                 if downward_divergence == True:
-                    TEST_DOWNWARD_TREND_DIVERGENCE_DATA.append(price)
+                    TEST_DOWNWARD_TREND_DIVERGENCE_DATA[symbol].append(price)
 
             print('upward trend divergence(s): ', f"{len(TEST_UPWARD_TREND_DIVERGENCE_DATA)}/{len(LOCAL_PRICE_DATA[symbol])}")
             print('downward trend divergence(s): ', f"{len(TEST_DOWNWARD_TREND_DIVERGENCE_DATA)}/{len(LOCAL_PRICE_DATA[symbol])}")
@@ -1228,17 +1242,17 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 if symbol not in LOCAL_TREND_1_DATA:
                     LOCAL_TREND_1_DATA[symbol] = deque(maxlen=data_points_for_x_minutes)
                     if IS_TEST_MODE == True:
-                        LOCAL_TREND_1_DATA[symbol] = TEST_TREND_1_DATA
+                        LOCAL_TREND_1_DATA[symbol] = TEST_TREND_1_DATA[symbol]
 
                 if symbol not in LOCAL_UPWARD_TREND_DIVERGENCE_DATA:
                     LOCAL_UPWARD_TREND_DIVERGENCE_DATA[symbol] = deque(maxlen=data_points_for_x_minutes)
                     if IS_TEST_MODE == True:
-                        LOCAL_UPWARD_TREND_DIVERGENCE_DATA[symbol] = TEST_UPWARD_TREND_DIVERGENCE_DATA
+                        LOCAL_UPWARD_TREND_DIVERGENCE_DATA[symbol] = TEST_UPWARD_TREND_DIVERGENCE_DATA[symbol]
 
                 if symbol not in LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA:
                     LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA[symbol] = deque(maxlen=data_points_for_x_minutes)
                     if IS_TEST_MODE == True:
-                        LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA[symbol] = TEST_DOWNWARD_TREND_DIVERGENCE_DATA
+                        LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA[symbol] = TEST_DOWNWARD_TREND_DIVERGENCE_DATA[symbol]
 
                 trend_1 = determine_trend_1(LOCAL_PRICE_DATA[symbol], data_points_for_x_minutes, TREND_1_TIMEFRAME_PERCENT)
                 trend_1_offset_price = calculate_offset_price(current_price, trend_1, TREND_1_PRICE_OFFSET_PERCENT)
@@ -1249,7 +1263,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 if symbol not in LOCAL_TREND_2_DATA:
                     LOCAL_TREND_2_DATA[symbol] = deque(maxlen=data_points_for_x_minutes)
                     if IS_TEST_MODE == True:
-                        LOCAL_TREND_2_DATA[symbol] = TEST_TREND_2_DATA
+                        LOCAL_TREND_2_DATA[symbol] = TEST_TREND_2_DATA[symbol]
 
                 trend_2 = determine_trend_2(LOCAL_PRICE_DATA[symbol], TREND_2_TIMEFRAME_PERCENT)
                 trend_2_offset_price = calculate_offset_price(current_price, trend_2, TREND_2_PRICE_OFFSET_PERCENT)
