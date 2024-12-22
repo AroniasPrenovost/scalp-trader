@@ -53,12 +53,12 @@ last_calculated_support_resistance_pivot_prices = {}  # Store the last calculate
 
 APP_START_TIME_DATA = {} # global data to help manage time
 
-SCREENSHOT_INTERVAL_SECONDS = 15           # 15 seconds
+# SCREENSHOT_INTERVAL_SECONDS = 15           # 15 seconds
 # SCREENSHOT_INTERVAL_SECONDS = 30 * 60      # 30 minutes
 # SCREENSHOT_INTERVAL_SECONDS = 1 * 60 * 60  # 1 hour
-# SCREENSHOT_INTERVAL_SECONDS = 2 * 60 * 60  # 2 hours
+SCREENSHOT_INTERVAL_SECONDS = 2 * 60 * 60  # 2 hours
 # SCREENSHOT_INTERVAL_SECONDS = 4 * 60 * 60  # 4 hours
-MAX_SCREENSHOT_AGE_HOURS = 16
+MAX_SCREENSHOT_AGE_HOURS = 14
 
 #
 #
