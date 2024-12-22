@@ -53,10 +53,10 @@ last_calculated_support_resistance_pivot_prices = {}  # Store the last calculate
 
 APP_START_TIME_DATA = {} # global data to help manage time
 
-# SCREENSHOT_INTERVAL_SECONDS = 15           # 15 seconds
+SCREENSHOT_INTERVAL_SECONDS = 15           # 15 seconds
 # SCREENSHOT_INTERVAL_SECONDS = 30 * 60      # 30 minutes
 # SCREENSHOT_INTERVAL_SECONDS = 1 * 60 * 60  # 1 hour
-SCREENSHOT_INTERVAL_SECONDS = 2 * 60 * 60  # 2 hours
+# SCREENSHOT_INTERVAL_SECONDS = 2 * 60 * 60  # 2 hours
 # SCREENSHOT_INTERVAL_SECONDS = 4 * 60 * 60  # 4 hours
 MAX_SCREENSHOT_AGE_HOURS = 16
 
@@ -1103,7 +1103,7 @@ def plot_graph(
         # support, resistance, pivot levels
         plt.axhline(y=resistance, color='black', linewidth=1.4, linestyle='--', label='resistance')
         plt.axhline(y=support, color='black', linewidth=1.4, linestyle='--', label='support')
-        plt.axhline(y=pivot, color='magenta', linewidth=1.3, linestyle=':', label='pivot')
+        plt.axhline(y=pivot, color='magenta', linewidth=1.3, linestyle='-.', label='pivot')
 
         # plt.axhline(y=min_price, color='brown', linewidth=1.5, linestyle='-', label=f"min price ({min_price:.4f})")
         # plt.axhline(y=max_price, color='brown', linewidth=1.5, linestyle='-', label=f"max price ({max_price:.4f})")
