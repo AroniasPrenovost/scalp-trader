@@ -1049,6 +1049,7 @@ def volume_based_strategy_recommendation(data):
 #
 
 def plot_graph(
+    buy_or_sell_event,
     current_timestamp,
     enable_display, enable_screenshot,
     timeframe_minutes, symbol, price_data,
@@ -1068,9 +1069,10 @@ def plot_graph(
 
     time_since_start = current_timestamp - APP_START_TIME_DATA[symbol]
 
-    if enable_screenshot and time_since_start >= SCREENSHOT_INTERVAL_SECONDS:
+    if buy_or_sell_event or (enable_screenshot and time_since_start >= SCREENSHOT_INTERVAL_SECONDS):
         # Reset APP_START_TIME_DATA to current time after taking a screenshot
-        APP_START_TIME_DATA[symbol] = current_timestamp
+        if buy_or_sell_event == False:
+                APP_START_TIME_DATA[symbol] = current_timestamp
 
         # init graph
         plt.figure(figsize=(9, 7)) # 10x8 inches
@@ -1145,7 +1147,10 @@ def plot_graph(
         plt.figtext(0.5, 0.01, f"trade range %: {trading_range_percentage}, current position %: {current_price_position_within_trading_range}", ha="center", fontsize=8)
 
         # save new screenshot
-        filename = os.path.join(GRAPH_SCREENSHOT_DIRECTORY, f"{symbol}_chart_{current_timestamp}.png")
+        phrase = 'interval'
+        if buy_or_sell_event == True:
+            phrase = 'buy_sell'
+        filename = os.path.join(GRAPH_SCREENSHOT_DIRECTORY, f"{symbol}_chart_{phrase}_{current_timestamp}.png")
         if os.path.exists(filename):
             os.remove(filename) # Overwrite existing screenshot and save new one
         plt.savefig(filename, dpi=300, bbox_inches='tight')
@@ -1377,6 +1382,8 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 if READY_TO_TRADE == True:
                     print('ready_to_trade: ', READY_TO_TRADE)
 
+                buy_or_sell_event = False
+
                 #
                 # Handle unverified BUY / SELL order
                 if last_order_type == 'placeholder':
@@ -1430,6 +1437,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                                 print('~ BUY OPPORTUNITY (current price < pivot, current_price < lower_bollinger_band, downward divergence, position is good)~')
                                 if READY_TO_TRADE == True:
                                     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                                    buy_or_sell_event = True
                                 else:
                                     print('trading disabled')
                     #
@@ -1482,18 +1490,21 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                             print('~ SELL OPPORTUNITY (price near resistance) ~')
                             if READY_TO_TRADE == True:
                                 place_market_sell_order(symbol, number_of_shares)
+                                buy_or_sell_event = True
                             else:
                                 print('trading disabled')
                         elif sma is not None and current_price < sma:
                             print('~ SELL OPPORTUNITY (price < SMA) ~')
                             if READY_TO_TRADE == True:
                                 place_market_sell_order(symbol, number_of_shares)
+                                buy_or_sell_event = True
                             else:
                                 print('trading disabled')
                         else:
                             print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
                             if READY_TO_TRADE == True:
                                 place_market_sell_order(symbol, number_of_shares)
+                                buy_or_sell_event = True
                             else:
                                 print('trading disabled')
 
@@ -1502,6 +1513,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
                 # Visualize indicators in a graph
                 plot_graph(
+                    buy_or_sell_event,
                     current_time,
                     ENABLE_GRAPH_DISPLAY,
                     ENABLE_GRAPH_SCREENSHOT,
