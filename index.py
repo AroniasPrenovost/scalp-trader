@@ -1,4 +1,5 @@
 import os
+import base64
 from dotenv import load_dotenv
 from json import dumps, load
 import json
@@ -447,7 +448,8 @@ mailjet_to_name = os.environ.get('MAILJET_TO_NAME')
 
 mailjet = Client(auth=(mailjet_api_key, mailjet_secret_key), version='v3.1')
 
-def send_email_notification(subject, text_content, html_content):
+def send_email_notification(subject, text_content, html_content, attachment_path=None):
+    # Prepare the base data for the email
     data = {
         'Messages': [
             {
@@ -467,6 +469,20 @@ def send_email_notification(subject, text_content, html_content):
             }
         ]
     }
+
+    # If an attachment is provided, add it to the email data
+    if attachment_path:
+        with open(attachment_path, "rb") as file:
+            attachment_content = file.read()
+            data['Messages'][0]['Attachments'] = [
+                {
+                    "ContentType": "image/png",
+                    "Filename": os.path.basename(attachment_path),
+                    "Base64Content": base64.b64encode(attachment_content).decode('utf-8')
+                }
+            ]
+
+    # Send the email
     result = mailjet.send.create(data=data)
     if result.status_code == 200:
         print("Email sent successfully.")
@@ -1175,6 +1191,15 @@ def plot_graph(
         plt.savefig(filename, dpi=300, bbox_inches='tight')
         plt.close('all')
         print(f"Chart saved as {filename}")
+
+        # Send the chart as an email attachment
+        if event_type == 'buy' or event_type == 'sell':
+            send_email_notification(
+                subject=f"{symbol} - {event_type} - chart",
+                text_content="Please find the attached chart.",
+                html_content="<h3>Please find the attached chart.</h3>",
+                attachment_path=filename
+            )
 
     elif enable_display == True:
         plt.show(block=False)
