@@ -428,8 +428,8 @@ if mode == 'test':
                 if downward_divergence == True:
                     TEST_DOWNWARD_TREND_DIVERGENCE_DATA[symbol].append(price)
 
-            print('upward trend divergence(s): ', f"{len(TEST_UPWARD_TREND_DIVERGENCE_DATA)}/{len(LOCAL_PRICE_DATA[symbol])}")
-            print('downward trend divergence(s): ', f"{len(TEST_DOWNWARD_TREND_DIVERGENCE_DATA)}/{len(LOCAL_PRICE_DATA[symbol])}")
+            print('Upward trend divergences: ', f"{len(TEST_UPWARD_TREND_DIVERGENCE_DATA[symbol])}/{len(LOCAL_PRICE_DATA[symbol])}")
+            print('Downward trend divergences: ', f"{len(TEST_DOWNWARD_TREND_DIVERGENCE_DATA[symbol])}/{len(LOCAL_PRICE_DATA[symbol])}")
 else:
     print(f"Running in {mode} mode")
 
@@ -666,7 +666,7 @@ def place_market_buy_order(symbol, base_size):
 # Create a market SELL order
 #
 
-def place_market_sell_order(symbol, base_size):
+def place_market_sell_order(symbol, base_size, potential_profit, potential_profit_percentage):
     try:
         order = client.market_order_sell(
             client_order_id=generate_client_order_id(symbol, 'sell'), # id must be unique
@@ -682,7 +682,7 @@ def place_market_sell_order(symbol, base_size):
             reset_json_ledger_file(symbol)
 
             send_email_notification(
-                subject="Sell Order Placed",
+                subject=f"Sell Order - {symbol}: ${potential_profit} (+{potential_profit_percentage}%)",
                 text_content=f"SELL ORDER placed successfully for {symbol}. Order ID: {order_id}",
                 html_content=f"<h3>SELL ORDER placed successfully for {symbol}. Order ID: {order_id}</h3>"
             )
@@ -1066,7 +1066,7 @@ def volume_based_strategy_recommendation(data):
 #
 
 def plot_graph(
-    buy_or_sell_event,
+    event_type,
     current_timestamp,
     enable_display, enable_screenshot,
     timeframe_minutes, symbol, price_data,
@@ -1086,9 +1086,9 @@ def plot_graph(
 
     time_since_start = current_timestamp - APP_START_TIME_DATA[symbol]
 
-    if buy_or_sell_event or (enable_screenshot and time_since_start >= SCREENSHOT_INTERVAL_SECONDS):
+    if (event_type == 'buy' or event_type == 'sell') or (enable_screenshot and time_since_start >= SCREENSHOT_INTERVAL_SECONDS):
         # Reset APP_START_TIME_DATA to current time after taking a screenshot
-        if buy_or_sell_event == False:
+        if event_type == 'interval':
             APP_START_TIME_DATA[symbol] = current_timestamp
 
         # init graph
@@ -1169,10 +1169,7 @@ def plot_graph(
         plt.figtext(0.5, 0.01, f"trade range %: {trading_range_percentage}, current position %: {current_price_position_within_trading_range}", ha="center", fontsize=8)
 
         # save new screenshot
-        phrase = 'interval'
-        if buy_or_sell_event == True:
-            phrase = 'buy_sell'
-        filename = os.path.join(GRAPH_SCREENSHOT_DIRECTORY, f"{symbol}_chart_{phrase}_{current_timestamp}.png")
+        filename = os.path.join(GRAPH_SCREENSHOT_DIRECTORY, f"{symbol}_chart_{event_type}_{current_timestamp}.png")
         if os.path.exists(filename):
             os.remove(filename) # Overwrite existing screenshot and save new one
         plt.savefig(filename, dpi=300, bbox_inches='tight')
@@ -1316,7 +1313,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     print(f"strategy change: {str(VOLUME_BASED_RECOMMENDATIONS[symbol]).upper()} --> {str(volume_based_strategy).upper()}")
                     if IS_TEST_MODE == False:
                         send_email_notification(
-                            subject=f"strategy change: {str(VOLUME_BASED_RECOMMENDATIONS[symbol]).upper()} --> {str(volume_based_strategy).upper()}",
+                            subject=f"{symbol} - strategy change: {str(VOLUME_BASED_RECOMMENDATIONS[symbol]).upper()} --> {str(volume_based_strategy).upper()}",
                             text_content=f"{str(VOLUME_BASED_RECOMMENDATIONS[symbol]).upper()} --> {str(volume_based_strategy).upper()}",
                             html_content="strategy changed"
                         )
@@ -1404,7 +1401,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 if READY_TO_TRADE == True:
                     print('ready_to_trade: ', READY_TO_TRADE)
 
-                buy_or_sell_event = False
+                event_type = 'interval'
 
                 #
                 # Handle unverified BUY / SELL order
@@ -1459,7 +1456,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                                 print('~ BUY OPPORTUNITY (current price < pivot, current_price < lower_bollinger_band, downward divergence, position is good)~')
                                 if READY_TO_TRADE == True:
                                     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                                    buy_or_sell_event = True
+                                    event_type = 'buy'
                                 else:
                                     print('trading disabled')
                     #
@@ -1511,22 +1508,22 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                         if current_price >= resistance:
                             print('~ SELL OPPORTUNITY (price near resistance) ~')
                             if READY_TO_TRADE == True:
-                                place_market_sell_order(symbol, number_of_shares)
-                                buy_or_sell_event = True
+                                place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
+                                event_type = 'sell'
                             else:
                                 print('trading disabled')
                         elif sma is not None and current_price < sma:
                             print('~ SELL OPPORTUNITY (price < SMA) ~')
                             if READY_TO_TRADE == True:
-                                place_market_sell_order(symbol, number_of_shares)
-                                buy_or_sell_event = True
+                                place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
+                                event_type = 'sell'
                             else:
                                 print('trading disabled')
                         else:
                             print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
                             if READY_TO_TRADE == True:
-                                place_market_sell_order(symbol, number_of_shares)
-                                buy_or_sell_event = True
+                                place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
+                                event_type = 'sell'
                             else:
                                 print('trading disabled')
 
@@ -1535,7 +1532,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
                 # Visualize indicators in a graph
                 plot_graph(
-                    buy_or_sell_event,
+                    event_type,
                     current_time,
                     ENABLE_GRAPH_DISPLAY,
                     ENABLE_GRAPH_SCREENSHOT,
