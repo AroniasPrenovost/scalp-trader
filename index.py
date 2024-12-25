@@ -59,7 +59,7 @@ APP_START_TIME_DATA = {} # global data to help manage time
 # SCREENSHOT_INTERVAL_SECONDS = 1 * 60 * 60  # 1 hour
 SCREENSHOT_INTERVAL_SECONDS = 2 * 60 * 60  # 2 hours
 # SCREENSHOT_INTERVAL_SECONDS = 4 * 60 * 60  # 4 hours
-MAX_SCREENSHOT_AGE_HOURS = 8
+MAX_SCREENSHOT_AGE_HOURS = 14
 
 #
 #
@@ -73,9 +73,15 @@ MAX_SCREENSHOT_AGE_HOURS = 8
 # INTERVAL_SECONDS = 2
 # INTERVAL_MINUTES = 15
 # ------------------
-INTERVAL_SECONDS = 5
-INTERVAL_MINUTES = 240 # 4 hour
+# INTERVAL_SECONDS = 5
+# INTERVAL_MINUTES = 240 # 4 hours
 # ------------------
+# INTERVAL_SECONDS = 5
+# INTERVAL_MINUTES = 480 # 8 hours
+# ------------------
+INTERVAL_SECONDS = 5
+INTERVAL_MINUTES = 720 # 12 hours
+
 
 DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
 
@@ -1179,7 +1185,7 @@ def plot_graph(
             timeframe_phrase = f"{timeframe_minutes} minutes"
         plt.xlabel(f"time range ({timeframe_phrase})")
         plt.ylabel("price")
-        plt.legend(loc='lower left', fontsize='small')
+        plt.legend(loc='upper left', fontsize='small')
 
         plt.grid(True)
         plt.figtext(0.5, 0.01, f"trade range %: {trading_range_percentage}, current position %: {current_price_position_within_trading_range}", ha="center", fontsize=8)
