@@ -1118,7 +1118,7 @@ def plot_graph(
 
         # entry price (if it exists)
         if entry_price > 0:
-            plt.axhline(y=entry_price, color='m', linewidth=1.2, linestyle='-', label='entry price')
+            plt.axhline(y=entry_price, color='m', linewidth=1.2, linestyle='-', label=f"entry price ({entry_price})")
 
         # price data markers
         plt.plot(list(price_data), marker=',', label='price', c='black')
@@ -1458,52 +1458,53 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     # Strategy #1
                     #
                     if current_price < pivot and current_price < lower_bollinger_band:
-                        if current_price_position_within_trading_range < BUY_AT_PRICE_POSITION_PERCENTAGE:
-                            # if downward_divergence == True:
-                            # Determine the lower of the pivot and lower Bollinger band
-                            lower_threshold = min(pivot, lower_bollinger_band)
-                            # Track number of divergences
-                            downward_divergence_below_threshold_count = 0
-                            # Iterate backward through the price data from current price
-                            recent_prices = list(LOCAL_PRICE_DATA[symbol])
-                            for price in reversed(recent_prices):
-                                if price > lower_threshold:
-                                    # print(' price broke threshold: ', price)
-                                    break
-                                if price in LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA[symbol]:
-                                    downward_divergence_below_threshold_count += 1
+                        if current_price < fibonacci_levels['level_61.8']:
+                            if current_price_position_within_trading_range < BUY_AT_PRICE_POSITION_PERCENTAGE:
+                                # if downward_divergence == True:
+                                # Determine the lower of the pivot and lower Bollinger band
+                                lower_threshold = min(pivot, lower_bollinger_band)
+                                # Track number of divergences
+                                downward_divergence_below_threshold_count = 0
+                                # Iterate backward through the price data from current price
+                                recent_prices = list(LOCAL_PRICE_DATA[symbol])
+                                for price in reversed(recent_prices):
+                                    if price > lower_threshold:
+                                        # print(' price broke threshold: ', price)
+                                        break
+                                    if price in LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA[symbol]:
+                                        downward_divergence_below_threshold_count += 1
 
-                            print(f"downward_divergence_below_threshold_count: {downward_divergence_below_threshold_count}")
-                            print('ALERT_DOWNWARD_DIVERGENCE: ', ALERT_DOWNWARD_DIVERGENCE)
-                            print('BUY_AT_DOWNWARD_DIVERGENCE_COUNT: ', BUY_AT_DOWNWARD_DIVERGENCE_COUNT)
-                            if downward_divergence_below_threshold_count > 2 and ALERT_DOWNWARD_DIVERGENCE == True:
-                                send_email_notification(
-                                    subject=f"downward divergence count: {downward_divergence_below_threshold_count}",
-                                    text_content=f"downward dv - {downward_divergence_below_threshold_count}",
-                                    html_content=f"downward dv - {downward_divergence_below_threshold_count}"
-                                )
+                                print(f"downward_divergence_below_threshold_count: {downward_divergence_below_threshold_count}")
+                                print('ALERT_DOWNWARD_DIVERGENCE: ', ALERT_DOWNWARD_DIVERGENCE)
+                                print('BUY_AT_DOWNWARD_DIVERGENCE_COUNT: ', BUY_AT_DOWNWARD_DIVERGENCE_COUNT)
+                                if downward_divergence_below_threshold_count > 2 and ALERT_DOWNWARD_DIVERGENCE == True:
+                                    send_email_notification(
+                                        subject=f"downward divergence count: {downward_divergence_below_threshold_count}",
+                                        text_content=f"downward dv - {downward_divergence_below_threshold_count}",
+                                        html_content=f"downward dv - {downward_divergence_below_threshold_count}"
+                                    )
 
-                            if downward_divergence_below_threshold_count >= BUY_AT_DOWNWARD_DIVERGENCE_COUNT:
-                                print('~ BUY OPPORTUNITY (current price < pivot, current_price < lower_bollinger_band, downward divergence, position is good)~')
-                                if READY_TO_TRADE == True:
-                                    place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                                    event_type = 'buy'
-                                else:
-                                    print('trading disabled')
-                    #
-                    # Strategy #2
-                    #
-                    # Buy looking to current price crosses above SMA
-                    # if sma is not None and macd_line is not None and signal_line is not None:
-                    #     if current_price > sma and macd_line > signal_line:
-                    #         print('~ BUY OPPORTUNITY (current_price > sma, MACD crossover)~')
-                    #         place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                        # elif current_price < lower_bollinger_band:
-                        #     print('~ BUY OPPORTUNITY (price below lower Bollinger Band)~')
-                        #     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                        # elif current_price_position_within_trading_range < 6:
-                        #     print('~ BUY OPPORTUNITY (current_price_position_within_trading_range < 6)~')
-                        #     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                                if downward_divergence_below_threshold_count >= BUY_AT_DOWNWARD_DIVERGENCE_COUNT:
+                                    print('~ BUY OPPORTUNITY (current price < pivot, current_price < lower_bollinger_band, downward divergence, position is good)~')
+                                    if READY_TO_TRADE == True:
+                                        place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                                        event_type = 'buy'
+                                    else:
+                                        print('trading disabled')
+                        #
+                        # Strategy #2
+                        #
+                        # Buy looking to current price crosses above SMA
+                        # if sma is not None and macd_line is not None and signal_line is not None:
+                        #     if current_price > sma and macd_line > signal_line:
+                        #         print('~ BUY OPPORTUNITY (current_price > sma, MACD crossover)~')
+                        #         place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                            # elif current_price < lower_bollinger_band:
+                            #     print('~ BUY OPPORTUNITY (price below lower Bollinger Band)~')
+                            #     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                            # elif current_price_position_within_trading_range < 6:
+                            #     print('~ BUY OPPORTUNITY (current_price_position_within_trading_range < 6)~')
+                            #     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
 
 
                 #
@@ -1536,27 +1537,53 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     print(f"potential_profit_percentage: {potential_profit_percentage:.2f}%")
 
                     if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
-                        if current_price >= resistance:
-                            print('~ SELL OPPORTUNITY (price near resistance) ~')
-                            if READY_TO_TRADE == True:
-                                place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
-                                event_type = 'sell'
-                            else:
-                                print('trading disabled')
-                        elif sma is not None and current_price < sma:
-                            print('~ SELL OPPORTUNITY (price < SMA) ~')
-                            if READY_TO_TRADE == True:
-                                place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
-                                event_type = 'sell'
-                            else:
-                                print('trading disabled')
+
+                        # take profits at x percent
+                        print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
+                        if READY_TO_TRADE == True:
+                            place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
+                            event_type = 'sell'
                         else:
+                            print('trading disabled')
+
+
+                        # fib level indicator
+                        if fibonacci_levels['level_61.8'] > current_price:
                             print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
                             if READY_TO_TRADE == True:
                                 place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
                                 event_type = 'sell'
                             else:
                                 print('trading disabled')
+
+                        # if current_price >= resistance:
+                        #     print('~ SELL OPPORTUNITY (price near resistance) ~')
+                        #     if READY_TO_TRADE == True:
+                        #         place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
+                        #         event_type = 'sell'
+                        #     else:
+                        #         print('trading disabled')
+                        # elif sma is not None and current_price < sma:
+                        #     print('~ SELL OPPORTUNITY (price < SMA) ~')
+                        #     if READY_TO_TRADE == True:
+                        #         place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
+                        #         event_type = 'sell'
+                        #     else:
+                        #         print('trading disabled')
+                        # elif fibonacci_levels['level_61.8'] > current_price:
+                        #     print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
+                        #     if READY_TO_TRADE == True:
+                        #         place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
+                        #         event_type = 'sell'
+                        #     else:
+                        #         print('trading disabled')
+                        # else:
+                        #     print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
+                        #     if READY_TO_TRADE == True:
+                        #         place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
+                        #         event_type = 'sell'
+                        #     else:
+                        #         print('trading disabled')
 
                 # call it once instead of twice for the following functions
                 current_time = time.time()
