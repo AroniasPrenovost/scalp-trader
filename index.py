@@ -25,6 +25,24 @@ def load_config(file_path):
         return load(file)
 
 
+
+# def compound_reinvestment(initial_amount, rate, increments):
+#     principal = initial_amount
+#     for _ in range(increments):
+#         profit = (rate / 100) * principal
+#         principal += profit
+#     return principal
+#
+# # Example usage
+# initial_amount = 2000
+# rate = 0.05  # 0.08%
+# increments = 90
+#
+# final_amount = compound_reinvestment(initial_amount, rate, increments)
+# print(f"Final amount after reinvesting profits for {increments} increments: {final_amount:.2f}")
+# quit()
+
+
 #
 #
 # Initialize a dictionary to store price data for each asset
@@ -54,12 +72,12 @@ last_calculated_support_resistance_pivot_prices = {}  # Store the last calculate
 
 APP_START_TIME_DATA = {} # global data to help manage time
 
-# SCREENSHOT_INTERVAL_SECONDS = 15           # 15 seconds
+# SCREENSHOT_INTERVAL_SECONDS = 60           # 45 seconds
 # SCREENSHOT_INTERVAL_SECONDS = 30 * 60      # 30 minutes
-# SCREENSHOT_INTERVAL_SECONDS = 1 * 60 * 60  # 1 hour
-SCREENSHOT_INTERVAL_SECONDS = 2 * 60 * 60  # 2 hours
+SCREENSHOT_INTERVAL_SECONDS = 1 * 60 * 60  # 1 hour
+# SCREENSHOT_INTERVAL_SECONDS = 2 * 60 * 60  # 2 hours
 # SCREENSHOT_INTERVAL_SECONDS = 4 * 60 * 60  # 4 hours
-MAX_SCREENSHOT_AGE_HOURS = 14
+MAX_SCREENSHOT_AGE_HOURS = 8
 
 #
 #
@@ -67,11 +85,11 @@ MAX_SCREENSHOT_AGE_HOURS = 14
 #
 
 # ------------------
-# INTERVAL_SECONDS = 2
-# INTERVAL_MINUTES = 1.5
+INTERVAL_SECONDS = 2
+INTERVAL_MINUTES = 60
 # ------------------
 # INTERVAL_SECONDS = 2
-# INTERVAL_MINUTES = 15
+# INTERVAL_MINUTES = 360
 # ------------------
 # INTERVAL_SECONDS = 5
 # INTERVAL_MINUTES = 240 # 4 hours
@@ -79,9 +97,9 @@ MAX_SCREENSHOT_AGE_HOURS = 14
 # INTERVAL_SECONDS = 5
 # INTERVAL_MINUTES = 480 # 8 hours
 # ------------------
-INTERVAL_SECONDS = 5
-INTERVAL_MINUTES = 720 # 12 hours
-
+# INTERVAL_SECONDS = 5
+# INTERVAL_MINUTES = 720 # 12 hours
+# ------------------
 
 DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
 
@@ -160,6 +178,8 @@ coinbase_api_secret = os.environ.get('COINBASE_API_SECRET')
 
 coinbase_spot_maker_fee = float(os.environ.get('COINBASE_SPOT_MAKER_FEE'))
 coinbase_spot_taker_fee = float(os.environ.get('COINBASE_SPOT_TAKER_FEE'))
+coinbase_stable_pair_spot_maker_fee = float(os.environ.get('COINBASE_STABLE_PAIR_SPOT_MAKER_FEE'))
+coinbase_stable_pair_spot_taker_fee = float(os.environ.get('COINBASE_STABLE_PAIR_SPOT_TAKER_FEE'))
 federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
 
 client = RESTClient(api_key=coinbase_api_key, api_secret=coinbase_api_secret)
@@ -659,7 +679,7 @@ def detect_stored_coinbase_order_type(last_order):
 def place_market_buy_order(symbol, base_size):
     try:
         order = client.market_order_buy(
-            client_order_id=generate_client_order_id(symbol, 'buy'), # id must be unique
+            client_order_id=generate_client_order_id(symbol, 'buy'),  # id must be unique
             product_id=symbol,
             base_size=str(base_size)  # Convert base_size to string
         )
@@ -669,9 +689,11 @@ def place_market_buy_order(symbol, base_size):
             print(f"BUY ORDER placed successfully. Order ID: {order_id}")
 
             # Convert the order object to a dictionary if necessary
-            # Save the placeholder order data until we can lookup the completeed transaction
             order_data = order.response if hasattr(order, 'response') else order
-            save_order_data_to_local_json_ledger(symbol, order_data)
+            order_data_dict = order_data.to_dict() if hasattr(order_data, 'to_dict') else order_data
+
+            # Save the placeholder order data until we can lookup the completed transaction
+            save_order_data_to_local_json_ledger(symbol, order_data_dict)
 
             send_email_notification(
                 subject="Buy Order Placed",
@@ -729,8 +751,7 @@ def generate_client_order_id(symbol, action):
 # Trade info utils
 #
 
-def calculate_exchange_fee(price, number_of_shares, fee_type):
-    fee_rate = coinbase_spot_maker_fee if fee_type.lower() == 'maker' else coinbase_spot_taker_fee
+def calculate_exchange_fee(price, number_of_shares, fee_rate):
     fee = (fee_rate / 100) * price * number_of_shares
     return fee
 
@@ -1223,12 +1244,28 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         global LAST_EXCEPTION_ERROR
         global SAME_ERROR_COUNT
 
+        # x = get_asset_price('USDT-USD')
+        # print('USDT-USD', x)
+        # # place_market_buy_order('USDT-USD', 1)
+        #
+        #
+        # y = get_asset_price('USDT-USDC')
+        # print('USDT-USDC', y)
+        # # place_market_buy_order('USDT-USDC', 1)
+        # quit()
+
         config = load_config('config.json')
 
         for asset in config['assets']:
             enabled = asset['enabled']
             symbol = asset['symbol']
-
+            # fees
+            stable_pair = asset['stable_pair']
+            stable_buy_at_price = asset['stable_buy_at_price']
+            stable_sell_at_price = asset['stable_sell_at_price']
+            maker_f = coinbase_spot_maker_fee if stable_pair == False else coinbase_stable_pair_spot_maker_fee
+            taker_f = coinbase_spot_taker_fee if stable_pair == False else coinbase_stable_pair_spot_taker_fee
+            # trading flags
             READY_TO_TRADE = asset['ready_to_trade']
             TARGET_PROFIT_PERCENTAGE = asset['target_profit_percentage']
             BUY_AT_PRICE_POSITION_PERCENTAGE = asset['buy_at_price_position_percentage']
@@ -1450,61 +1487,78 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 elif last_order_type == 'none' or last_order_type == 'sell':
                     print('looking to BUY')
 
-                    if float(trading_range_percentage) < float(TARGET_PROFIT_PERCENTAGE):
-                        print('trading range smaller than target_profit_percentage')
-                        continue
-
                     #
-                    # Strategy #1
+                    # stable pairs
                     #
-                    if current_price < pivot and current_price < lower_bollinger_band:
-                        if current_price < fibonacci_levels['level_61.8']:
-                            if current_price_position_within_trading_range < BUY_AT_PRICE_POSITION_PERCENTAGE:
-                                # if downward_divergence == True:
-                                # Determine the lower of the pivot and lower Bollinger band
-                                lower_threshold = min(pivot, lower_bollinger_band)
-                                # Track number of divergences
-                                downward_divergence_below_threshold_count = 0
-                                # Iterate backward through the price data from current price
-                                recent_prices = list(LOCAL_PRICE_DATA[symbol])
-                                for price in reversed(recent_prices):
-                                    if price > lower_threshold:
-                                        # print(' price broke threshold: ', price)
-                                        break
-                                    if price in LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA[symbol]:
-                                        downward_divergence_below_threshold_count += 1
+                    if stable_pair == True:
+                        if current_price <= stable_buy_at_price:
+                            if READY_TO_TRADE == True:
+                                print(symbol)
+                                print(SHARES_TO_ACQUIRE)
+                                place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                                event_type = 'buy'
+                            else:
+                                print('trading disabled')
+                    #
+                    # regular asset
+                    #
+                    else:
 
-                                print(f"downward_divergence_below_threshold_count: {downward_divergence_below_threshold_count}")
-                                print('ALERT_DOWNWARD_DIVERGENCE: ', ALERT_DOWNWARD_DIVERGENCE)
-                                print('BUY_AT_DOWNWARD_DIVERGENCE_COUNT: ', BUY_AT_DOWNWARD_DIVERGENCE_COUNT)
-                                if downward_divergence_below_threshold_count > 2 and ALERT_DOWNWARD_DIVERGENCE == True:
-                                    send_email_notification(
-                                        subject=f"downward divergence count: {downward_divergence_below_threshold_count}",
-                                        text_content=f"downward dv - {downward_divergence_below_threshold_count}",
-                                        html_content=f"downward dv - {downward_divergence_below_threshold_count}"
-                                    )
+                        if float(trading_range_percentage) < float(TARGET_PROFIT_PERCENTAGE):
+                            print('trading range smaller than target_profit_percentage')
+                            continue
 
-                                if downward_divergence_below_threshold_count >= BUY_AT_DOWNWARD_DIVERGENCE_COUNT:
-                                    print('~ BUY OPPORTUNITY (current price < pivot, current_price < lower_bollinger_band, downward divergence, position is good)~')
-                                    if READY_TO_TRADE == True:
-                                        place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                                        event_type = 'buy'
-                                    else:
-                                        print('trading disabled')
                         #
-                        # Strategy #2
+                        # Strategy #1
                         #
-                        # Buy looking to current price crosses above SMA
-                        # if sma is not None and macd_line is not None and signal_line is not None:
-                        #     if current_price > sma and macd_line > signal_line:
-                        #         print('~ BUY OPPORTUNITY (current_price > sma, MACD crossover)~')
-                        #         place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                            # elif current_price < lower_bollinger_band:
-                            #     print('~ BUY OPPORTUNITY (price below lower Bollinger Band)~')
-                            #     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                            # elif current_price_position_within_trading_range < 6:
-                            #     print('~ BUY OPPORTUNITY (current_price_position_within_trading_range < 6)~')
-                            #     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                        if current_price < pivot and current_price < lower_bollinger_band:
+                            if current_price < fibonacci_levels['level_61.8']:
+                                if current_price_position_within_trading_range < BUY_AT_PRICE_POSITION_PERCENTAGE:
+                                    # if downward_divergence == True:
+                                    # Determine the lower of the pivot and lower Bollinger band
+                                    lower_threshold = min(pivot, lower_bollinger_band)
+                                    # Track number of divergences
+                                    downward_divergence_below_threshold_count = 0
+                                    # Iterate backward through the price data from current price
+                                    recent_prices = list(LOCAL_PRICE_DATA[symbol])
+                                    for price in reversed(recent_prices):
+                                        if price > lower_threshold:
+                                            # print(' price broke threshold: ', price)
+                                            break
+                                        if price in LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA[symbol]:
+                                            downward_divergence_below_threshold_count += 1
+
+                                    print(f"downward_divergence_below_threshold_count: {downward_divergence_below_threshold_count}")
+                                    print('ALERT_DOWNWARD_DIVERGENCE: ', ALERT_DOWNWARD_DIVERGENCE)
+                                    print('BUY_AT_DOWNWARD_DIVERGENCE_COUNT: ', BUY_AT_DOWNWARD_DIVERGENCE_COUNT)
+                                    if downward_divergence_below_threshold_count > 2 and ALERT_DOWNWARD_DIVERGENCE == True:
+                                        send_email_notification(
+                                            subject=f"downward divergence count: {downward_divergence_below_threshold_count}",
+                                            text_content=f"downward dv - {downward_divergence_below_threshold_count}",
+                                            html_content=f"downward dv - {downward_divergence_below_threshold_count}"
+                                        )
+
+                                    if downward_divergence_below_threshold_count >= BUY_AT_DOWNWARD_DIVERGENCE_COUNT:
+                                        print('~ BUY OPPORTUNITY (current price < pivot, current_price < lower_bollinger_band, downward divergence, position is good)~')
+                                        if READY_TO_TRADE == True:
+                                            place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                                            event_type = 'buy'
+                                        else:
+                                            print('trading disabled')
+                            #
+                            # Strategy #2
+                            #
+                            # Buy looking to current price crosses above SMA
+                            # if sma is not None and macd_line is not None and signal_line is not None:
+                            #     if current_price > sma and macd_line > signal_line:
+                            #         print('~ BUY OPPORTUNITY (current_price > sma, MACD crossover)~')
+                            #         place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                                # elif current_price < lower_bollinger_band:
+                                #     print('~ BUY OPPORTUNITY (price below lower Bollinger Band)~')
+                                #     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                                # elif current_price_position_within_trading_range < 6:
+                                #     print('~ BUY OPPORTUNITY (current_price_position_within_trading_range < 6)~')
+                                #     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
 
 
                 #
@@ -1524,7 +1578,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     # calculate profits if we were going to sell now
                     pre_tax_profit = (current_price - entry_price) * number_of_shares
 
-                    sell_now_exchange_fee = calculate_exchange_fee(current_price, number_of_shares, 'taker')
+                    sell_now_exchange_fee = calculate_exchange_fee(current_price, number_of_shares, taker_f)
                     print(f"sell_now_exchange_fee: {sell_now_exchange_fee}")
 
                     sell_now_tax_owed = (federal_tax_rate / 100) * pre_tax_profit
@@ -1534,21 +1588,26 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     print(f"potential_profit_USD: {potential_profit}")
 
                     potential_profit_percentage = (potential_profit / entry_position_value_after_fees) * 100
-                    print(f"potential_profit_percentage: {potential_profit_percentage:.2f}%")
+                    print(f"potential_profit_percentage: {potential_profit_percentage:.4f}%")
 
-                    if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
+                    #
+                    # stable pairs
+                    #
+                    if stable_pair == True:
+                        if current_price >= stable_sell_at_price or potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
+                            if READY_TO_TRADE == True:
+                                place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
+                                event_type = 'sell'
+                            else:
+                                print('trading disabled')
+                    #
+                    # regular asset
+                    #
+                    else:
 
-                        # take profits at x percent
-                        print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
-                        if READY_TO_TRADE == True:
-                            place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
-                            event_type = 'sell'
-                        else:
-                            print('trading disabled')
+                        if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
 
-
-                        # fib level indicator
-                        if fibonacci_levels['level_61.8'] > current_price:
+                            # take profits at x percent
                             print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
                             if READY_TO_TRADE == True:
                                 place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
@@ -1556,34 +1615,44 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                             else:
                                 print('trading disabled')
 
-                        # if current_price >= resistance:
-                        #     print('~ SELL OPPORTUNITY (price near resistance) ~')
-                        #     if READY_TO_TRADE == True:
-                        #         place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
-                        #         event_type = 'sell'
-                        #     else:
-                        #         print('trading disabled')
-                        # elif sma is not None and current_price < sma:
-                        #     print('~ SELL OPPORTUNITY (price < SMA) ~')
-                        #     if READY_TO_TRADE == True:
-                        #         place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
-                        #         event_type = 'sell'
-                        #     else:
-                        #         print('trading disabled')
-                        # elif fibonacci_levels['level_61.8'] > current_price:
-                        #     print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
-                        #     if READY_TO_TRADE == True:
-                        #         place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
-                        #         event_type = 'sell'
-                        #     else:
-                        #         print('trading disabled')
-                        # else:
-                        #     print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
-                        #     if READY_TO_TRADE == True:
-                        #         place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
-                        #         event_type = 'sell'
-                        #     else:
-                        #         print('trading disabled')
+
+                            # fib level indicator
+                            if fibonacci_levels['level_61.8'] > current_price:
+                                print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
+                                if READY_TO_TRADE == True:
+                                    place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
+                                    event_type = 'sell'
+                                else:
+                                    print('trading disabled')
+
+                            # if current_price >= resistance:
+                            #     print('~ SELL OPPORTUNITY (price near resistance) ~')
+                            #     if READY_TO_TRADE == True:
+                            #         place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
+                            #         event_type = 'sell'
+                            #     else:
+                            #         print('trading disabled')
+                            # elif sma is not None and current_price < sma:
+                            #     print('~ SELL OPPORTUNITY (price < SMA) ~')
+                            #     if READY_TO_TRADE == True:
+                            #         place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
+                            #         event_type = 'sell'
+                            #     else:
+                            #         print('trading disabled')
+                            # elif fibonacci_levels['level_61.8'] > current_price:
+                            #     print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
+                            #     if READY_TO_TRADE == True:
+                            #         place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
+                            #         event_type = 'sell'
+                            #     else:
+                            #         print('trading disabled')
+                            # else:
+                            #     print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
+                            #     if READY_TO_TRADE == True:
+                            #         place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
+                            #         event_type = 'sell'
+                            #     else:
+                            #         print('trading disabled')
 
                 # call it once instead of twice for the following functions
                 current_time = time.time()
