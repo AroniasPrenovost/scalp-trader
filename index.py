@@ -85,7 +85,7 @@ MAX_SCREENSHOT_AGE_HOURS = 8
 #
 
 # ------------------
-INTERVAL_SECONDS = 2
+INTERVAL_SECONDS = 3
 INTERVAL_MINUTES = 60
 # ------------------
 # INTERVAL_SECONDS = 2
@@ -1195,7 +1195,7 @@ def plot_graph(
         plt.gca().xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
 
         # Format y-axis to show values to the 4th decimal place
-        plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.4f'))
+        plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.6f'))
 
         # legend
         plt.title(f"{symbol}")
@@ -1285,6 +1285,10 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
             ENABLE_TEST_FAILURE = asset['enable_test_failure']
 
+            PRICE_ALERT_ENABLED = asset['price_alert_enabled']
+            PRICE_ALERT_BUY = asset['price_alert_buy']
+            PRICE_ALERT_SELL = asset['price_alert_sell']
+
             if enabled:
                 print(symbol)
 
@@ -1341,6 +1345,27 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 if len(LOCAL_PRICE_DATA[symbol]) < data_points_for_x_minutes:
                     print(f"Waiting for more data... ({len(LOCAL_PRICE_DATA[symbol])}/{data_points_for_x_minutes})\n")
                     continue
+
+                #
+                #
+                #
+                #
+
+                if PRICE_ALERT_ENABLED:
+                    if current_price < PRICE_ALERT_BUY:
+                        send_email_notification(
+                            subject=f"{symbol} - BUY opportunity",
+                            text_content="buy it and wait",
+                            html_content="buy it and wait"
+                        )
+                    elif current_price > PRICE_ALERT_SELL:
+                        send_email_notification(
+                            subject=f"{symbol} - SELL opportunity",
+                            text_content="sell it and take profit",
+                            html_content="sell it and take profit"
+                        )
+                    else:
+                        print('waiting for price movement')
 
                 #
                 #
@@ -1491,6 +1516,16 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     # stable pairs
                     #
                     if stable_pair == True:
+                        # example prices
+                        # 0.9993
+                        # 0.99925
+                        #
+                        #
+                        # RANGE 1
+                        # 0.99943 -> 0.99962
+                        # potential_profit_USD: 0.23637804999997553
+                        # potential_profit_percentage: 0.0124%
+
                         if current_price <= stable_buy_at_price:
                             if READY_TO_TRADE == True:
                                 print(symbol)
