@@ -1299,20 +1299,8 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         global LAST_EXCEPTION_ERROR
         global SAME_ERROR_COUNT
 
-        config = load_config('config.json')
-        #
-        #
-        #
 
-        # x = get_asset_price('USDT-USD')
-        # print('USDT-USD', x)
-        # # place_market_buy_order('USDT-USD', 1)
-        #
-        #
-        # y = get_asset_price('USDT-USDC')
-        # print('USDT-USDC', y)
-        # # place_market_buy_order('USDT-USDC', 1)
-        # quit()
+
 
 
         #
@@ -1353,12 +1341,10 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         save_listed_coins_to_file(client, file_path)
 
         #
+        # iterate through config assets
         #
-        #
-
-
-
-
+        
+        config = load_config('config.json')
 
         for asset in config['assets']:
             enabled = asset['enabled']
@@ -1395,9 +1381,6 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
             if enabled:
                 print(symbol)
-
-                # if LOCAL_PRICE_DATA and LOCAL_PRICE_DATA[symbol]:
-                #     print(LOCAL_PRICE_DATA[symbol])
 
                 #
                 #
