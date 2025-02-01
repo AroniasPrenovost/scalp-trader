@@ -83,7 +83,7 @@ MAX_SCREENSHOT_AGE_HOURS = 8
 #
 
 # ------------------
-INTERVAL_SECONDS = 15
+INTERVAL_SECONDS = 30
 INTERVAL_MINUTES = 15
 # ------------------
 # INTERVAL_SECONDS = 2
@@ -1369,6 +1369,9 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         if is_most_recent_file_older_than_x_mins(coinbase_data_directory, minutes=15):
             save_coindata_with_timestamp(current_listed_coins_dicts, coinbase_data_directory)
         delete_files_older_than_x_hours(coinbase_data_directory, hours=4)
+
+        # TODO: use all files in /coinbase-data and calculate the price_change_percentage for each coin
+        # use the most efficient algorithm possible
 
         #
         #
