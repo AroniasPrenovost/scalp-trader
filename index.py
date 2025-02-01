@@ -85,7 +85,7 @@ MAX_SCREENSHOT_AGE_HOURS = 8
 #
 
 # ------------------
-INTERVAL_SECONDS = 3
+INTERVAL_SECONDS = 15
 INTERVAL_MINUTES = 60
 # ------------------
 # INTERVAL_SECONDS = 2
@@ -470,11 +470,12 @@ mailjet_secret_key = os.environ.get('MAILJET_SECRET_KEY')
 mailjet_from_email = os.environ.get('MAILJET_FROM_EMAIL')
 mailjet_from_name = os.environ.get('MAILJET_FROM_NAME')
 mailjet_to_email = os.environ.get('MAILJET_TO_EMAIL')
+mailjet_to_email_2 = os.environ.get('MAILJET_TO_EMAIL_2')
 mailjet_to_name = os.environ.get('MAILJET_TO_NAME')
 
 mailjet = Client(auth=(mailjet_api_key, mailjet_secret_key), version='v3.1')
 
-def send_email_notification(subject, text_content, html_content, attachment_path=None):
+def send_email_notification(subject, text_content, html_content, custom_recipient=None, attachment_path=None):
     # Prepare the base data for the email
     data = {
         'Messages': [
@@ -485,8 +486,8 @@ def send_email_notification(subject, text_content, html_content, attachment_path
                 },
                 "To": [
                     {
-                        "Email": mailjet_to_email,
-                        "Name": mailjet_to_name
+                        "Email": custom_recipient or mailjet_to_email,
+                        "Name":  mailjet_to_name
                     }
                 ],
                 "Subject": subject,
@@ -643,6 +644,18 @@ def reset_json_ledger_file(symbol):
 #
 #
 #
+
+def get_coinbase_order_by_order_id(order_id):
+    try:
+        order = client.get_order(order_id=order_id)
+        if order:
+            return order
+        else:
+            print(f"No order found with ID: {order_id}.")
+            return None
+    except Exception as e:
+        print(f"Error fetching order with ID {order_id}: {e}")
+        return None
 
 def get_coinbase_order_by_order_id(order_id):
     try:
@@ -1233,6 +1246,48 @@ def plot_graph(
         plt.pause(0.1)
         plt.close('')
 
+
+
+#
+#
+#
+
+# Function to convert Product objects to dictionaries
+def convert_products_to_dicts(products):
+    return [product.to_dict() if hasattr(product, 'to_dict') else product for product in products]
+
+# Function to save the list of Coinbase products to a local file
+def save_listed_coins_to_file(client, file_path):
+    listed_coins = client.get_products()
+    listed_coins = listed_coins['products']
+
+    # Convert products to dictionaries
+    listed_coins_dicts = convert_products_to_dicts(listed_coins)
+
+    # Save to file
+    with open(file_path, 'w') as file:
+        json.dump(listed_coins_dicts, file, indent=4)
+    print(f"Listed coins saved to {file_path}.")
+
+# Function to check if the file has changed and return new objects
+def check_for_new_coins(file_path, new_listed_coins):
+    if not os.path.exists(file_path):
+        return new_listed_coins  # If file doesn't exist, all coins are new
+
+    with open(file_path, 'r') as file:
+        old_listed_coins = json.load(file)
+
+    # Find new coins
+    old_coin_ids = {coin['product_id'] for coin in old_listed_coins}
+    new_coins = [coin for coin in new_listed_coins if coin['product_id'] not in old_coin_ids]
+
+    return new_coins
+
+#
+#
+#
+#
+#
 #
 #
 # main logic loop
@@ -1244,6 +1299,11 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         global LAST_EXCEPTION_ERROR
         global SAME_ERROR_COUNT
 
+        config = load_config('config.json')
+        #
+        #
+        #
+
         # x = get_asset_price('USDT-USD')
         # print('USDT-USD', x)
         # # place_market_buy_order('USDT-USD', 1)
@@ -1254,7 +1314,51 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         # # place_market_buy_order('USDT-USDC', 1)
         # quit()
 
-        config = load_config('config.json')
+
+        #
+        # ALERT NEW COIN LISTINGS
+        #
+
+
+        file_path = 'listed_coins.json'
+        # Fetch the current list of products
+        current_listed_coins = client.get_products()['products']
+        # Convert products to dictionaries
+        current_listed_coins_dicts = convert_products_to_dicts(current_listed_coins)
+        # Check for new coins
+        new_coins = check_for_new_coins(file_path, current_listed_coins_dicts)
+        if new_coins:
+            print("New coins added:")
+            for coin in new_coins:
+                coin_symbol = coin['product_id']
+                print(coin_symbol)
+                current_price = get_asset_price(coin_symbol)
+                print(f"current_price: {current_price}")
+                time.sleep(2)
+
+                send_email_notification(
+                    subject=f"New Coinbase listing: {coin_symbol}",
+                    text_content=f"Coinbase just listed {coin_symbol}",
+                    html_content=f"Coinbase just listed {coin_symbol}"
+                )
+                # send_email_notification(
+                #     subject=f"New Coinbase listing: {coin_symbol}",
+                #     text_content=f"Coinbase just listed {coin_symbol}",
+                #     html_content=f"Coinbase just listed {coin_symbol}",
+                #     custom_recipient=mailjet_to_email_2,
+                # )
+        else:
+            print("No new coins added.")
+        # Save the current list to file
+        save_listed_coins_to_file(client, file_path)
+
+        #
+        #
+        #
+
+
+
+
 
         for asset in config['assets']:
             enabled = asset['enabled']

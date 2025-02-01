@@ -4,6 +4,8 @@ config.json
 
 *_orders.json
 
+listed_coins.json
+
 /screenshots
 
 .DS_Store
