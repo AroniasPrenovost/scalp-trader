@@ -1242,7 +1242,7 @@ def plot_graph(
 
 
 # Function to save current listed coins to a timestamped file
-def save_coins_with_timestamp(coins, directory):
+def save_coindata_with_timestamp(coins, directory):
     if not os.path.exists(directory):
         os.makedirs(directory)
 
@@ -1255,7 +1255,7 @@ def save_coins_with_timestamp(coins, directory):
     print(f"Listed coins saved to {file_path}.")
 
 # Function to check if the most recent file is older than 30 minutes
-def is_most_recent_file_old(directory, minutes=30):
+def is_most_recent_file_older_than_x_mins(directory, minutes=30):
     if not os.path.exists(directory):
         return True
 
@@ -1268,7 +1268,7 @@ def is_most_recent_file_old(directory, minutes=30):
     return (time.time() - file_creation_time) > (minutes * 60)
 
 # Function to delete files older than a specified number of hours
-def delete_old_files(directory, hours=6):
+def delete_files_older_than_x_hours(directory, hours=6):
     if not os.path.exists(directory):
         print(f"Directory {directory} does not exist.")
         return
@@ -1371,24 +1371,10 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         # Save coinbase product data and analyze
         #
 
-        # 1. save current_listed_coin_dicts to /coinbase-data
-        #  - file name should have timestamp
-
-        # 2. if most recent file in /coinbase data is +30 mins old, repeat step 1
-        # Save current_listed_coins_dicts to /coinbase-data with timestamp
         coinbase_data_directory = 'coinbase-data'
-        save_coins_with_timestamp(current_listed_coins_dicts, coinbase_data_directory)
-
-        # Check if the most recent file is older than 30 minutes
-        if is_most_recent_file_old(coinbase_data_directory, minutes=3):
-            save_coins_with_timestamp(current_listed_coins_dicts, coinbase_data_directory)
-
-        # Delete files older than 6 hours
-        # delete_old_files(coinbase_data_directory, hours=0.25)
-
-        # Sleep for the specified interval
-        # time.sleep(interval_minutes * 60 + interval_seconds)
-
+        if is_most_recent_file_older_than_x_mins(coinbase_data_directory, minutes=15):
+            save_coindata_with_timestamp(current_listed_coins_dicts, coinbase_data_directory)
+        delete_files_older_than_x_hours(coinbase_data_directory, hours=4)
 
         #
         #
