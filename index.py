@@ -1240,7 +1240,6 @@ def plot_graph(
 #
 #
 
-
 # Function to save current listed coins to a timestamped file
 def save_coindata_with_timestamp(coins, directory):
     if not os.path.exists(directory):
@@ -1335,11 +1334,8 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         #
 
         file_path = 'listed_coins.json'
-        # Fetch the current list of products
         current_listed_coins = client.get_products()['products']
-        # Convert products to dictionaries
         current_listed_coins_dicts = convert_products_to_dicts(current_listed_coins)
-        # Check for new coins
         new_coins = check_for_new_coins(file_path, current_listed_coins_dicts)
         if new_coins:
             print("New coins added:")
@@ -1349,7 +1345,6 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 current_price = get_asset_price(coin_symbol)
                 print(f"current_price: {current_price}")
                 time.sleep(2)
-
                 send_email_notification(
                     subject=f"New Coinbase listing: {coin_symbol}",
                     text_content=f"Coinbase just listed {coin_symbol}",
@@ -1363,7 +1358,6 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 )
         else:
             print("No new coins added.")
-        # Save the current list to file
         save_listed_coins_to_file(client, file_path)
 
         #
