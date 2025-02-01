@@ -277,12 +277,6 @@ def determine_trend_2(prices, lookback_period=30, short_window=20, long_window=5
     recent_low = recent_prices.min()
     current_price = prices_series.iloc[-1]
 
-    # Debugging: Print key variables
-    # print(f"Current Price: {current_price}")
-    # print(f"Recent High: {recent_high}")
-    # print(f"Recent Low: {recent_low}")
-    # print(f"ATR: {atr.iloc[-1]}")
-    # print(f"Trend: {trend[-1]}")
     if trend[-1] == 'upward':
         return 'bullish'
     elif trend[-1] == 'downward':
