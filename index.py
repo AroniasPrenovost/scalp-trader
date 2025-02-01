@@ -1371,7 +1371,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         delete_files_older_than_x_hours(coinbase_data_directory, hours=4)
 
         # TODO: use all files in /coinbase-data and calculate the price_change_percentage for each coin
-        # use the most efficient algorithm possible
+        # make sure you use the most efficient algorithm possible
 
         #
         #
