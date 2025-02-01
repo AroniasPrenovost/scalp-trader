@@ -25,7 +25,6 @@ def load_config(file_path):
         return load(file)
 
 
-
 # def compound_reinvestment(initial_amount, rate, increments):
 #     principal = initial_amount
 #     for _ in range(increments):
@@ -41,7 +40,6 @@ def load_config(file_path):
 # final_amount = compound_reinvestment(initial_amount, rate, increments)
 # print(f"Final amount after reinvesting profits for {increments} increments: {final_amount:.2f}")
 # quit()
-
 
 #
 #
