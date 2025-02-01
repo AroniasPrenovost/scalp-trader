@@ -86,7 +86,7 @@ MAX_SCREENSHOT_AGE_HOURS = 8
 
 # ------------------
 INTERVAL_SECONDS = 15
-INTERVAL_MINUTES = 60
+INTERVAL_MINUTES = 15
 # ------------------
 # INTERVAL_SECONDS = 2
 # INTERVAL_MINUTES = 360
@@ -1247,10 +1247,57 @@ def plot_graph(
         plt.close('')
 
 
+#
+#
+#
+#
+#
+#
 
-#
-#
-#
+
+# Function to save current listed coins to a timestamped file
+def save_coins_with_timestamp(coins, directory):
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    timestamp = time.strftime("%Y%m%d%H%M%S", time.localtime())
+    file_name = f"listed_coins_{timestamp}.json"
+    file_path = os.path.join(directory, file_name)
+
+    with open(file_path, 'w') as file:
+        json.dump(coins, file, indent=4)
+    print(f"Listed coins saved to {file_path}.")
+
+# Function to check if the most recent file is older than 30 minutes
+def is_most_recent_file_old(directory, minutes=30):
+    if not os.path.exists(directory):
+        return True
+
+    files = [os.path.join(directory, f) for f in os.listdir(directory) if f.endswith('.json')]
+    if not files:
+        return True
+
+    most_recent_file = max(files, key=os.path.getctime)
+    file_creation_time = os.path.getctime(most_recent_file)
+    return (time.time() - file_creation_time) > (minutes * 60)
+
+# Function to delete files older than a specified number of hours
+def delete_old_files(directory, hours=6):
+    if not os.path.exists(directory):
+        print(f"Directory {directory} does not exist.")
+        return
+
+    cutoff_time = time.time() - (hours * 3600)
+
+    for filename in os.listdir(directory):
+        file_path = os.path.join(directory, filename)
+        if os.path.isfile(file_path):
+            file_creation_time = os.path.getctime(file_path)
+            if file_creation_time < cutoff_time:
+                os.remove(file_path)
+                print(f"Deleted old file: {file_path}")
+
+
 
 # Function to convert Product objects to dictionaries
 def convert_products_to_dicts(products):
@@ -1342,7 +1389,19 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         #  - file name should have timestamp
 
         # 2. if most recent file in /coinbase data is +30 mins old, repeat step 1
+        # Save current_listed_coins_dicts to /coinbase-data with timestamp
+        coinbase_data_directory = 'coinbase-data'
+        save_coins_with_timestamp(current_listed_coins_dicts, coinbase_data_directory)
 
+        # Check if the most recent file is older than 30 minutes
+        if is_most_recent_file_old(coinbase_data_directory, minutes=3):
+            save_coins_with_timestamp(current_listed_coins_dicts, coinbase_data_directory)
+
+        # Delete files older than 6 hours
+        # delete_old_files(coinbase_data_directory, hours=0.25)
+
+        # Sleep for the specified interval
+        # time.sleep(interval_minutes * 60 + interval_seconds)
 
 
         #
