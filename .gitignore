@@ -6,6 +6,8 @@ config.json
 
 listed_coins.json
 
+/coinbase-data
+
 /screenshots
 
 .DS_Store

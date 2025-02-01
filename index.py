@@ -1287,9 +1287,6 @@ def check_for_new_coins(file_path, new_listed_coins):
 #
 #
 #
-#
-#
-#
 # main logic loop
 #
 
@@ -1299,6 +1296,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         global LAST_EXCEPTION_ERROR
         global SAME_ERROR_COUNT
 
+        #
         #
         # ALERT NEW COIN LISTINGS
         #
@@ -1335,6 +1333,19 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         # Save the current list to file
         save_listed_coins_to_file(client, file_path)
 
+        #
+        #
+        # Save coinbase product data and analyze
+        #
+
+        # 1. save current_listed_coin_dicts to /coinbase-data
+        #  - file name should have timestamp
+
+        # 2. if most recent file in /coinbase data is +30 mins old, repeat step 1
+
+
+
+        #
         #
         # iterate through config assets
         #
@@ -1598,16 +1609,6 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     # stable pairs
                     #
                     if stable_pair == True:
-                        # example prices
-                        # 0.9993
-                        # 0.99925
-                        #
-                        #
-                        # RANGE 1
-                        # 0.99943 -> 0.99962
-                        # potential_profit_USD: 0.23637804999997553
-                        # potential_profit_percentage: 0.0124%
-
                         if current_price <= stable_buy_at_price:
                             if READY_TO_TRADE == True:
                                 print(symbol)
@@ -1662,20 +1663,6 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                                             event_type = 'buy'
                                         else:
                                             print('trading disabled')
-                            #
-                            # Strategy #2
-                            #
-                            # Buy looking to current price crosses above SMA
-                            # if sma is not None and macd_line is not None and signal_line is not None:
-                            #     if current_price > sma and macd_line > signal_line:
-                            #         print('~ BUY OPPORTUNITY (current_price > sma, MACD crossover)~')
-                            #         place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                                # elif current_price < lower_bollinger_band:
-                                #     print('~ BUY OPPORTUNITY (price below lower Bollinger Band)~')
-                                #     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
-                                # elif current_price_position_within_trading_range < 6:
-                                #     print('~ BUY OPPORTUNITY (current_price_position_within_trading_range < 6)~')
-                                #     place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
 
 
                 #
@@ -1742,37 +1729,8 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                                 else:
                                     print('trading disabled')
 
-                            # if current_price >= resistance:
-                            #     print('~ SELL OPPORTUNITY (price near resistance) ~')
-                            #     if READY_TO_TRADE == True:
-                            #         place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
-                            #         event_type = 'sell'
-                            #     else:
-                            #         print('trading disabled')
-                            # elif sma is not None and current_price < sma:
-                            #     print('~ SELL OPPORTUNITY (price < SMA) ~')
-                            #     if READY_TO_TRADE == True:
-                            #         place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
-                            #         event_type = 'sell'
-                            #     else:
-                            #         print('trading disabled')
-                            # elif fibonacci_levels['level_61.8'] > current_price:
-                            #     print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
-                            #     if READY_TO_TRADE == True:
-                            #         place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
-                            #         event_type = 'sell'
-                            #     else:
-                            #         print('trading disabled')
-                            # else:
-                            #     print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
-                            #     if READY_TO_TRADE == True:
-                            #         place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
-                            #         event_type = 'sell'
-                            #     else:
-                            #         print('trading disabled')
 
-                # call it once instead of twice for the following functions
-                current_time = time.time()
+                current_time = time.time() # call it once instead of twice for the following functions
 
                 # Visualize indicators in a graph
                 plot_graph(
@@ -1816,14 +1774,13 @@ if __name__ == "__main__":
         except Exception as e:
             current_exception_error = str(e)
             print(f"An error occurred: {current_exception_error}. Restarting the program...")
-            if current_exception_error != LAST_EXCEPTION_ERROR: # Check if the current error is different from the last error
+            if current_exception_error != LAST_EXCEPTION_ERROR:
                 send_email_notification(
                     subject="App crashed - restarting - scalp-scripts",
                     text_content=f"An error occurred: {current_exception_error}. Restarting the program...",
                     html_content=f"An error occurred: {current_exception_error}. Restarting the program..."
                 )
-                LAST_EXCEPTION_ERROR = current_exception_error # Update the last exception error
-                print('\n')
+                LAST_EXCEPTION_ERROR = current_exception_error
             else:
                 SAME_ERROR_COUNT += 1
                 if SAME_ERROR_COUNT == MAX_SAME_ERROR_COUNT:
@@ -1838,4 +1795,4 @@ if __name__ == "__main__":
                     print(f"Same error as last time ({SAME_ERROR_COUNT}/{MAX_SAME_ERROR_COUNT})")
                     print('\n')
 
-            time.sleep(10)  # Wait 10 seconds before restarting
+            time.sleep(10)
