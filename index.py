@@ -517,12 +517,6 @@ def send_email_notification(subject, text_content, html_content, custom_recipien
         print(f"Failed to send email. Status code: {result.status_code}, Error: {result.json()}")
 
 
-# send_email_notification(
-#     subject="Test email subject",
-#     text_content="testing text content",
-#     html_content="testing content"
-# )
-
 #
 #
 # Coinmarketcap API and data
