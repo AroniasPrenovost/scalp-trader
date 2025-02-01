@@ -1299,14 +1299,9 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         global LAST_EXCEPTION_ERROR
         global SAME_ERROR_COUNT
 
-
-
-
-
         #
         # ALERT NEW COIN LISTINGS
         #
-
 
         file_path = 'listed_coins.json'
         # Fetch the current list of products
@@ -1329,12 +1324,12 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     text_content=f"Coinbase just listed {coin_symbol}",
                     html_content=f"Coinbase just listed {coin_symbol}"
                 )
-                # send_email_notification(
-                #     subject=f"New Coinbase listing: {coin_symbol}",
-                #     text_content=f"Coinbase just listed {coin_symbol}",
-                #     html_content=f"Coinbase just listed {coin_symbol}",
-                #     custom_recipient=mailjet_to_email_2,
-                # )
+                send_email_notification(
+                    subject=f"New Coinbase listing: {coin_symbol}",
+                    text_content=f"Coinbase just listed {coin_symbol}",
+                    html_content=f"Coinbase just listed {coin_symbol}",
+                    custom_recipient=mailjet_to_email_2,
+                )
         else:
             print("No new coins added.")
         # Save the current list to file
@@ -1343,7 +1338,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         #
         # iterate through config assets
         #
-        
+
         config = load_config('config.json')
 
         for asset in config['assets']:
