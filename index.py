@@ -1386,7 +1386,7 @@ def send_buy_signal_email(symbol):
     last_sent_time = LAST_EMAIL_SENT_TIME.get(symbol, 0)
 
     # Check if an hour has passed since the last email
-    if current_time - last_sent_time >= 3600:
+    if current_time - last_sent_time >= 7500:
         send_email_notification(
             subject=f"BUY signal: {symbol}",
             text_content=f"volume + volatility indicators",
