@@ -1380,6 +1380,28 @@ def calculate_price_changes_for_assets(directory, symbol):
     price_change_percentage = calculate_price_change_percentage(old_price, new_price)
     return price_change_percentage
 
+LAST_EMAIL_SENT_TIME = {}
+def send_buy_signal_email(symbol):
+    current_time = time.time()
+    last_sent_time = LAST_EMAIL_SENT_TIME.get(symbol, 0)
+
+    # Check if an hour has passed since the last email
+    if current_time - last_sent_time >= 3600:
+        send_email_notification(
+            subject=f"BUY signal: {symbol}",
+            text_content=f"volume + volatility indicators",
+            html_content=f"volume + volatility indicators"
+        )
+        send_email_notification(
+            subject=f"BUY signal: {symbol}",
+            text_content=f"volume + volatility indicators",
+            html_content=f"volume + volatility indicators",
+            custom_recipient=mailjet_to_email_2,
+        )
+        # Update the last email sent time
+        LAST_EMAIL_SENT_TIME[symbol] = current_time
+    else:
+        print(f"Email for {symbol} not sent. Waiting for the cooldown period to end.")
 
 
 #
@@ -1462,17 +1484,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     print(f"{signal} - {coin['product_id']}")
                     print(f"change percentage: {coin['product_id']}: {price_change_percentage:.2f}%")
                     print(coin)
-                    send_email_notification(
-                        subject=f"BUY signal: {coin['product_id']}",
-                        text_content=f"volume + volatility indicators",
-                        html_content=f"volume + volatility indicators"
-                    )
-                    # send_email_notification(
-                    #     subject=f"BUY signal: {coin['product_id']}",
-                    #     text_content=f"volume + volatility indicators",
-                    #     html_content=f"volume + volatility indicators",
-                    #     custom_recipient=mailjet_to_email_2,
-                    # )
+                    send_buy_signal_email(coin['product_id'])
                     print('___________________________')
             else:
                 print('waiting for more data to do calculations')
