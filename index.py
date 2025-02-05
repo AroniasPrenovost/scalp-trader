@@ -17,6 +17,8 @@ from coinbase.rest import RESTClient
 from mailjet_rest import Client
 # parse CLI args
 import argparse
+# related to price change % logic
+import glob
 
 load_dotenv()
 
@@ -1315,6 +1317,71 @@ def check_for_new_coins(file_path, new_listed_coins):
 
     return new_coins
 
+def count_files_in_directory(directory_path):
+    """
+    Returns the number of files in the specified directory.
+
+    :param directory_path: Path to the directory
+    :return: Number of files in the directory
+    """
+    try:
+        # List all entries in the directory
+        entries = os.listdir(directory_path)
+
+        # Filter out directories, only count files
+        files = [entry for entry in entries if os.path.isfile(os.path.join(directory_path, entry))]
+
+        return len(files)
+    except Exception as e:
+        print(f"Error counting files in directory {directory_path}: {e}")
+        return None
+
+
+#
+#
+#
+#
+
+
+def calculate_price_change_percentage(old_price, new_price):
+    if old_price == 0:
+        return 0
+    return ((new_price - old_price) / old_price) * 100
+
+def get_price_from_data(data, symbol):
+    for coin in data:
+        if coin['product_id'] == symbol:
+            return float(coin['price'])
+    return None
+
+def calculate_price_changes_for_assets(directory, symbol):
+    # Get all JSON files in the directory, sorted by creation time
+    files = sorted(glob.glob(os.path.join(directory, '*.json')), key=os.path.getctime)
+
+    if len(files) < 2:
+        print("Not enough data files to calculate price changes.")
+        return None
+
+    # Load the oldest and newest data files
+    with open(files[0], 'r') as old_file:
+        old_data = json.load(old_file)
+    with open(files[-1], 'r') as new_file:
+        new_data = json.load(new_file)
+
+    # Get prices for the specified symbol
+    old_price = get_price_from_data(old_data, symbol)
+    new_price = get_price_from_data(new_data, symbol)
+
+    if old_price is None or new_price is None:
+        print(f"Price data for {symbol} not found in the files.")
+        return None
+
+    # Calculate the price change percentage
+    price_change_percentage = calculate_price_change_percentage(old_price, new_price)
+    return price_change_percentage
+
+
+
 #
 #
 #
@@ -1366,13 +1433,50 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         #
 
         coinbase_data_directory = 'coinbase-data'
-        if is_most_recent_file_older_than_x_mins(coinbase_data_directory, minutes=15):
+        if is_most_recent_file_older_than_x_mins(coinbase_data_directory, minutes=5):
             save_coindata_with_timestamp(current_listed_coins_dicts, coinbase_data_directory)
-        delete_files_older_than_x_hours(coinbase_data_directory, hours=4)
+        delete_files_older_than_x_hours(coinbase_data_directory, hours=1)
 
-        # TODO: use all files in /coinbase-data and calculate the price_change_percentage for each coin
-        # make sure you use the most efficient algorithm possible
+        files_in_folder = count_files_in_directory(coinbase_data_directory)
+        for coin in current_listed_coins_dicts:
+            if files_in_folder > 1:
+                price_change_percentage = calculate_price_changes_for_assets(coinbase_data_directory, coin['product_id'])
+                print(f"{coin['product_id']}:")
+                print(f"{float(coin['price_percentage_change_24h'])} - my calc: {price_change_percentage}")
+                print(' ')
+                volume_signal = generate_volume_signal(float(coin['volume_24h']), float(coin['volume_percentage_change_24h']), float(coin['price_percentage_change_24h']))
+                volatility = volume_volatility_indicator(float(coin['volume_24h']), float(coin['volume_percentage_change_24h']), price_change_percentage) # price_change_1h)
 
+                signal = 'hold'
+                if volume_signal == 1 and volatility < 2:
+                    signal = 'buy'
+                    # Strong volume support with low volatility"
+                elif volume_signal == -1 and volatility > 3:
+                    signal = 'sell'
+                    # Weakening volume and high volatility"
+                else:
+                    signal = 'hold'
+
+                if signal == 'buy':
+                    print('___________________________')
+                    print(f"{signal} - {coin['product_id']}")
+                    print(f"change percentage: {coin['product_id']}: {price_change_percentage:.2f}%")
+                    print(coin)
+                    send_email_notification(
+                        subject=f"BUY signal: {coin['product_id']}",
+                        text_content=f"volume + volatility indicators",
+                        html_content=f"volume + volatility indicators"
+                    )
+                    # send_email_notification(
+                    #     subject=f"BUY signal: {coin['product_id']}",
+                    #     text_content=f"volume + volatility indicators",
+                    #     html_content=f"volume + volatility indicators",
+                    #     custom_recipient=mailjet_to_email_2,
+                    # )
+                    print('___________________________')
+            else:
+                print('waiting for more data to do calculations')
+        print(' ')
         #
         #
         # iterate through config assets
