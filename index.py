@@ -1351,7 +1351,12 @@ def calculate_price_change_percentage(old_price, new_price):
 def get_price_from_data(data, symbol):
     for coin in data:
         if coin['product_id'] == symbol:
-            return float(coin['price'])
+            price = coin.get('price', '')
+            if price:  # Check if price is not an empty string
+                return float(price)
+            else:
+                print(f"Warning: Price for {symbol} is missing or empty.")
+                return None
     return None
 
 def calculate_price_changes_for_assets(directory, symbol):
@@ -1380,28 +1385,6 @@ def calculate_price_changes_for_assets(directory, symbol):
     price_change_percentage = calculate_price_change_percentage(old_price, new_price)
     return price_change_percentage
 
-LAST_EMAIL_SENT_TIME = {}
-def send_buy_signal_email(symbol):
-    current_time = time.time()
-    last_sent_time = LAST_EMAIL_SENT_TIME.get(symbol, 0)
-
-    # Check if an hour has passed since the last email
-    if current_time - last_sent_time >= 7500:
-        send_email_notification(
-            subject=f"BUY signal: {symbol}",
-            text_content=f"volume + volatility indicators",
-            html_content=f"volume + volatility indicators"
-        )
-        send_email_notification(
-            subject=f"BUY signal: {symbol}",
-            text_content=f"volume + volatility indicators",
-            html_content=f"volume + volatility indicators",
-            custom_recipient=mailjet_to_email_2,
-        )
-        # Update the last email sent time
-        LAST_EMAIL_SENT_TIME[symbol] = current_time
-    else:
-        print(f"Email for {symbol} not sent. Waiting for the cooldown period to end.")
 
 
 #
@@ -1413,6 +1396,13 @@ def send_buy_signal_email(symbol):
 
 def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes):
     while True:
+
+        # Get the current local time
+        local_time = time.localtime()
+        # Format the local time into a human-readable string
+        formatted_time = time.strftime("%Y-%m-%d %H:%M:%S", local_time)
+        # Print the formatted local time
+        print("Time:", formatted_time)
 
         global LAST_EXCEPTION_ERROR
         global SAME_ERROR_COUNT
@@ -1463,29 +1453,29 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         for coin in current_listed_coins_dicts:
             if files_in_folder > 1:
                 price_change_percentage = calculate_price_changes_for_assets(coinbase_data_directory, coin['product_id'])
-                print(f"{coin['product_id']}:")
-                print(f"{float(coin['price_percentage_change_24h'])} - my calc: {price_change_percentage}")
-                print(' ')
-                volume_signal = generate_volume_signal(float(coin['volume_24h']), float(coin['volume_percentage_change_24h']), float(coin['price_percentage_change_24h']))
-                volatility = volume_volatility_indicator(float(coin['volume_24h']), float(coin['volume_percentage_change_24h']), price_change_percentage) # price_change_1h)
+
+
+                try:
+                    volume_24h = float(coin['volume_24h'])
+                    volume_percentage_change_24h = float(coin['volume_percentage_change_24h'])
+                    price_percentage_change_24h = float(coin['price_percentage_change_24h'])
+                except ValueError as e:
+                    print(f"Error: Could not convert volume or price change data for {coin['product_id']}. Error: {e}")
+                    continue
+
+                volume_signal = generate_volume_signal(volume_24h, volume_percentage_change_24h, price_percentage_change_24h)
+                volatility = volume_volatility_indicator(volume_24h, volume_percentage_change_24h, price_change_percentage)
 
                 signal = 'hold'
                 if volume_signal == 1 and volatility < 2:
                     signal = 'buy'
-                    # Strong volume support with low volatility"
                 elif volume_signal == -1 and volatility > 3:
                     signal = 'sell'
-                    # Weakening volume and high volatility"
-                else:
-                    signal = 'hold'
 
                 if signal == 'buy':
-                    print('___________________________')
                     print(f"{signal} - {coin['product_id']}")
-                    print(f"change percentage: {coin['product_id']}: {price_change_percentage:.2f}%")
-                    print(coin)
-                    send_buy_signal_email(coin['product_id'])
-                    print('___________________________')
+                    print(f"change: {price_change_percentage:.2f}%")
+                    print('\n')
             else:
                 print('waiting for more data to do calculations')
         print(' ')
