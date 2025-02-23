@@ -1469,12 +1469,13 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 signal = 'hold'
                 if volume_signal == 1 and volatility < 2:
                     signal = 'buy'
+                    print(f"{signal.upper()}: {coin['product_id']} ({price_change_percentage:.2f}%)")
+                    print('\n')
                 elif volume_signal == -1 and volatility > 3:
                     signal = 'sell'
                     print(f"{signal.upper()}: {coin['product_id']} ({price_change_percentage:.2f}%)")
-                if signal == 'buy':
-                    print(f"{signal.upper()}: {coin['product_id']} ({price_change_percentage:.2f}%)")
                     print('\n')
+
             else:
                 print('waiting for more data to do calculations')
         print(' ')
