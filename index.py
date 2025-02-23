@@ -1465,15 +1465,21 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
                 volume_signal = generate_volume_signal(volume_24h, volume_percentage_change_24h, price_percentage_change_24h)
                 volatility = volume_volatility_indicator(volume_24h, volume_percentage_change_24h, price_change_percentage)
-
-                signal = 'hold'
+                coinbase_data_signal = 'hold'
                 if volume_signal == 1 and volatility < 2:
-                    signal = 'buy'
-                    print(f"{signal.upper()}: {coin['product_id']} ({price_change_percentage:.2f}%)")
-                    print('\n')
+                    coinbase_data_signal = 'buy'
                 elif volume_signal == -1 and volatility > 3:
-                    signal = 'sell'
-                    print(f"{signal.upper()}: {coin['product_id']} ({price_change_percentage:.2f}%)")
+                    coinbase_data_signal = 'sell'
+
+
+                if coinbase_data_signal != 'hold'and "USDC" not in coin['product_id']:
+                    cmc_volume_data = fetch_coinmarketcap_volume_data(coin['product_id'])
+                    # print(volume_data)
+                    cmc_data_signal = volume_based_strategy_recommendation(cmc_volume_data) # ('buy', 'sell', 'hold')
+
+                    print(f"{coin['product_id']}  -  {price_change_percentage:.2f}%)")
+                    print('signal 1: ', coinbase_data_signal.upper())
+                    print('signal 2: ', cmc_data_signal.upper())
                     print('\n')
 
             else:
