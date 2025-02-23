@@ -1445,9 +1445,9 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         #
 
         coinbase_data_directory = 'coinbase-data'
-        if is_most_recent_file_older_than_x_mins(coinbase_data_directory, minutes=5):
+        if is_most_recent_file_older_than_x_mins(coinbase_data_directory, minutes=10):
             save_coindata_with_timestamp(current_listed_coins_dicts, coinbase_data_directory)
-        delete_files_older_than_x_hours(coinbase_data_directory, hours=1)
+        delete_files_older_than_x_hours(coinbase_data_directory, hours=2)
 
         files_in_folder = count_files_in_directory(coinbase_data_directory)
         for coin in current_listed_coins_dicts:
@@ -1471,10 +1471,9 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     signal = 'buy'
                 elif volume_signal == -1 and volatility > 3:
                     signal = 'sell'
-
+                    print(f"{signal.upper()}: {coin['product_id']} ({price_change_percentage:.2f}%)")
                 if signal == 'buy':
-                    print(f"{signal} - {coin['product_id']}")
-                    print(f"change: {price_change_percentage:.2f}%")
+                    print(f"{signal.upper()}: {coin['product_id']} ({price_change_percentage:.2f}%)")
                     print('\n')
             else:
                 print('waiting for more data to do calculations')
