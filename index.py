@@ -59,6 +59,14 @@ VOLUME_BASED_RECOMMENDATIONS = {}
 
 #
 #
+# Initialize a dictionary to store volume-based recommendations based on each provider data
+#
+
+COINBASE_DATA_RECOMMENDATIONS = {}
+CMC_DATA_RECOMMENDATIONS = {}
+
+#
+#
 # Initialize a dictionary to store support and resistance levels for each asset
 #
 
@@ -1436,7 +1444,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     custom_recipient=mailjet_to_email_2,
                 )
         else:
-            print("No new coins added.")
+            print("No new coins added.\n")
         save_listed_coins_to_file(client, file_path)
 
         #
@@ -1452,8 +1460,11 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         files_in_folder = count_files_in_directory(coinbase_data_directory)
         for coin in current_listed_coins_dicts:
             if files_in_folder > 1:
-                price_change_percentage = calculate_price_changes_for_assets(coinbase_data_directory, coin['product_id'])
 
+                if coin['product_id'] == 'YFI-BTC':
+                    continue
+
+                price_change_percentage_range = calculate_price_changes_for_assets(coinbase_data_directory, coin['product_id'])
 
                 try:
                     volume_24h = float(coin['volume_24h'])
@@ -1464,27 +1475,69 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     continue
 
                 volume_signal = generate_volume_signal(volume_24h, volume_percentage_change_24h, price_percentage_change_24h)
-                volatility = volume_volatility_indicator(volume_24h, volume_percentage_change_24h, price_change_percentage)
+                volatility = volume_volatility_indicator(volume_24h, volume_percentage_change_24h, price_change_percentage_range)
                 coinbase_data_signal = 'hold'
                 if volume_signal == 1 and volatility < 2:
                     coinbase_data_signal = 'buy'
                 elif volume_signal == -1 and volatility > 3:
                     coinbase_data_signal = 'sell'
 
+                # storing in local arrays
+                if coin['product_id'] not in COINBASE_DATA_RECOMMENDATIONS:
+                    COINBASE_DATA_RECOMMENDATIONS[coin['product_id']] = 0
+                if coin['product_id'] not in CMC_DATA_RECOMMENDATIONS:
+                    CMC_DATA_RECOMMENDATIONS[coin['product_id']] = 0
 
-                if coinbase_data_signal != 'hold'and "USDC" not in coin['product_id']:
-                    cmc_volume_data = fetch_coinmarketcap_volume_data(coin['product_id'])
-                    # print(volume_data)
-                    cmc_data_signal = volume_based_strategy_recommendation(cmc_volume_data) # ('buy', 'sell', 'hold')
+                if "USDC" not in coin['product_id']:
+                    if coinbase_data_signal != 'hold':
 
-                    print(f"{coin['product_id']}  -  {price_change_percentage:.2f}%)")
-                    print('signal 1: ', coinbase_data_signal.upper())
-                    print('signal 2: ', cmc_data_signal.upper())
-                    print('\n')
+                        time.sleep(4) # helps with rate limiting
+
+                        cmc_volume_data = fetch_coinmarketcap_volume_data(coin['product_id'])
+                        cmc_data_signal = volume_based_strategy_recommendation(cmc_volume_data) # ('buy', 'sell', 'hold')
+
+                        # tracking changes recommendations
+                        cb_string = ''
+                        cmc_string = ''
+                        if COINBASE_DATA_RECOMMENDATIONS[coin['product_id']] != coinbase_data_signal:
+                            cb_string = f"coinbase: {str(COINBASE_DATA_RECOMMENDATIONS[coin['product_id']]).upper()} --> {str(coinbase_data_signal).upper()}"
+                            COINBASE_DATA_RECOMMENDATIONS[coin['product_id']] = coinbase_data_signal
+                        if CMC_DATA_RECOMMENDATIONS[coin['product_id']] != cmc_data_signal:
+                            cmc_string = f"cmc: {str(CMC_DATA_RECOMMENDATIONS[coin['product_id']]).upper()} --> {str(cmc_data_signal).upper()}"
+                            CMC_DATA_RECOMMENDATIONS[coin['product_id']] = cmc_data_signal
+
+                        changed_recommendation = False;
+                        if cb_string != '' or cmc_string != '':
+                            changed_recommendation = True
+
+                        if changed_recommendation == True:
+                            print(f"{coin['product_id']} ({price_change_percentage_range:.2f}%)")
+                            print(f"1h: {cmc_volume_data['quote']['USD']['percent_change_1h']}%")
+                            print(f"24h: {coin['price_percentage_change_24h']}%")
+                            if cb_string != '':
+                                print(cb_string)
+                            if cmc_string != '':
+                                print(cmc_string)
+                            # print('coinbase signal: ', coinbase_data_signal.upper())
+                            # print('cmc signal: ', cmc_data_signal.upper())
+
+                        if coinbase_data_signal == cmc_data_signal:
+                            if changed_recommendation == True:
+                                if coinbase_data_signal == 'buy':
+                                    print('BUY BUY')
+                                    send_email_notification(
+                                        subject=f"BUY signal: {coin['product_id']}",
+                                        text_content=f"Both signals indicated BUY: {coin['product_id']}",
+                                        html_content=f"Both signals indicated BUY: {coin['product_id']}"
+                                    )
+                                else:
+                                    print('SELL SELL')
+
+                        print('\n')
 
             else:
                 print('waiting for more data to do calculations')
-        print(' ')
+
         #
         #
         # iterate through config assets
