@@ -23,7 +23,8 @@ import glob
 # custom imports
 from utils.email import send_email_notification
 from utils.file_helpers import count_files_in_directory, delete_files_older_than_x_hours, is_most_recent_file_older_than_x_minutes
-from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order
+# from utils.price_helpers import
+from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order, get_asset_price
 coinbase_client = get_coinbase_client()
 
 #
@@ -178,20 +179,6 @@ coinbase_stable_pair_spot_maker_fee = float(os.environ.get('COINBASE_STABLE_PAIR
 coinbase_stable_pair_spot_taker_fee = float(os.environ.get('COINBASE_STABLE_PAIR_SPOT_TAKER_FEE'))
 federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
 
-
-#
-#
-# Get current price
-#
-
-def get_asset_price(symbol):
-    try:
-        product = coinbase_client.get_product(symbol)
-        price = float(product["price"])
-        return price
-    except Exception as e:
-        print(f"Error fetching product price for {symbol}: {e}")
-        return None
 
 #
 #
@@ -379,7 +366,7 @@ if mode == 'test':
             IS_TEST_MODE = True
             print(f"Generating test data for {symbol}...")
 
-            start_price = get_asset_price(symbol)
+            start_price = get_asset_price(coinbase_client, symbol)
 
             symbol = asset['symbol']
             SHARES_TO_ACQUIRE = asset['shares_to_acquire']
@@ -594,16 +581,7 @@ def detect_stored_coinbase_order_type(last_order):
 
 
 
-#
-#
-# Generate (arbitrary) custom order id
-#
 
-def generate_client_order_id(symbol, action):
-    symbol = symbol.lower()
-    action = action.lower()
-    custom_id = f"{symbol}_{action}_{time.time()}"
-    return custom_id
 
 #
 #
@@ -1213,7 +1191,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
             for coin in new_coins:
                 coin_symbol = coin['product_id']
                 print(coin_symbol)
-                current_price = get_asset_price(coin_symbol)
+                current_price = get_asset_price(coinbase_client, coin_symbol)
                 print(f"current_price: {current_price}")
                 time.sleep(2)
                 send_email_notification(
@@ -1416,7 +1394,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 if symbol not in LOCAL_PRICE_DATA:
                     LOCAL_PRICE_DATA[symbol] = deque(maxlen=data_points_for_x_minutes)
 
-                current_price = get_asset_price(symbol)
+                current_price = get_asset_price(coinbase_client, symbol)
 
                 if current_price is not None:
                     LOCAL_PRICE_DATA[symbol].append(current_price)
