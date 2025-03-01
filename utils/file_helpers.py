@@ -40,3 +40,17 @@ def delete_files_older_than_x_hours(directory, hours):
             if file_creation_time < cutoff_time:
                 os.remove(file_path)
                 print(f"Deleted old file: {file_path}")
+
+
+# Function to check if the most recent file is older than 30 minutes
+def is_most_recent_file_older_than_x_minutes(directory, minutes):
+    if not os.path.exists(directory):
+        return True
+
+    files = [os.path.join(directory, f) for f in os.listdir(directory) if f.endswith('.json')]
+    if not files:
+        return True
+
+    most_recent_file = max(files, key=os.path.getctime)
+    file_creation_time = os.path.getctime(most_recent_file)
+    return (time.time() - file_creation_time) > (minutes * 60)

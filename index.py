@@ -22,7 +22,7 @@ import glob
 
 # custom imports
 from utils.email import send_email_notification
-from utils.file_helpers import count_files_in_directory, delete_files_older_than_x_hours
+from utils.file_helpers import count_files_in_directory, delete_files_older_than_x_hours, is_most_recent_file_older_than_x_minutes
 from utils.coinbase import get_coinbase_client
 
 #
@@ -1145,18 +1145,7 @@ def save_new_coinbase_data(coins, directory):
         json.dump(coins, file, indent=4)
     print(f"Listed coins saved to {file_path}.")
 
-# Function to check if the most recent file is older than 30 minutes
-def is_last_file_older_than_x_minutes(directory, minutes):
-    if not os.path.exists(directory):
-        return True
 
-    files = [os.path.join(directory, f) for f in os.listdir(directory) if f.endswith('.json')]
-    if not files:
-        return True
-
-    most_recent_file = max(files, key=os.path.getctime)
-    file_creation_time = os.path.getctime(most_recent_file)
-    return (time.time() - file_creation_time) > (minutes * 60)
 
 
 
@@ -1335,7 +1324,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         #
 
         coinbase_price_history_files = 'coinbase-data'
-        if is_last_file_older_than_x_minutes(coinbase_price_history_files, minutes=5):
+        if is_most_recent_file_older_than_x_minutes(coinbase_price_history_files, minutes=5):
             save_new_coinbase_data(current_listed_coins_dicts, coinbase_price_history_files)
         delete_files_older_than_x_hours(coinbase_price_history_files, hours=2)
 
