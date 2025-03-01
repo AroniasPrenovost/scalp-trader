@@ -64,6 +64,7 @@ VOLUME_BASED_RECOMMENDATIONS = {}
 
 COINBASE_DATA_RECOMMENDATIONS = {}
 CMC_DATA_RECOMMENDATIONS = {}
+TREND_NOTIFICATIONS = {}
 
 #
 #
@@ -1394,6 +1395,40 @@ def calculate_price_changes_for_assets(directory, symbol):
     return price_change_percentage
 
 
+### Explanation:
+# Market Cap Efficiency Ratio:
+#   This ratio is calculated by dividing the current market cap by the fully diluted market cap. It gives an idea of how much of the potential market cap is currently realized.
+# Usage: A ratio closer to 1 indicates that the current market cap is close to the fully diluted market cap, suggesting that most of the potential supply is already in circulation.
+#   A lower ratio indicates that there is still a significant amount of potential supply that is not yet realized in the market cap.
+def calculate_market_cap_efficiency(market_cap, fully_diluted_market_cap):
+    """
+    Calculate the Market Cap Efficiency Ratio and provide a descriptive assessment.
+
+    :param market_cap: Current market capitalization
+    :param fully_diluted_market_cap: Fully diluted market capitalization
+    :return: Tuple containing the Market Cap Efficiency Ratio and a descriptive string
+    """
+    if fully_diluted_market_cap == 0:
+        raise ValueError("Fully diluted market cap cannot be zero.")
+
+    efficiency_ratio = market_cap / fully_diluted_market_cap
+
+    if efficiency_ratio >= 0.8:
+        description = "Almost full"
+    elif 0.5 <= efficiency_ratio < 0.8:
+        description = "Moderate"
+    else:
+        description = "Low"
+
+    return efficiency_ratio, description
+
+    # Example usage
+    # market_cap = 1949346935.5773864
+    # fully_diluted_market_cap = 2200864628.78
+    #
+    # efficiency_ratio, description = calculate_market_cap_efficiency(market_cap, fully_diluted_market_cap)
+    # print(f"Market Cap Efficiency Ratio: {efficiency_ratio:.4f} - {description}")
+
 
 #
 #
@@ -1487,6 +1522,8 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     COINBASE_DATA_RECOMMENDATIONS[coin['product_id']] = 0
                 if coin['product_id'] not in CMC_DATA_RECOMMENDATIONS:
                     CMC_DATA_RECOMMENDATIONS[coin['product_id']] = 0
+                if coin['product_id'] not in TREND_NOTIFICATIONS:
+                    TREND_NOTIFICATIONS[coin['product_id']] = 0
 
                 if "USDC" not in coin['product_id']:
                     if coinbase_data_signal != 'hold':
@@ -1506,7 +1543,9 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                             cmc_string = f"cmc: {str(CMC_DATA_RECOMMENDATIONS[coin['product_id']]).upper()} --> {str(cmc_data_signal).upper()}"
                             CMC_DATA_RECOMMENDATIONS[coin['product_id']] = cmc_data_signal
 
-                        changed_recommendation = False;
+                        # print(cmc_volume_data)
+
+                        changed_recommendation = False
                         if cb_string != '' or cmc_string != '':
                             changed_recommendation = True
 
@@ -1521,17 +1560,53 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                             # print('coinbase signal: ', coinbase_data_signal.upper())
                             # print('cmc signal: ', cmc_data_signal.upper())
 
+                        efficiency_ratio, description = calculate_market_cap_efficiency(cmc_volume_data['quote']['USD']['market_cap'], cmc_volume_data['quote']['USD']['fully_diluted_market_cap'])
+                        print(coin['product_id'])
+                        print(f"Market Cap Efficiency Ratio: {efficiency_ratio:.4f} - {description}")
+
+                        if cmc_volume_data['quote']['USD']['percent_change_1h'] > 1.5:
+                            alert_count = 0
+                            if TREND_NOTIFICATIONS[coin['product_id']] == 0:
+                                alert_count = '1'
+                            else:
+                                alert_count = '2+'
+
+                            efficiency_ratio, description = calculate_market_cap_efficiency(cmc_volume_data['quote']['USD']['market_cap'], cmc_volume_data['quote']['USD']['fully_diluted_market_cap'])
+                            print(coin['product_id'])
+                            print(f"Market Cap Efficiency Ratio: {efficiency_ratio:.4f} - {description}")
+
+                            if cmc_volume_data['quote']['USD']['percent_change_1h'] > TREND_NOTIFICATIONS[coin['product_id']]:
+                                print(f"({alert_count}) uptrend: {coin['product_id']} - (1h change %: {cmc_volume_data['quote']['USD']['percent_change_1h']})\n")
+                                send_email_notification(
+                                    subject=f"~ uptrend ({alert_count}): {coin['product_id']} - (1h change %: {cmc_volume_data['quote']['USD']['percent_change_1h']}, effeciency_ratio: {efficiency_ratio:.4f} - {description})",
+                                    text_content=f"uptrend ({alert_count}): {coin['product_id']}",
+                                    html_content=f"uptrend ({alert_count}): {coin['product_id']}"
+                                )
+                        TREND_NOTIFICATIONS[coin['product_id']] = cmc_volume_data['quote']['USD']['percent_change_1h']
+
+
+
                         if coinbase_data_signal == cmc_data_signal:
                             if changed_recommendation == True:
                                 if coinbase_data_signal == 'buy':
                                     print('BUY BUY')
+
+                                    efficiency_ratio, description = calculate_market_cap_efficiency(cmc_volume_data['quote']['USD']['market_cap'], cmc_volume_data['quote']['USD']['fully_diluted_market_cap'])
+                                    print(coin['product_id'])
+                                    print(f"Market Cap Efficiency Ratio: {efficiency_ratio:.4f} - {description}")
+
                                     send_email_notification(
-                                        subject=f"BUY signal: {coin['product_id']}",
+                                        subject=f"~ buy: {coin['product_id']}, efficiency_ratio: {efficiency_ratio:.4f} - {description})",
                                         text_content=f"Both signals indicated BUY: {coin['product_id']}",
                                         html_content=f"Both signals indicated BUY: {coin['product_id']}"
                                     )
                                 else:
                                     print('SELL SELL')
+                                    # send_email_notification(
+                                    #     subject=f"~ buy: {coin['product_id']}",
+                                    #     text_content=f"Both signals indicated BUY: {coin['product_id']}",
+                                    #     html_content=f"Both signals indicated BUY: {coin['product_id']}"
+                                    # )
 
                         print('\n')
 
