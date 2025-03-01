@@ -1146,7 +1146,7 @@ def save_coindata_with_timestamp(coins, directory):
     print(f"Listed coins saved to {file_path}.")
 
 # Function to check if the most recent file is older than 30 minutes
-def is_most_recent_file_older_than_x_mins(directory, minutes=30):
+def is_last_file_older_than_x_minutes(directory, minutes):
     if not os.path.exists(directory):
         return True
 
@@ -1348,19 +1348,19 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         # Save coinbase product data and analyze
         #
 
-        coinbase_data_directory = 'coinbase-data'
-        if is_most_recent_file_older_than_x_mins(coinbase_data_directory, minutes=5):
-            save_coindata_with_timestamp(current_listed_coins_dicts, coinbase_data_directory)
-        delete_files_older_than_x_hours(coinbase_data_directory, hours=2)
+        coinbase_price_history_files = 'coinbase-data'
+        if is_last_file_older_than_x_minutes(coinbase_price_history_files, minutes=5):
+            save_coindata_with_timestamp(current_listed_coins_dicts, coinbase_price_history_files)
+        delete_files_older_than_x_hours(coinbase_price_history_files, hours=2)
 
-        files_in_folder = count_files_in_directory(coinbase_data_directory)
+        files_in_folder = count_files_in_directory(coinbase_price_history_files)
         for coin in current_listed_coins_dicts:
             if files_in_folder > 1:
 
                 if coin['product_id'] == 'YFI-BTC':
                     continue
 
-                price_change_percentage_range = calculate_price_changes_for_assets(coinbase_data_directory, coin['product_id'])
+                price_change_percentage_range = calculate_price_changes_for_assets(coinbase_price_history_files, coin['product_id'])
 
                 try:
                     volume_24h = float(coin['volume_24h'])
