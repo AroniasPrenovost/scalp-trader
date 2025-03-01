@@ -574,13 +574,6 @@ def detect_stored_coinbase_order_type(last_order):
     else:
         return 'placeholder'
 
-#
-#
-# Create a market BUY order
-#
-
-
-
 
 
 #
