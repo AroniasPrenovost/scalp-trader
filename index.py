@@ -22,7 +22,7 @@ import glob
 
 # custom imports
 from utils.email import send_email_notification
-from utils.file_helpers import count_files_in_directory
+from utils.file_helpers import count_files_in_directory, delete_files_older_than_x_hours
 from utils.coinbase import get_coinbase_client
 
 #
@@ -1133,7 +1133,7 @@ def plot_graph(
 #
 
 # Function to save current listed coins to a timestamped file
-def save_coindata_with_timestamp(coins, directory):
+def save_new_coinbase_data(coins, directory):
     if not os.path.exists(directory):
         os.makedirs(directory)
 
@@ -1158,21 +1158,7 @@ def is_last_file_older_than_x_minutes(directory, minutes):
     file_creation_time = os.path.getctime(most_recent_file)
     return (time.time() - file_creation_time) > (minutes * 60)
 
-# Function to delete files older than a specified number of hours
-def delete_files_older_than_x_hours(directory, hours=6):
-    if not os.path.exists(directory):
-        print(f"Directory {directory} does not exist.")
-        return
 
-    cutoff_time = time.time() - (hours * 3600)
-
-    for filename in os.listdir(directory):
-        file_path = os.path.join(directory, filename)
-        if os.path.isfile(file_path):
-            file_creation_time = os.path.getctime(file_path)
-            if file_creation_time < cutoff_time:
-                os.remove(file_path)
-                print(f"Deleted old file: {file_path}")
 
 
 
@@ -1350,7 +1336,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
         coinbase_price_history_files = 'coinbase-data'
         if is_last_file_older_than_x_minutes(coinbase_price_history_files, minutes=5):
-            save_coindata_with_timestamp(current_listed_coins_dicts, coinbase_price_history_files)
+            save_new_coinbase_data(current_listed_coins_dicts, coinbase_price_history_files)
         delete_files_older_than_x_hours(coinbase_price_history_files, hours=2)
 
         files_in_folder = count_files_in_directory(coinbase_price_history_files)
