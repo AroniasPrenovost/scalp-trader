@@ -23,7 +23,7 @@ import glob
 # custom imports
 from utils.email import send_email_notification
 from utils.file_helpers import count_files_in_directory, delete_files_older_than_x_hours, is_most_recent_file_older_than_x_minutes
-from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order
+from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order
 coinbase_client = get_coinbase_client()
 
 #
