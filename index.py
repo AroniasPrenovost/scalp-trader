@@ -23,6 +23,7 @@ import glob
 # custom imports
 from utils.email import send_email_notification
 from utils.file_helpers import count_files_in_directory
+from utils.coinbase import get_coinbase_client
 
 #
 load_dotenv()
@@ -182,7 +183,7 @@ coinbase_stable_pair_spot_maker_fee = float(os.environ.get('COINBASE_STABLE_PAIR
 coinbase_stable_pair_spot_taker_fee = float(os.environ.get('COINBASE_STABLE_PAIR_SPOT_TAKER_FEE'))
 federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
 
-client = RESTClient(api_key=coinbase_api_key, api_secret=coinbase_api_secret)
+coinbase_client = get_coinbase_client() # RESTClient(api_key=coinbase_api_key, api_secret=coinbase_api_secret)
 
 #
 #
@@ -191,7 +192,7 @@ client = RESTClient(api_key=coinbase_api_key, api_secret=coinbase_api_secret)
 
 def get_asset_price(symbol):
     try:
-        product = client.get_product(symbol)
+        product = coinbase_client.get_product(symbol)
         price = float(product["price"])
         return price
     except Exception as e:
@@ -579,7 +580,7 @@ def reset_json_ledger_file(symbol):
 
 def get_coinbase_order_by_order_id(order_id):
     try:
-        order = client.get_order(order_id=order_id)
+        order = coinbase_client.get_order(order_id=order_id)
         if order:
             return order
         else:
@@ -591,7 +592,7 @@ def get_coinbase_order_by_order_id(order_id):
 
 def get_coinbase_order_by_order_id(order_id):
     try:
-        order = client.get_order(order_id=order_id)
+        order = coinbase_client.get_order(order_id=order_id)
         if order:
             return order
         else:
@@ -623,7 +624,7 @@ def detect_stored_coinbase_order_type(last_order):
 
 def place_market_buy_order(symbol, base_size):
     try:
-        order = client.market_order_buy(
+        order = coinbase_client.market_order_buy(
             client_order_id=generate_client_order_id(symbol, 'buy'),  # id must be unique
             product_id=symbol,
             base_size=str(base_size)  # Convert base_size to string
@@ -657,7 +658,7 @@ def place_market_buy_order(symbol, base_size):
 
 def place_market_sell_order(symbol, base_size, potential_profit, potential_profit_percentage):
     try:
-        order = client.market_order_sell(
+        order = coinbase_client.market_order_sell(
             client_order_id=generate_client_order_id(symbol, 'sell'), # id must be unique
             product_id=symbol,
             base_size=str(base_size)  # Convert base_size to string
@@ -1235,9 +1236,7 @@ def convert_products_to_dicts(products):
     return [product.to_dict() if hasattr(product, 'to_dict') else product for product in products]
 
 # Function to save the list of Coinbase products to a local file
-def save_listed_coins_to_file(client, file_path):
-    listed_coins = client.get_products()
-    listed_coins = listed_coins['products']
+def save_listed_coins_to_file(listed_coins, file_path):
 
     # Convert products to dictionaries
     listed_coins_dicts = convert_products_to_dicts(listed_coins)
@@ -1373,7 +1372,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         #
 
         file_path = 'listed_coins.json'
-        current_listed_coins = client.get_products()['products']
+        current_listed_coins = coinbase_client.get_products()['products']
         current_listed_coins_dicts = convert_products_to_dicts(current_listed_coins)
         new_coins = check_for_new_coins(file_path, current_listed_coins_dicts)
         if new_coins:
@@ -1397,7 +1396,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 )
         else:
             print("No new coins added.\n")
-        save_listed_coins_to_file(client, file_path)
+        save_listed_coins_to_file(current_listed_coins, file_path)
 
         #
         #
@@ -1405,7 +1404,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         #
 
         coinbase_data_directory = 'coinbase-data'
-        if is_most_recent_file_older_than_x_mins(coinbase_data_directory, minutes=10):
+        if is_most_recent_file_older_than_x_mins(coinbase_data_directory, minutes=5):
             save_coindata_with_timestamp(current_listed_coins_dicts, coinbase_data_directory)
         delete_files_older_than_x_hours(coinbase_data_directory, hours=2)
 

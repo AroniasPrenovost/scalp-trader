@@ -1,4 +1,8 @@
+# boilerplate
 import os
+from dotenv import load_dotenv
+load_dotenv()
+# end boilerplate
 
 def count_files_in_directory(directory_path):
     """

@@ -1,8 +1,10 @@
+# boilerplate
 import os
-from mailjet_rest import Client
-
 from dotenv import load_dotenv
 load_dotenv()
+# end boilerplate
+
+from mailjet_rest import Client
 
 mailjet_api_key = os.environ.get('MAILJET_API_KEY')
 mailjet_secret_key = os.environ.get('MAILJET_SECRET_KEY')
