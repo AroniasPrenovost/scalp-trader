@@ -32,7 +32,7 @@ def load_config(file_path):
         return load(file)
 
 
- 
+
 
 #
 #
@@ -109,8 +109,8 @@ DATA_POINTS_FOR_X_MINUTES = int((60 / INTERVAL_SECONDS) * INTERVAL_MINUTES)
 #
 
 LAST_EXCEPTION_ERROR = None
-SAME_ERROR_COUNT = 0
-MAX_SAME_ERROR_COUNT = 8
+LAST_EXCEPTION_ERROR_COUNT = 0
+MAX_LAST_EXCEPTION_ERROR_COUNT = 8
 
 
 #
@@ -1363,8 +1363,9 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         # Print the formatted local time
         print("Time:", formatted_time)
 
+
         global LAST_EXCEPTION_ERROR
-        global SAME_ERROR_COUNT
+        global LAST_EXCEPTION_ERROR_COUNT
 
         #
         #
@@ -1946,7 +1947,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 delete_screenshots_older_than_x(GRAPH_SCREENSHOT_DIRECTORY, current_time, MAX_SCREENSHOT_AGE_HOURS)
                 # Clear errors if they're non-consecutive
                 LAST_EXCEPTION_ERROR = None
-                SAME_ERROR_COUNT = 0
+                LAST_EXCEPTION_ERROR_COUNT = 0
                 print('\n')
 
         time.sleep(interval_seconds)
@@ -1966,9 +1967,9 @@ if __name__ == "__main__":
                 )
                 LAST_EXCEPTION_ERROR = current_exception_error
             else:
-                SAME_ERROR_COUNT += 1
-                if SAME_ERROR_COUNT == MAX_SAME_ERROR_COUNT:
-                    print(F"Quitting program: {MAX_SAME_ERROR_COUNT}+ instances of same error ({current_exception_error})")
+                LAST_EXCEPTION_ERROR_COUNT += 1
+                if LAST_EXCEPTION_ERROR_COUNT == MAX_LAST_EXCEPTION_ERROR_COUNT:
+                    print(F"Quitting program: {MAX_LAST_EXCEPTION_ERROR_COUNT}+ instances of same error ({current_exception_error})")
                     send_email_notification(
                         subject="Quitting program - scalp-scripts",
                         text_content=f"An error occurred: {current_exception_error}. QUITTING the program...",
@@ -1976,7 +1977,7 @@ if __name__ == "__main__":
                     )
                     quit()
                 else:
-                    print(f"Same error as last time ({SAME_ERROR_COUNT}/{MAX_SAME_ERROR_COUNT})")
+                    print(f"Same error as last time ({LAST_EXCEPTION_ERROR_COUNT}/{MAX_LAST_EXCEPTION_ERROR_COUNT})")
                     print('\n')
 
             time.sleep(10)
