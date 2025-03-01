@@ -27,7 +27,6 @@ from utils.price_helpers import calculate_trading_range_percentage
 from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order, get_asset_price, calculate_exchange_fee
 coinbase_client = get_coinbase_client()
 
-#
 load_dotenv()
 
 def load_config(file_path):
