@@ -19,6 +19,11 @@ def get_coinbase_client():
     return RESTClient(api_key=coinbase_api_key, api_secret=coinbase_api_secret)
 
 
+def calculate_exchange_fee(price, number_of_shares, fee_rate):
+    fee = (fee_rate / 100) * price * number_of_shares
+    return fee
+
+
 #
 #
 # Generate (arbitrary) custom order id
@@ -129,3 +134,8 @@ def place_market_sell_order(client, symbol, base_size, potential_profit, potenti
             print(f"Unexpected response: {dumps(order)}")
     except Exception as e:
         print(f"Error placing SELL order for {symbol}: {e}")
+
+
+#
+#
+#

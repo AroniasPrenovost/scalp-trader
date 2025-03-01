@@ -23,8 +23,8 @@ import glob
 # custom imports
 from utils.email import send_email_notification
 from utils.file_helpers import count_files_in_directory, delete_files_older_than_x_hours, is_most_recent_file_older_than_x_minutes
-# from utils.price_helpers import
-from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order, get_asset_price
+from utils.price_helpers import calculate_trading_range_percentage
+from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order, get_asset_price, calculate_exchange_fee
 coinbase_client = get_coinbase_client()
 
 #
@@ -578,40 +578,6 @@ def detect_stored_coinbase_order_type(last_order):
 
 #
 #
-# Trade info utils
-#
-
-def calculate_exchange_fee(price, number_of_shares, fee_rate):
-    fee = (fee_rate / 100) * price * number_of_shares
-    return fee
-
-def calculate_trade_profit(entry_price, sell_price, number_of_shares, fee_type):
-    profit = (sell_price - entry_price) * number_of_shares
-    exchange_fee = calculate_exchange_fee(sell_price, number_of_shares, fee_type)
-    tax_owed = (federal_tax_rate / 100) * profit
-    gross_profit = profit - exchange_fee - tax_owed
-    investment = entry_price * number_of_shares
-    gross_profit_percentage = (gross_profit / investment) * 100
-
-    return {
-        'sellPrice': sell_price,
-        'profit': profit,
-        'exchange_fee': exchange_fee,
-        'tax_owed': tax_owed,
-        'gross_profit': gross_profit,
-        'gross_profit_percentage': gross_profit_percentage
-    }
-
-def calculate_transaction_cost(entry_price, number_of_shares, fee_type):
-    if number_of_shares == 0:
-        return 0
-    base_cost = entry_price * number_of_shares
-    exchange_fee = calculate_exchange_fee(entry_price, number_of_shares, fee_type)
-    cost = base_cost + exchange_fee
-    return cost
-
-#
-#
 # Determine support and resistance levels
 #
 
@@ -715,18 +681,6 @@ def should_recalculate_support_resistance_1(prices, last_calculated_price, price
     return price_change_percentage >= price_change_threshold
 
 
-#
-#
-#
-#
-
-def calculate_trading_range_percentage(num1, num2):
-    if num1 == 0 and num2 == 0:
-        return "0.00"
-    difference = abs(num1 - num2)
-    average = (num1 + num2) / 2
-    percentage_difference = (difference / average) * 100
-    return f"{percentage_difference:.2f}"
 
 #
 #
