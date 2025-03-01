@@ -24,6 +24,7 @@ import glob
 from utils.email import send_email_notification
 from utils.file_helpers import count_files_in_directory, delete_files_older_than_x_hours, is_most_recent_file_older_than_x_minutes
 from utils.coinbase import get_coinbase_client
+coinbase_client = get_coinbase_client()
 
 #
 load_dotenv()
@@ -169,13 +170,7 @@ def delete_screenshots_older_than_x(folder_path, c_time, hours):
 
 
 
-#
-#
-# Coinbase API and taxes
-#
 
-coinbase_api_key = os.environ.get('COINBASE_API_KEY')
-coinbase_api_secret = os.environ.get('COINBASE_API_SECRET')
 
 coinbase_spot_maker_fee = float(os.environ.get('COINBASE_SPOT_MAKER_FEE'))
 coinbase_spot_taker_fee = float(os.environ.get('COINBASE_SPOT_TAKER_FEE'))
@@ -183,7 +178,6 @@ coinbase_stable_pair_spot_maker_fee = float(os.environ.get('COINBASE_STABLE_PAIR
 coinbase_stable_pair_spot_taker_fee = float(os.environ.get('COINBASE_STABLE_PAIR_SPOT_TAKER_FEE'))
 federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
 
-coinbase_client = get_coinbase_client() # RESTClient(api_key=coinbase_api_key, api_secret=coinbase_api_secret)
 
 #
 #
@@ -577,30 +571,6 @@ def reset_json_ledger_file(symbol):
 #
 #
 #
-
-def get_coinbase_order_by_order_id(order_id):
-    try:
-        order = coinbase_client.get_order(order_id=order_id)
-        if order:
-            return order
-        else:
-            print(f"No order found with ID: {order_id}.")
-            return None
-    except Exception as e:
-        print(f"Error fetching order with ID {order_id}: {e}")
-        return None
-
-def get_coinbase_order_by_order_id(order_id):
-    try:
-        order = coinbase_client.get_order(order_id=order_id)
-        if order:
-            return order
-        else:
-            print(f"No order found with ID: {order_id}.")
-            return None
-    except Exception as e:
-        print(f"Error fetching order with ID {order_id}: {e}")
-        return None
 
 #
 #
@@ -1696,7 +1666,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 #
                 # Handle unverified BUY / SELL order
                 if last_order_type == 'placeholder':
-                    fulfilled_order_data = get_coinbase_order_by_order_id(last_order['order_id'])
+                    fulfilled_order_data = get_coinbase_order_by_order_id(coinbase_client, last_order['order_id'])
                     if fulfilled_order_data:
                         full_order_dict = fulfilled_order_data['order'] if isinstance(fulfilled_order_data, dict) else fulfilled_order_data.to_dict()
                         save_order_data_to_local_json_ledger(symbol, full_order_dict)
