@@ -70,3 +70,10 @@ def place_market_buy_order(client, symbol, base_size):
             print(f"Unexpected response: {dumps(order)}")
     except Exception as e:
         print(f"Error placing BUY order for {symbol}: {e}")
+
+
+
+#
+#
+#
+#

@@ -592,35 +592,7 @@ def detect_stored_coinbase_order_type(last_order):
 # Create a market BUY order
 #
 
-#
-#
-# Create a market SELL order
-#
 
-def place_market_sell_order(symbol, base_size, potential_profit, potential_profit_percentage):
-    try:
-        order = coinbase_client.market_order_sell(
-            client_order_id=generate_client_order_id(symbol, 'sell'), # id must be unique
-            product_id=symbol,
-            base_size=str(base_size)  # Convert base_size to string
-        )
-
-        if 'order_id' in order['response']:
-            order_id = order['response']['order_id']
-            print(f"SELL ORDER placed successfully. Order ID: {order_id}")
-
-            # Clear out existing ledger since there is no need to wait and confirm a sell transaction as long as we got programmatic confirmation
-            reset_json_ledger_file(symbol)
-
-            send_email_notification(
-                subject=f"Sell Order - {symbol}: ${potential_profit} (+{potential_profit_percentage}%)",
-                text_content=f"SELL ORDER placed successfully for {symbol}. Order ID: {order_id}",
-                html_content=f"<h3>SELL ORDER placed successfully for {symbol}. Order ID: {order_id}</h3>"
-            )
-        else:
-            print(f"Unexpected response: {dumps(order)}")
-    except Exception as e:
-        print(f"Error placing SELL order for {symbol}: {e}")
 
 #
 #
@@ -1745,7 +1717,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     if stable_pair == True:
                         if current_price >= stable_sell_at_price or potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
                             if READY_TO_TRADE == True:
-                                place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
+                                place_market_sell_order(coinbase_client, symbol, number_of_shares, potential_profit, potential_profit_percentage)
                                 event_type = 'sell'
                             else:
                                 print('trading disabled')
@@ -1759,7 +1731,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                             # take profits at x percent
                             print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
                             if READY_TO_TRADE == True:
-                                place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
+                                place_market_sell_order(coinbase_client, symbol, number_of_shares, potential_profit, potential_profit_percentage)
                                 event_type = 'sell'
                             else:
                                 print('trading disabled')
@@ -1769,7 +1741,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                             if fibonacci_levels['level_61.8'] > current_price:
                                 print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
                                 if READY_TO_TRADE == True:
-                                    place_market_sell_order(symbol, number_of_shares, potential_profit, potential_profit_percentage)
+                                    place_market_sell_order(coinbase_client, symbol, number_of_shares, potential_profit, potential_profit_percentage)
                                     event_type = 'sell'
                                 else:
                                     print('trading disabled')
