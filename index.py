@@ -23,7 +23,7 @@ import glob
 # custom imports
 from utils.email import send_email_notification
 from utils.file_helpers import count_files_in_directory, delete_files_older_than_x_hours, is_most_recent_file_older_than_x_minutes
-from utils.coinbase import get_coinbase_client
+from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order
 coinbase_client = get_coinbase_client()
 
 #
@@ -591,35 +591,6 @@ def detect_stored_coinbase_order_type(last_order):
 #
 # Create a market BUY order
 #
-
-def place_market_buy_order(symbol, base_size):
-    try:
-        order = coinbase_client.market_order_buy(
-            client_order_id=generate_client_order_id(symbol, 'buy'),  # id must be unique
-            product_id=symbol,
-            base_size=str(base_size)  # Convert base_size to string
-        )
-
-        if 'order_id' in order['response']:
-            order_id = order['response']['order_id']
-            print(f"BUY ORDER placed successfully. Order ID: {order_id}")
-
-            # Convert the order object to a dictionary if necessary
-            order_data = order.response if hasattr(order, 'response') else order
-            order_data_dict = order_data.to_dict() if hasattr(order_data, 'to_dict') else order_data
-
-            # Save the placeholder order data until we can lookup the completed transaction
-            save_order_data_to_local_json_ledger(symbol, order_data_dict)
-
-            send_email_notification(
-                subject="Buy Order Placed",
-                text_content=f"BUY ORDER placed successfully for {symbol}. Order ID: {order_id}",
-                html_content=f"<h3>BUY ORDER placed successfully for {symbol}. Order ID: {order_id}</h3>"
-            )
-        else:
-            print(f"Unexpected response: {dumps(order)}")
-    except Exception as e:
-        print(f"Error placing BUY order for {symbol}: {e}")
 
 #
 #
@@ -1687,7 +1658,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                             if READY_TO_TRADE == True:
                                 print(symbol)
                                 print(SHARES_TO_ACQUIRE)
-                                place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                                place_market_buy_order(coinbase_client, symbol, SHARES_TO_ACQUIRE)
                                 event_type = 'buy'
                             else:
                                 print('trading disabled')
@@ -1733,7 +1704,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                                     if downward_divergence_below_threshold_count >= BUY_AT_DOWNWARD_DIVERGENCE_COUNT:
                                         print('~ BUY OPPORTUNITY (current price < pivot, current_price < lower_bollinger_band, downward divergence, position is good)~')
                                         if READY_TO_TRADE == True:
-                                            place_market_buy_order(symbol, SHARES_TO_ACQUIRE)
+                                            place_market_buy_order(coinbase_client, symbol, SHARES_TO_ACQUIRE)
                                             event_type = 'buy'
                                         else:
                                             print('trading disabled')
