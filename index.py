@@ -14,12 +14,17 @@ import pandas as pd
 import requests # supports CoinMarketCap
 # coinbase api
 from coinbase.rest import RESTClient
-from mailjet_rest import Client
+# from mailjet_rest import Client
 # parse CLI args
 import argparse
 # related to price change % logic
 import glob
 
+# custom imports
+from utils.email import send_email_notification
+from utils.file_helpers import count_files_in_directory
+
+#
 load_dotenv()
 
 def load_config(file_path):
@@ -27,21 +32,7 @@ def load_config(file_path):
         return load(file)
 
 
-# def compound_reinvestment(initial_amount, rate, increments):
-#     principal = initial_amount
-#     for _ in range(increments):
-#         profit = (rate / 100) * principal
-#         principal += profit
-#     return principal
-#
-# # Example usage
-# initial_amount = 2000
-# rate = 0.05  # 0.08%
-# increments = 90
-#
-# final_amount = compound_reinvestment(initial_amount, rate, increments)
-# print(f"Final amount after reinvesting profits for {increments} increments: {final_amount:.2f}")
-# quit()
+ 
 
 #
 #
@@ -462,62 +453,6 @@ if mode == 'test':
             print('Downward trend divergences: ', f"{len(TEST_DOWNWARD_TREND_DIVERGENCE_DATA[symbol])}/{len(LOCAL_PRICE_DATA[symbol])}")
 else:
     print(f"Running in {mode} mode")
-
-#
-#
-# Mailjet configuration
-#
-
-mailjet_api_key = os.environ.get('MAILJET_API_KEY')
-mailjet_secret_key = os.environ.get('MAILJET_SECRET_KEY')
-mailjet_from_email = os.environ.get('MAILJET_FROM_EMAIL')
-mailjet_from_name = os.environ.get('MAILJET_FROM_NAME')
-mailjet_to_email = os.environ.get('MAILJET_TO_EMAIL')
-mailjet_to_email_2 = os.environ.get('MAILJET_TO_EMAIL_2')
-mailjet_to_name = os.environ.get('MAILJET_TO_NAME')
-
-mailjet = Client(auth=(mailjet_api_key, mailjet_secret_key), version='v3.1')
-
-def send_email_notification(subject, text_content, html_content, custom_recipient=None, attachment_path=None):
-    # Prepare the base data for the email
-    data = {
-        'Messages': [
-            {
-                "From": {
-                    "Email": mailjet_from_email,
-                    "Name": mailjet_from_name
-                },
-                "To": [
-                    {
-                        "Email": custom_recipient or mailjet_to_email,
-                        "Name":  mailjet_to_name
-                    }
-                ],
-                "Subject": subject,
-                "TextPart": text_content,
-                "HTMLPart": html_content
-            }
-        ]
-    }
-
-    # If an attachment is provided, add it to the email data
-    if attachment_path:
-        with open(attachment_path, "rb") as file:
-            attachment_content = file.read()
-            data['Messages'][0]['Attachments'] = [
-                {
-                    "ContentType": "image/png",
-                    "Filename": os.path.basename(attachment_path),
-                    "Base64Content": base64.b64encode(attachment_content).decode('utf-8')
-                }
-            ]
-
-    # Send the email
-    result = mailjet.send.create(data=data)
-    if result.status_code == 200:
-        print("Email sent successfully.")
-    else:
-        print(f"Failed to send email. Status code: {result.status_code}, Error: {result.json()}")
 
 
 #
@@ -1325,25 +1260,6 @@ def check_for_new_coins(file_path, new_listed_coins):
     new_coins = [coin for coin in new_listed_coins if coin['product_id'] not in old_coin_ids]
 
     return new_coins
-
-def count_files_in_directory(directory_path):
-    """
-    Returns the number of files in the specified directory.
-
-    :param directory_path: Path to the directory
-    :return: Number of files in the directory
-    """
-    try:
-        # List all entries in the directory
-        entries = os.listdir(directory_path)
-
-        # Filter out directories, only count files
-        files = [entry for entry in entries if os.path.isfile(os.path.join(directory_path, entry))]
-
-        return len(files)
-    except Exception as e:
-        print(f"Error counting files in directory {directory_path}: {e}")
-        return None
 
 
 #
