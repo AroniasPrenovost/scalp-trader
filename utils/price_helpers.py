@@ -1,6 +1,15 @@
 #
 #
 #
+
+def calculate_price_change_percentage(old_price, new_price):
+    if old_price == 0:
+        return 0
+    return ((new_price - old_price) / old_price) * 100
+
+#
+#
+#
 #
 
 def calculate_trading_range_percentage(num1, num2):
