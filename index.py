@@ -29,7 +29,7 @@ from utils.technical_indicators import calculate_market_cap_efficiency, calculat
 from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order, get_asset_price, calculate_exchange_fee
 coinbase_client = get_coinbase_client()
 # custom coinbase listings check
-from utils.new_coinbase_listings import check_for_new_coinbase_listings
+from utils.new_coinbase_listings import check_for_new_coinbase_listings, save_listed_coins_to_file
 # load .env s
 load_dotenv()
 
@@ -903,14 +903,7 @@ def save_new_coinbase_data(coins, directory):
 def convert_products_to_dicts(products):
     return [product.to_dict() if hasattr(product, 'to_dict') else product for product in products]
 
-# Function to save the list of Coinbase products to a local file
-def save_listed_coins_to_file(listed_coins, file_path):
-    # Convert products to dictionaries
-    listed_coins_dicts = convert_products_to_dicts(listed_coins)
-    # Save to file
-    with open(file_path, 'w') as file:
-        json.dump(listed_coins_dicts, file, indent=4)
-    print(f"Listed coins saved to {file_path}.")
+
 
 #
 #
@@ -977,32 +970,34 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
         #
         # ALERT NEW COIN LISTINGS
-        file_path = 'coinbase_listed_coins.json'
-        current_listed_coins = coinbase_client.get_products()['products']
-        current_listed_coins_dicts = convert_products_to_dicts(current_listed_coins)
-        new_coins = check_for_new_coinbase_listings(file_path, current_listed_coins_dicts)
-        if new_coins:
-            print("New coins added:")
-            for coin in new_coins:
-                coin_symbol = coin['product_id']
-                print(coin_symbol)
-                current_price = get_asset_price(coinbase_client, coin_symbol)
-                print(f"current_price: {current_price}")
-                time.sleep(2)
-                send_email_notification(
-                    subject=f"New Coinbase listing: {coin_symbol}",
-                    text_content=f"Coinbase just listed {coin_symbol}",
-                    html_content=f"Coinbase just listed {coin_symbol}"
-                )
-                send_email_notification(
-                    subject=f"New Coinbase listing: {coin_symbol}",
-                    text_content=f"Coinbase just listed {coin_symbol}",
-                    html_content=f"Coinbase just listed {coin_symbol}",
-                    custom_recipient=mailjet_to_email_2,
-                )
-        else:
-            print("No new coins added.\n")
-        save_listed_coins_to_file(current_listed_coins, file_path)
+        enable_new_listings_alert = True
+        if enable_new_listings_alert:
+            file_path = 'coinbase_listed_coins.json'
+            current_listed_coins = coinbase_client.get_products()['products']
+            current_listed_coins_dicts = convert_products_to_dicts(current_listed_coins)
+            new_coins = check_for_new_coinbase_listings(file_path, current_listed_coins_dicts)
+            if new_coins:
+                print("New coins added:")
+                for coin in new_coins:
+                    coin_symbol = coin['product_id']
+                    print(coin_symbol)
+                    current_price = get_asset_price(coinbase_client, coin_symbol)
+                    print(f"current_price: {current_price}")
+                    time.sleep(2)
+                    send_email_notification(
+                        subject=f"New Coinbase listing: {coin_symbol}",
+                        text_content=f"Coinbase just listed {coin_symbol}",
+                        html_content=f"Coinbase just listed {coin_symbol}"
+                    )
+                    send_email_notification(
+                        subject=f"New Coinbase listing: {coin_symbol}",
+                        text_content=f"Coinbase just listed {coin_symbol}",
+                        html_content=f"Coinbase just listed {coin_symbol}",
+                        custom_recipient=mailjet_to_email_2,
+                    )
+            else:
+                print("No new coins added.\n")
+            save_listed_coins_to_file(current_listed_coins, file_path)
 
         #
         #
