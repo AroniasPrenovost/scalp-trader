@@ -7,8 +7,6 @@ import math
 import time
 from pprint import pprint
 from collections import deque
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
 import numpy as np
 import pandas as pd
 import requests # supports CoinMarketCap
@@ -612,10 +610,6 @@ def should_recalculate_support_resistance_1(prices, last_calculated_price, price
     return price_change_percentage >= price_change_threshold
 
 
-
-
-
-
 #
 #
 # Calculate Simple Moving Average (SMA)
@@ -743,135 +737,7 @@ def volume_based_strategy_recommendation(data):
 #     print(f"volume-based trading strategy recommendation for {symbol}: {volume_based_strategy}")
 
 
-#
-#
-# Create chart
-#
 
-def plot_graph(
-    event_type,
-    current_timestamp,
-    enable_display, enable_screenshot,
-    timeframe_minutes, symbol, price_data,
-    pivot, support, resistance,
-    trading_range_percentage, current_price_position_within_trading_range, entry_price, min_price, max_price,
-    trend_1_data, trend_1_display,
-    trend_2_data, trend_2_display,
-    up_diverg, down_diverg,
-    lower_bollinger_band, upper_bollinger_band,
-    fib_levels
-):
-    if enable_display == False and enable_screenshot == False:
-        if plt.get_fignums():  # Check if there are any open figures
-            print('there are open figures')
-            plt.close('all')  # Close all open figures to free up memory
-        return
-
-    time_since_start = current_timestamp - APP_START_TIME_DATA[symbol]
-
-    if (event_type == 'buy' or event_type == 'sell') or (enable_screenshot and time_since_start >= SCREENSHOT_INTERVAL_SECONDS):
-        # Reset APP_START_TIME_DATA to current time after taking a screenshot
-        if event_type == 'interval':
-            APP_START_TIME_DATA[symbol] = current_timestamp
-
-        # init graph
-        plt.figure(figsize=(9, 7)) # 10x8 inches
-
-        # entry price (if it exists)
-        if entry_price > 0:
-            plt.axhline(y=entry_price, color='m', linewidth=1.2, linestyle='-', label=f"entry price ({entry_price})")
-
-        # price data markers
-        plt.plot(list(price_data), marker=',', label='price', c='black')
-
-        # trend 1 data markers
-        if trend_1_display == True:
-            plt.plot(list(trend_1_data), marker=',', label='trend 1 (+/-)', c='orange', linewidth=0.5)
-
-        # trend 2 data markers
-        if trend_2_display == True:
-            plt.plot(list(trend_2_data), marker=',', label='trend 2 (+/-)', c='blue', linewidth=0.5)
-
-        # Plot upward divergence markers
-        up_diverg_indices = [i for i, x in enumerate(price_data) if x in up_diverg]
-        plt.scatter(up_diverg_indices, [price_data[i] for i in up_diverg_indices], color='cyan', label='up divergence', marker=2)
-
-        # Plot downward divergence markers
-        down_diverg_indices = [i for i, x in enumerate(price_data) if x in down_diverg]
-        plt.scatter(down_diverg_indices, [price_data[i] for i in down_diverg_indices], color='red', label='down divergence', marker=3)
-
-        # support, resistance, pivot levels
-        plt.axhline(y=resistance, color='black', linewidth=1.4, linestyle='--', label='resistance')
-        plt.axhline(y=support, color='black', linewidth=1.4, linestyle='--', label='support')
-        plt.axhline(y=pivot, color='magenta', linewidth=1.3, linestyle='-.', label='pivot')
-
-        # plt.axhline(y=min_price, color='brown', linewidth=1.5, linestyle='-', label=f"min price ({min_price:.4f})")
-        # plt.axhline(y=max_price, color='brown', linewidth=1.5, linestyle='-', label=f"max price ({max_price:.4f})")
-
-        # bollinger bands
-        plt.axhline(y=lower_bollinger_band, color='deepskyblue', linewidth=1.4, linestyle='-.', label=f"lower bollinger ({lower_bollinger_band:.4f})")
-        # plt.axhline(y=upper_bollinger_band, color='deepskyblue', linewidth=1.4, linestyle='-.', label=f"upper bollinger ({lower_bollinger_band:.4f})")
-
-        # Plot Fibonacci Levels with cycling colors
-        # example: {'level_0': 0.4821, 'level_23.6': 0.4770732, 'level_38.2': 0.4739634, 'level_50': 0.47145, 'level_61.8': 0.4689366, 'level_100': 0.4608}
-        colors = ['cadetblue', 'blue', 'green', 'orange', 'lime', 'lavender']
-        for i, (level_name, level_price) in enumerate(fib_levels.items()):
-            color = colors[i % len(colors)]  # Cycle through the colors
-            plt.axhline(y=level_price, color=color, linewidth=0.9, linestyle='--', label=f"Fibonacci {level_name} ({level_price:.4f})")
-
-
-        # Set y-axis minimum and maximum to ensure support and resistance are visible
-        min_displayed_price = min(min(price_data), support, resistance, lower_bollinger_band)
-        max_displayed_price = max(max(price_data), support, resistance, upper_bollinger_band)
-
-        # Calculate a dynamic buffer based on the price range
-        price_range = max_displayed_price - min_displayed_price
-        buffer = price_range * 0.05  # 2% buffer
-
-        # Set y-axis limits with the dynamic buffer
-        plt.gca().set_ylim(min_displayed_price - buffer, max_displayed_price + buffer)
-
-        # Set x-axis to show time points
-        plt.gca().xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
-
-        # Format y-axis to show values to the 4th decimal place
-        plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.6f'))
-
-        # legend
-        plt.title(f"{symbol}")
-        timeframe_phrase = ''
-        if timeframe_minutes > 60:
-            timeframe_phrase = f"{timeframe_minutes/60} hours"
-        else:
-            timeframe_phrase = f"{timeframe_minutes} minutes"
-        plt.xlabel(f"time range ({timeframe_phrase})")
-        plt.ylabel("price")
-        plt.legend(loc='upper left', fontsize='small')
-
-        plt.grid(True)
-        plt.figtext(0.5, 0.01, f"trade range %: {trading_range_percentage}, current position %: {current_price_position_within_trading_range}", ha="center", fontsize=8)
-
-        # save new screenshot
-        filename = os.path.join(GRAPH_SCREENSHOT_DIRECTORY, f"{symbol}_chart_{event_type}_{current_timestamp}.png")
-        if os.path.exists(filename):
-            os.remove(filename) # Overwrite existing screenshot and save new one
-        plt.savefig(filename, dpi=300, bbox_inches='tight')
-        plt.close('all')
-        print(f"Chart saved as {filename}")
-
-        # Send the chart as an email attachment
-        if event_type == 'buy' or event_type == 'sell':
-            send_email_notification(
-                subject=f"{symbol} - {event_type} - chart",
-                text_content="Please find the attached chart.",
-                html_content="<h3>Please find the attached chart.</h3>",
-                attachment_path=filename
-            )
-
-    elif enable_display == True:
-        plt.show(block=False)
-        plt.pause(0.1)
-        plt.close('')
 
 
 #
@@ -894,11 +760,10 @@ def save_new_coinbase_data(coins, directory):
         json.dump(coins, file, indent=4)
     print(f"Listed coins saved to {file_path}.")
 
-
-
-
-
-
+#
+#
+#
+#
 
 # Function to convert Product objects to dictionaries
 def convert_products_to_dicts(products):
@@ -1515,33 +1380,6 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
 
                 current_time = time.time() # call it once instead of twice for the following functions
-
-                # Visualize indicators in a graph
-                plot_graph(
-                    event_type,
-                    current_time,
-                    ENABLE_GRAPH_DISPLAY,
-                    ENABLE_GRAPH_SCREENSHOT,
-                    interval_minutes,
-                    symbol,
-                    LOCAL_PRICE_DATA[symbol],
-                    pivot,
-                    support, resistance,
-                    trading_range_percentage,
-                    current_price_position_within_trading_range,
-                    entry_price,
-                    minimum_price_in_chart,
-                    maximum_price_in_chart,
-                    LOCAL_TREND_1_DATA[symbol],
-                    TREND_1_DISPLAY,
-                    LOCAL_TREND_2_DATA[symbol],
-                    TREND_2_DISPLAY,
-                    LOCAL_UPWARD_TREND_DIVERGENCE_DATA[symbol],
-                    LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA[symbol],
-                    lower_bollinger_band,
-                    upper_bollinger_band,
-                    fibonacci_levels
-                )
 
                 delete_screenshots_older_than_x(GRAPH_SCREENSHOT_DIRECTORY, current_time, MAX_SCREENSHOT_AGE_HOURS)
                 # Clear errors if they're non-consecutive
