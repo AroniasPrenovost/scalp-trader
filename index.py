@@ -1001,8 +1001,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
         #
         #
-        # Save coinbase product data and analyze
-        #
+        # Save coinbase asset data and analyze
 
         coinbase_price_history_data = 'coinbase-data'
         if is_most_recent_file_older_than_x_minutes(coinbase_price_history_data, minutes=2):
