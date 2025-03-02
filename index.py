@@ -1002,21 +1002,17 @@ def calculate_price_changes_for_assets(directory, symbol):
 def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes):
     while True:
 
-        # Get the current local time
         local_time = time.localtime()
-        # Format the local time into a human-readable string
-        formatted_time = time.strftime("%Y-%m-%d %H:%M:%S", local_time)
-        # Print the formatted local time
-        print("Time:", formatted_time)
+        formatted_local_time = time.strftime("%Y-%m-%d %H:%M:%S", local_time)         # Format the local time into a human-readable string
+        print("Time:", formatted_local_time)         # Print the formatted local time
 
-
+        #
+        # ERROR TRACKING
         global LAST_EXCEPTION_ERROR
         global LAST_EXCEPTION_ERROR_COUNT
 
         #
-        #
         # ALERT NEW COIN LISTINGS
-
         file_path = 'coinbase_listed_coins.json'
         current_listed_coins = coinbase_client.get_products()['products']
         current_listed_coins_dicts = convert_products_to_dicts(current_listed_coins)
