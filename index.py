@@ -783,7 +783,7 @@ def get_price_from_data(data, symbol):
                 return float(price)
     return None
 
-def calculate_price_changes_for_assets(directory, symbol):
+def calculate_coin_price_changes(directory, symbol):
     # Calculate the current time and get the list of all files
     current_time = time.time()
     file_paths = sorted(glob.glob(os.path.join(directory, '*.json')), key=os.path.getctime)
@@ -824,7 +824,7 @@ def calculate_price_changes_for_assets(directory, symbol):
 
     return price_changes
 
-    # Usage example: calculate_price_changes_for_assets('/path/to/directory', 'BTC-USD')
+    # Usage example: calculate_coin_price_changes('/path/to/directory', 'BTC-USD')
 
 
 
@@ -901,7 +901,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 # DETECT TRENDING COINS
 
                 # calculate price change over different timeframes minutes (5, 15, 30, 60)
-                price_change_percentages = calculate_price_changes_for_assets(coinbase_price_history_data, coin['product_id'])
+                price_change_percentages = calculate_coin_price_changes(coinbase_price_history_data, coin['product_id'])
                 print(price_change_percentages)
 
                 #
