@@ -515,10 +515,6 @@ def reset_json_ledger_file(symbol):
 #
 #
 
-#
-#
-#
-#
 
 def detect_stored_coinbase_order_type(last_order):
     if last_order is None:
@@ -567,28 +563,7 @@ def calculate_support_resistance_1(prices, window_size):
     pivot = (high + low + close) / 3
 
     return pivot, support, resistance
-    # """
-    # Calculate support and resistance levels using pivot points for a given set of stock prices.
-    #
-    # :param prices: deque of stock prices
-    # :return: tuple containing pivot, support, and resistance levels
-    # """
-    # if not prices or len(prices) < 3:
-    #     raise ValueError("Prices deque must contain at least three elements.")
-    #
-    # # Calculate high, low, and close prices
-    # high = max(prices)
-    # low = min(prices)
-    # close = prices[-1]  # Assuming the last price is the closing price
-    #
-    # # Calculate pivot point
-    # pivot = (high + low + close) / 3
-    #
-    # # Calculate support and resistance levels
-    # resistance = (2 * pivot) - low
-    # support = (2 * pivot) - high
-    #
-    # return pivot, support, resistance
+
 
 def calculate_support_resistance_2(prices):
         """
