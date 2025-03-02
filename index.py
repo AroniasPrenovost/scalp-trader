@@ -18,6 +18,8 @@ import argparse
 # related to price change % logic
 import glob
 
+
+
 # custom imports
 from utils.email import send_email_notification
 from utils.file_helpers import count_files_in_directory, delete_files_older_than_x_hours, is_most_recent_file_older_than_x_minutes
@@ -734,18 +736,18 @@ def convert_products_to_dicts(products):
 #
 #
 
-def get_price_from_data(data, symbol):
-    for coin in data:
-        if coin['product_id'] == symbol:
-            price = coin.get('price', '')
-            if price:  # Check if price is not an empty string
-                return float(price)
-            else:
-                print(f"Warning: Price for {symbol} is missing or empty.")
-                return None
-    return None
+# def get_price_from_data(data, symbol):
+#     for coin in data:
+#         if coin['product_id'] == symbol:
+#             price = coin.get('price', '')
+#             if price:  # Check if price is not an empty string
+#                 return float(price)
+#             else:
+#                 print(f"Warning: Price for {symbol} is missing or empty.")
+#                 return None
+#     return None
 
-def calculate_price_changes_for_assets(directory, symbol):
+def calculate_changes_for_assets_old(directory, symbol):
     # Get all JSON files in the directory, sorted by creation time
     files = sorted(glob.glob(os.path.join(directory, '*.json')), key=os.path.getctime)
 
@@ -773,6 +775,60 @@ def calculate_price_changes_for_assets(directory, symbol):
 
 
 
+def get_price_from_data(data, symbol):
+    for coin in data:
+        if coin['product_id'] == symbol:
+            price = coin.get('price', '')
+            if price:
+                return float(price)
+    return None
+
+def calculate_price_changes_for_assets(directory, symbol):
+    # Calculate the current time and get the list of all files
+    current_time = time.time()
+    file_paths = sorted(glob.glob(os.path.join(directory, '*.json')), key=os.path.getctime)
+
+    # We will check for the files that correspond to the requested timeframes
+    timeframes = [5*60, 15*60, 30*60, 60*60]  # Timeframes in seconds
+    price_changes = {}
+
+    for timeframe in timeframes:
+        # Find the index of the file closest to the timeframe
+        for i, file_path in enumerate(file_paths):
+            file_time = os.path.getctime(file_path)
+            if current_time - file_time <= timeframe:
+                with open(file_path, 'r') as file:
+                    data = json.load(file)
+                old_price = get_price_from_data(data, symbol)
+                if old_price is not None:
+                    break
+        else:
+            print(f"Not enough data for {timeframe//60} minutes timeframe.")
+            old_price = None
+
+        if old_price is None:
+            continue
+
+        # Always get the latest price
+        with open(file_paths[-1], 'r') as file:
+            new_data = json.load(file)
+        new_price = get_price_from_data(new_data, symbol)
+
+        if new_price is None:
+            print(f"Price data for {symbol} not found in the latest file.")
+            continue
+
+        # Calculate the price change percentage
+        price_change_percentage = ((new_price - old_price) / old_price) * 100
+        price_changes[timeframe // 60] = price_change_percentage
+
+    return price_changes
+
+    # Usage example: calculate_price_changes_for_assets('/path/to/directory', 'BTC-USD')
+
+
+
+
 #
 #
 #
@@ -790,14 +846,16 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         global LAST_EXCEPTION_ERROR
         global LAST_EXCEPTION_ERROR_COUNT
 
+        current_listed_coins_dictionary = {}
+
         #
         # ALERT NEW COIN LISTINGS
         enable_new_listings_alert = True
         if enable_new_listings_alert:
             file_path = 'coinbase_listed_coins.json'
             current_listed_coins = coinbase_client.get_products()['products']
-            current_listed_coins_dicts = convert_products_to_dicts(current_listed_coins)
-            new_coins = check_for_new_coinbase_listings(file_path, current_listed_coins_dicts)
+            current_listed_coins_dictionary = convert_products_to_dicts(current_listed_coins)
+            new_coins = check_for_new_coinbase_listings(file_path, current_listed_coins_dictionary)
             if new_coins:
                 print("New coins added:")
                 for coin in new_coins:
@@ -827,16 +885,30 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
         coinbase_price_history_data = 'coinbase-data'
         if is_most_recent_file_older_than_x_minutes(coinbase_price_history_data, minutes=2):
-            save_new_coinbase_data(current_listed_coins_dicts, coinbase_price_history_data)
+            save_new_coinbase_data(current_listed_coins_dictionary, coinbase_price_history_data)
         delete_files_older_than_x_hours(coinbase_price_history_data, hours=2)
 
         files_in_folder = count_files_in_directory(coinbase_price_history_data)
-        for coin in current_listed_coins_dicts:
+        for coin in current_listed_coins_dictionary:
             if files_in_folder > 1:
                 if coin['product_id'] == 'YFI-BTC' or "USDC" not in coin['product_id']:
                     continue
 
-                price_change_percentage_range = calculate_price_changes_for_assets(coinbase_price_history_data, coin['product_id'])
+
+                #
+                #
+                #
+                # DETECT TRENDING COINS
+
+                # calculate price change over different timeframes minutes (5, 15, 30, 60)
+                price_change_percentages = calculate_price_changes_for_assets(coinbase_price_history_data, coin['product_id'])
+                print(price_change_percentages)
+
+                #
+                #
+                #
+
+                price_change_percentage_range = calculate_changes_for_assets_old(coinbase_price_history_data, coin['product_id'])
                 # print('price_change_percentage_range', price_change_percentage_range)
                 try:
                     volume_24h = float(coin['volume_24h'])
