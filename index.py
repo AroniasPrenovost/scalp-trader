@@ -24,7 +24,7 @@ import glob
 from utils.email import send_email_notification
 from utils.file_helpers import count_files_in_directory, delete_files_older_than_x_hours, is_most_recent_file_older_than_x_minutes
 from utils.price_helpers import calculate_trading_range_percentage, calculate_current_price_position_within_trading_range, calculate_offset_price
-from utils.technical_indicators import calculate_market_cap_efficiency, calculate_fibonacci_levels
+from utils.technical_indicators import calculate_market_cap_efficiency, calculate_fibonacci_levels, calculate_sma, calculate_macd, calculate_bollinger_bands
 # coinbase api
 from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order, get_asset_price, calculate_exchange_fee
 coinbase_client = get_coinbase_client()
@@ -615,47 +615,6 @@ def should_recalculate_support_resistance_1(prices, last_calculated_price, price
 
 
 
-#
-#
-# Calculate Simple Moving Average (SMA)
-#
-
-def calculate_sma(prices, period):
-    if len(prices) < period:
-        return None
-    # Convert deque to a list before slicing
-    prices_list = list(prices)
-    return np.mean(prices_list[-period:])
-
-#
-#
-# Calculate MACD
-#
-
-def calculate_macd(prices, short_period=12, long_period=26, signal_period=9):
-    if len(prices) < long_period:
-        return None, None
-    prices_list = list(prices)  # Convert deque to list
-    short_ema = np.mean(prices_list[-short_period:])
-    long_ema = np.mean(prices_list[-long_period:])
-    macd_line = short_ema - long_ema
-    signal_line = np.mean(prices_list[-signal_period:])
-    return macd_line, signal_line
-
-#
-#
-# Calculate Bollinger Bands
-#
-
-def calculate_bollinger_bands(prices, period=20, num_std_dev=2):
-    if len(prices) < period:
-        return None, None, None
-    prices_list = list(prices)  # Convert deque to list
-    sma = calculate_sma(prices_list, period)
-    std_dev = np.std(prices_list[-period:])
-    upper_bollinger_band = sma + (num_std_dev * std_dev)
-    lower_bollinger_band = sma - (num_std_dev * std_dev)
-    return upper_bollinger_band, lower_bollinger_band, sma
 
 #
 #

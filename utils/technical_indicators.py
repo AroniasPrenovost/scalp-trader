@@ -1,3 +1,12 @@
+# boilerplate
+import os
+from dotenv import load_dotenv
+load_dotenv()
+# end boilerplate
+import numpy as np
+import pandas as pd
+
+
 ### Explanation:
 # Market Cap Efficiency Ratio:
 #   This ratio is calculated by dividing the current market cap by the fully diluted market cap. It gives an idea of how much of the potential market cap is currently realized.
