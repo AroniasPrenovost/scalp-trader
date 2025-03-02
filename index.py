@@ -74,13 +74,6 @@ last_calculated_support_resistance_pivot_prices = {}  # Store the last calculate
 
 APP_START_TIME_DATA = {} # global data to help manage time
 
-# SCREENSHOT_INTERVAL_SECONDS = 60           # 45 seconds
-# SCREENSHOT_INTERVAL_SECONDS = 30 * 60      # 30 minutes
-SCREENSHOT_INTERVAL_SECONDS = 1 * 60 * 60  # 1 hour
-# SCREENSHOT_INTERVAL_SECONDS = 2 * 60 * 60  # 2 hours
-# SCREENSHOT_INTERVAL_SECONDS = 4 * 60 * 60  # 4 hours
-MAX_SCREENSHOT_AGE_HOURS = 8
-
 #
 #
 # Define time intervals
@@ -134,41 +127,6 @@ TEST_UPWARD_TREND_DIVERGENCE_DATA = {}
 
 LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA = {}
 TEST_DOWNWARD_TREND_DIVERGENCE_DATA = {}
-
-#
-#
-# Define the GRAPH_SCREENSHOT_DIRECTORY for saving screenshots
-#
-
-GRAPH_SCREENSHOT_DIRECTORY = 'screenshots'
-if not os.path.exists(GRAPH_SCREENSHOT_DIRECTORY):
-    os.makedirs(GRAPH_SCREENSHOT_DIRECTORY)
-else:
-    # Iterate through all existing files in directory and delete them
-    for filename in os.listdir(GRAPH_SCREENSHOT_DIRECTORY):
-        file_path = os.path.join(GRAPH_SCREENSHOT_DIRECTORY, filename)
-        try:
-            if os.path.isfile(file_path):
-                os.unlink(file_path)
-                print(f"Deleted file: {file_path}")
-        except Exception as e:
-            print(f"Failed to delete {file_path}. Reason: {e}")
-
-def delete_screenshots_older_than_x(folder_path, c_time, hours):
-    # c_time = time.time()
-    for filename in os.listdir(folder_path):
-        file_path = os.path.join(folder_path, filename)
-        if os.path.isfile(file_path):
-            file_mod_time = os.path.getmtime(file_path)
-            # Check if the file is older than the specified hours
-            if c_time - file_mod_time > hours * 3600:
-                try:
-                    os.remove(file_path)
-                    print(f"Deleted old screenshot: {file_path}")
-                except Exception as e:
-                    print(f"Failed to delete {file_path}. Reason: {e}")
-
-
 
 
 
@@ -965,8 +923,6 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                             )
                     TREND_NOTIFICATIONS[coin['product_id']] = cmc_volume_data['quote']['USD']['percent_change_1h']
 
-
-
                     if coinbase_data_signal == cmc_data_signal:
                         if changed_recommendation == True:
                             if coinbase_data_signal == 'buy':
@@ -1381,7 +1337,6 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
                 current_time = time.time() # call it once instead of twice for the following functions
 
-                delete_screenshots_older_than_x(GRAPH_SCREENSHOT_DIRECTORY, current_time, MAX_SCREENSHOT_AGE_HOURS)
                 # Clear errors if they're non-consecutive
                 LAST_EXCEPTION_ERROR = None
                 LAST_EXCEPTION_ERROR_COUNT = 0
