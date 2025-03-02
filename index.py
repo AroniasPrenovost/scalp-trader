@@ -23,7 +23,7 @@ import glob
 # custom imports
 from utils.email import send_email_notification
 from utils.file_helpers import count_files_in_directory, delete_files_older_than_x_hours, is_most_recent_file_older_than_x_minutes
-from utils.price_helpers import calculate_trading_range_percentage, calculate_offset_price
+from utils.price_helpers import calculate_trading_range_percentage, calculate_current_price_position_within_trading_range, calculate_offset_price
 from utils.technical_indicators import calculate_market_cap_efficiency, calculate_fibonacci_levels
 # coinbase api
 from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order, get_asset_price, calculate_exchange_fee
@@ -615,27 +615,7 @@ def should_recalculate_support_resistance_1(prices, last_calculated_price, price
 
 
 
-#
-#
-#
-#
 
-def calculate_current_price_position_within_trading_range(current_price, min, max):
-    """
-    Calculate the position of the current price within the trading range.
-
-    :param current_price: The current price of the asset
-    :param min: The min level price
-    :param max: The max level price
-    :return: The position of the current price within the trading range as a percentage
-    """
-    if max == min:
-        return 0.0  # Avoid division by zero
-
-    trading_range = max - min
-    position_within_range = ((current_price - min) / trading_range) * 100
-
-    return round(position_within_range, 2)
 
 
 #
@@ -987,8 +967,6 @@ def calculate_price_changes_for_assets(directory, symbol):
     # Calculate the price change percentage
     price_change_percentage = calculate_price_change_percentage(old_price, new_price)
     return price_change_percentage
-
-
 
 
 
