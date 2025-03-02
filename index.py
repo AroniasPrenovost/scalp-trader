@@ -25,9 +25,11 @@ from utils.email import send_email_notification
 from utils.file_helpers import count_files_in_directory, delete_files_older_than_x_hours, is_most_recent_file_older_than_x_minutes
 from utils.price_helpers import calculate_trading_range_percentage, calculate_offset_price
 from utils.technical_indicators import calculate_market_cap_efficiency, calculate_fibonacci_levels
-# coinbase
+# coinbase api
 from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order, get_asset_price, calculate_exchange_fee
 coinbase_client = get_coinbase_client()
+# custom coinbase listings check
+from utils.new_coinbase_listings import check_for_new_coinbase_listings
 # load .env s
 load_dotenv()
 
@@ -935,19 +937,7 @@ def save_listed_coins_to_file(listed_coins, file_path):
         json.dump(listed_coins_dicts, file, indent=4)
     print(f"Listed coins saved to {file_path}.")
 
-# Function to check if the file has changed and return new objects
-def check_for_new_coins(file_path, new_listed_coins):
-    if not os.path.exists(file_path):
-        return new_listed_coins  # If file doesn't exist, all coins are new
 
-    with open(file_path, 'r') as file:
-        old_listed_coins = json.load(file)
-
-    # Find new coins
-    old_coin_ids = {coin['product_id'] for coin in old_listed_coins}
-    new_coins = [coin for coin in new_listed_coins if coin['product_id'] not in old_coin_ids]
-
-    return new_coins
 
 
 #
@@ -1026,12 +1016,11 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         #
         #
         # ALERT NEW COIN LISTINGS
-        #
 
-        file_path = 'listed_coins.json'
+        file_path = 'coinbase_listed_coins.json'
         current_listed_coins = coinbase_client.get_products()['products']
         current_listed_coins_dicts = convert_products_to_dicts(current_listed_coins)
-        new_coins = check_for_new_coins(file_path, current_listed_coins_dicts)
+        new_coins = check_for_new_coinbase_listings(file_path, current_listed_coins_dicts)
         if new_coins:
             print("New coins added:")
             for coin in new_coins:
