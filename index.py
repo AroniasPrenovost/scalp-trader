@@ -25,6 +25,7 @@ from utils.email import send_email_notification
 from utils.file_helpers import count_files_in_directory, delete_files_older_than_x_hours, is_most_recent_file_older_than_x_minutes
 from utils.price_helpers import calculate_trading_range_percentage, calculate_current_price_position_within_trading_range, calculate_offset_price, calculate_price_change_percentage
 from utils.technical_indicators import calculate_market_cap_efficiency, calculate_fibonacci_levels
+from utils.time_helpers import print_local_time
 # coinbase api
 from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order, get_asset_price, calculate_exchange_fee
 coinbase_client = get_coinbase_client()
@@ -959,9 +960,7 @@ def calculate_price_changes_for_assets(directory, symbol):
 def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes):
     while True:
 
-        local_time = time.localtime()
-        formatted_local_time = time.strftime("%Y-%m-%d %H:%M:%S", local_time)
-        print("Time:", formatted_local_time)
+        print_local_time();
 
         #
         # ERROR TRACKING
