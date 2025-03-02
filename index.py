@@ -1003,8 +1003,8 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
     while True:
 
         local_time = time.localtime()
-        formatted_local_time = time.strftime("%Y-%m-%d %H:%M:%S", local_time)         # Format the local time into a human-readable string
-        print("Time:", formatted_local_time)         # Print the formatted local time
+        formatted_local_time = time.strftime("%Y-%m-%d %H:%M:%S", local_time)
+        print("Time:", formatted_local_time)
 
         #
         # ERROR TRACKING
