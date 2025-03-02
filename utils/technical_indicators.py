@@ -71,3 +71,6 @@ def calculate_fibonacci_levels(prices):
     }
 
     return levels
+
+
+ 
