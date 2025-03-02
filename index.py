@@ -1004,19 +1004,19 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         # Save coinbase product data and analyze
         #
 
-        coinbase_price_history_files = 'coinbase-data'
-        if is_most_recent_file_older_than_x_minutes(coinbase_price_history_files, minutes=2):
-            save_new_coinbase_data(current_listed_coins_dicts, coinbase_price_history_files)
-        delete_files_older_than_x_hours(coinbase_price_history_files, hours=2)
+        coinbase_price_history_data = 'coinbase-data'
+        if is_most_recent_file_older_than_x_minutes(coinbase_price_history_data, minutes=2):
+            save_new_coinbase_data(current_listed_coins_dicts, coinbase_price_history_data)
+        delete_files_older_than_x_hours(coinbase_price_history_data, hours=2)
 
-        files_in_folder = count_files_in_directory(coinbase_price_history_files)
+        files_in_folder = count_files_in_directory(coinbase_price_history_data)
         for coin in current_listed_coins_dicts:
             if files_in_folder > 1:
 
                 if coin['product_id'] == 'YFI-BTC':
                     continue
 
-                price_change_percentage_range = calculate_price_changes_for_assets(coinbase_price_history_files, coin['product_id'])
+                price_change_percentage_range = calculate_price_changes_for_assets(coinbase_price_history_data, coin['product_id'])
                 # print('price_change_percentage_range', price_change_percentage_range)
                 try:
                     volume_24h = float(coin['volume_24h'])
