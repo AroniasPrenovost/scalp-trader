@@ -23,7 +23,7 @@ import glob
 # custom imports
 from utils.email import send_email_notification
 from utils.file_helpers import count_files_in_directory, delete_files_older_than_x_hours, is_most_recent_file_older_than_x_minutes
-from utils.price_helpers import calculate_trading_range_percentage
+from utils.price_helpers import calculate_trading_range_percentage, calculate_offset_price
 from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order, get_asset_price, calculate_exchange_fee
 coinbase_client = get_coinbase_client()
 
@@ -324,27 +324,6 @@ def generate_test_price_data(start_price, data_points, trend=0.001, volatility=0
 
     return prices
 
-#
-#
-# Used for visualizing on the chart
-#
-
-def calculate_offset_price(price, trend, percentage):
-    """
-    Calculate the offset price based on the trend and percentage.
-
-    :param price: The original price.
-    :param trend: The trend direction ('upward', 'downward', 'bullish', 'bearish').
-    :param percentage: The percentage to offset the price.
-    :return: The offset price.
-    """
-    if trend in ['upward', 'bullish']:
-        price_trend_offset = price * (percentage / 100)
-        return price + price_trend_offset
-    elif trend in ['downward', 'bearish']:
-        price_trend_offset = price * (-percentage / 100)
-        return price + price_trend_offset
-    return price
 
 #
 #
@@ -1173,11 +1152,14 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     continue
 
                 price_change_percentage_range = calculate_price_changes_for_assets(coinbase_price_history_files, coin['product_id'])
-
+                # print('price_change_percentage_range', price_change_percentage_range)
                 try:
                     volume_24h = float(coin['volume_24h'])
+                    # print('volume_24h', volume_24h)
                     volume_percentage_change_24h = float(coin['volume_percentage_change_24h'])
+                    # print('volume_percentage_change_24h', volume_percentage_change_24h)
                     price_percentage_change_24h = float(coin['price_percentage_change_24h'])
+                    # print('price_percentage_change_24h', price_percentage_change_24h)
                 except ValueError as e:
                     print(f"Error: Could not convert volume or price change data for {coin['product_id']}. Error: {e}")
                     continue
