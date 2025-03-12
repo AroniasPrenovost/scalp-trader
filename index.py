@@ -1046,7 +1046,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
                 # print(coin_obj)
 
-                if momentum_info['signal'] == 'upward' and spike_detected_info['volume_spike_detected'] == True and price_change_percentages[5] != 0.0: # and momentum_info['weighted_sum'] > 1: # or cmc_volume_data['quote']['USD']['percent_change_1h'] > 1.5:
+                if momentum_info['signal'] == 'upward' and spike_detected_info['volume_spike_detected'] == True || price_change_percentages[5] != 0.0: # and momentum_info['weighted_sum'] > 1: # or cmc_volume_data['quote']['USD']['percent_change_1h'] > 1.5:
                     # if coin_obj['weighted_sum'] > UPTREND_NOTIFICATIONS[coin['product_id']]:
                     append_to_json_array('uptrend-data/data.json', coin_obj)
 
