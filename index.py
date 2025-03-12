@@ -1061,7 +1061,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 time_since_signal, price_change = calculate_price_change('uptrend-data/data.json', coin['product_id'], coin['price'])
                 if time_since_signal != 0 and time_since_signal != '' and price_change != 0:
                     print(coin['product_id'])
-                    print(f"uptrend_predict_age: {time_since_signal}, price_change_%: {price_change}")
+                    print(f"uptrend_predict_age: {time_since_signal}, price_change_%: {round(price_change, 2)}")
                     print('\n')
 
                 remove_old_entries('uptrend-data/data.json', 1)
