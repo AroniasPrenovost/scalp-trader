@@ -19,7 +19,6 @@ import argparse
 import glob
 
 
-
 # custom imports
 from utils.email import send_email_notification
 from utils.file_helpers import save_obj_dict_to_file, count_files_in_directory, delete_files_older_than_x_hours, is_most_recent_file_older_than_x_minutes, append_to_json_array, calculate_price_change, remove_old_entries
@@ -58,7 +57,6 @@ VOLUME_BASED_RECOMMENDATIONS = {}
 #
 
 COINBASE_DATA_RECOMMENDATIONS = {}
-CMC_DATA_RECOMMENDATIONS = {}
 TREND_NOTIFICATIONS = {}
 UPTREND_NOTIFICATIONS = {}
 #
@@ -353,53 +351,6 @@ else:
 
 #
 #
-# Coinmarketcap API and data
-#
-
-coinmarketcap_api_key = os.environ.get('COINMARKETCAP_API_KEY')
-
-# Initialize a dictionary to store Coinmarketcap volume data and its timestamp
-CMC_VOLUME_DATA_CACHE = {}
-CMC_VOLUME_DATA_TIMESTAMP = {}
-
-def fetch_coinmarketcap_volume_data(symbol):
-    global CMC_VOLUME_DATA_CACHE, CMC_VOLUME_DATA_TIMESTAMP
-
-    CMC_SYMBOL = symbol.split('-')[0] # NOTE symbol modification
-    current_time = time.time()
-
-    # Check if we have cached data and if it's still valid (less than 15 minutes old)
-    if symbol in CMC_VOLUME_DATA_CACHE and (current_time - CMC_VOLUME_DATA_TIMESTAMP[symbol] < 900):
-        return CMC_VOLUME_DATA_CACHE[symbol]
-
-    # If not, fetch new data
-    LATEST_PRICE_API_URL = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest'
-    headers = {
-        'X-CMC_PRO_API_KEY': coinmarketcap_api_key,
-        'Accept': 'application/json',
-    }
-    params = {
-        'symbol': CMC_SYMBOL,
-    }
-
-    try:
-        response = requests.get(LATEST_PRICE_API_URL, headers=headers, params=params)
-        response.raise_for_status()  # Raise an exception for HTTP errors
-        data = response.json()
-        CMC_VOLUME_DATA_CACHE[symbol] = data['data'][CMC_SYMBOL]
-        CMC_VOLUME_DATA_TIMESTAMP[symbol] = current_time
-        return CMC_VOLUME_DATA_CACHE[symbol]
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching latest data for {symbol}: {e}")
-        return None
-
-
-
-
-
-
-#
-#
 # Determine support and resistance levels
 #
 
@@ -602,11 +553,6 @@ def volume_based_strategy_recommendation(data):
     else:
         return 'hold'
         # Insufficient clear signals"
-
-# volume_data = fetch_coinmarketcap_volume_data(symbol)
-# if volume_data:
-#     volume_based_strategy = volume_based_strategy_recommendation(volume_data)
-#     print(f"volume-based trading strategy recommendation for {symbol}: {volume_based_strategy}")
 
 
 
@@ -880,7 +826,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         #
         #
         # Save coinbase assets data
-        enable_all_coin_scanning = False
+        enable_all_coin_scanning = True
         if enable_all_coin_scanning:
             coinbase_price_history_directory = 'coinbase-data'
             if is_most_recent_file_older_than_x_minutes(coinbase_price_history_directory, minutes=5):
@@ -906,14 +852,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                         continue
 
                     time.sleep(2) # helps with rate limiting
-                    # cmc_volume_data = fetch_coinmarketcap_volume_data(coin['product_id'])
-                    # efficiency_ratio, description = calculate_market_cap_efficiency(cmc_volume_data['quote']['USD']['market_cap'], cmc_volume_data['quote']['USD']['fully_diluted_market_cap'])
-                    # print(f"mcap_efficiency_ratio: {efficiency_ratio:.4f} - {description}")
 
-                    #
-                    #
-                    #
-                    # DETECT TRENDING COINS
 
 
                     # calculate price change over different timeframes minutes (5, 15, 30, 60)
@@ -960,7 +899,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
                     # print(coin_obj)
 
-                    if momentum_info['signal'] == 'upward' and spike_detected_info['volume_spike_detected'] == True or price_change_percentages[5] != 0.0: # and momentum_info['weighted_sum'] > 1: # or cmc_volume_data['quote']['USD']['percent_change_1h'] > 1.5:
+                    if momentum_info['signal'] == 'upward' and spike_detected_info['volume_spike_detected'] == True or price_change_percentages[5] != 0.0:
                         # if coin_obj['weighted_sum'] > UPTREND_NOTIFICATIONS[coin['product_id']]:
                         append_to_json_array('uptrend-data/data.json', coin_obj)
 
@@ -1009,8 +948,6 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     # storing in local arrays
                     if coin['product_id'] not in COINBASE_DATA_RECOMMENDATIONS:
                         COINBASE_DATA_RECOMMENDATIONS[coin['product_id']] = 0
-                    if coin['product_id'] not in CMC_DATA_RECOMMENDATIONS:
-                        CMC_DATA_RECOMMENDATIONS[coin['product_id']] = 0
                     if coin['product_id'] not in TREND_NOTIFICATIONS:
                         TREND_NOTIFICATIONS[coin['product_id']] = 0
 
@@ -1018,82 +955,34 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
                         time.sleep(4) # helps with rate limiting
 
-                        cmc_volume_data = fetch_coinmarketcap_volume_data(coin['product_id'])
-                        # print(cmc_volume_data)
-                        cmc_data_signal = volume_based_strategy_recommendation(cmc_volume_data) # ('buy', 'sell', 'hold')
 
                         # tracking changes recommendations
                         cb_string = ''
-                        cmc_string = ''
                         if COINBASE_DATA_RECOMMENDATIONS[coin['product_id']] != coinbase_data_signal:
                             cb_string = f"coinbase: {str(COINBASE_DATA_RECOMMENDATIONS[coin['product_id']]).upper()} --> {str(coinbase_data_signal).upper()}"
                             COINBASE_DATA_RECOMMENDATIONS[coin['product_id']] = coinbase_data_signal
-                        if CMC_DATA_RECOMMENDATIONS[coin['product_id']] != cmc_data_signal:
-                            cmc_string = f"cmc: {str(CMC_DATA_RECOMMENDATIONS[coin['product_id']]).upper()} --> {str(cmc_data_signal).upper()}"
-                            CMC_DATA_RECOMMENDATIONS[coin['product_id']] = cmc_data_signal
 
-                        # print(cmc_volume_data)
 
                         changed_recommendation = False
-                        if cb_string != '' or cmc_string != '':
+                        if cb_string != '':
                             changed_recommendation = True
 
                         if changed_recommendation == True:
                             print(f"{coin['product_id']} ({price_change_percentage_range:.2f}%)")
-                            print(f"1h: {cmc_volume_data['quote']['USD']['percent_change_1h']}%")
                             print(f"24h: {coin['price_percentage_change_24h']}%")
                             if cb_string != '':
                                 print(cb_string)
-                            if cmc_string != '':
-                                print(cmc_string)
+
                             # print('coinbase signal: ', coinbase_data_signal.upper())
-                            # print('cmc signal: ', cmc_data_signal.upper())
 
-                        efficiency_ratio, description = calculate_market_cap_efficiency(cmc_volume_data['quote']['USD']['market_cap'], cmc_volume_data['quote']['USD']['fully_diluted_market_cap'])
                         print(coin['product_id'])
-                        print(f"Market Cap Efficiency Ratio: {efficiency_ratio:.4f} - {description}")
 
-                        if cmc_volume_data['quote']['USD']['percent_change_1h'] > 1.5:
-                            alert_count = 0
-                            if TREND_NOTIFICATIONS[coin['product_id']] == 0:
-                                alert_count = '1'
-                            else:
-                                alert_count = '2+'
-
-                            efficiency_ratio, description = calculate_market_cap_efficiency(cmc_volume_data['quote']['USD']['market_cap'], cmc_volume_data['quote']['USD']['fully_diluted_market_cap'])
+                        if coinbase_data_signal == 'buy':
+                            print('BUY BUY')
                             print(coin['product_id'])
-                            print(f"Market Cap Efficiency Ratio: {efficiency_ratio:.4f} - {description}")
-
-                            if cmc_volume_data['quote']['USD']['percent_change_1h'] > TREND_NOTIFICATIONS[coin['product_id']]:
-                                print(f"({alert_count}) uptrend: {coin['product_id']} - (1h change %: {cmc_volume_data['quote']['USD']['percent_change_1h']})\n")
-                                send_email_notification(
-                                    subject=f"~ uptrend ({alert_count}): {coin['product_id']} - (1h change %: {cmc_volume_data['quote']['USD']['percent_change_1h']}, effeciency_ratio: {efficiency_ratio:.4f} - {description})",
-                                    text_content=f"uptrend ({alert_count}): {coin['product_id']}",
-                                    html_content=f"uptrend ({alert_count}): {coin['product_id']}"
-                                )
-                        TREND_NOTIFICATIONS[coin['product_id']] = cmc_volume_data['quote']['USD']['percent_change_1h']
-
-                        if coinbase_data_signal == cmc_data_signal:
-                            if changed_recommendation == True:
-                                if coinbase_data_signal == 'buy':
-                                    print('BUY BUY')
-
-                                    efficiency_ratio, description = calculate_market_cap_efficiency(cmc_volume_data['quote']['USD']['market_cap'], cmc_volume_data['quote']['USD']['fully_diluted_market_cap'])
-                                    print(coin['product_id'])
-                                    print(f"Market Cap Efficiency Ratio: {efficiency_ratio:.4f} - {description}")
-
-                                    send_email_notification(
-                                        subject=f"~ buy: {coin['product_id']}, efficiency_ratio: {efficiency_ratio:.4f} - {description})",
-                                        text_content=f"Both signals indicated BUY: {coin['product_id']}",
-                                        html_content=f"Both signals indicated BUY: {coin['product_id']}"
-                                    )
-                                else:
-                                    print('SELL SELL')
-                                    # send_email_notification(
-                                    #     subject=f"~ buy: {coin['product_id']}",
-                                    #     text_content=f"Both signals indicated BUY: {coin['product_id']}",
-                                    #     html_content=f"Both signals indicated BUY: {coin['product_id']}"
-                                    # )
+                        else:
+                            print('SELL SELL')
+                            print(coin['product_id'])
 
                         print('\n')
 
@@ -1241,22 +1130,6 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 if symbol not in VOLUME_BASED_RECOMMENDATIONS:
                     VOLUME_BASED_RECOMMENDATIONS[symbol] = 0
 
-                volume_data = fetch_coinmarketcap_volume_data(symbol)
-                # print(volume_data)
-                # volume_based_strategy = volume_based_strategy_recommendation(volume_data) # ('buy', 'sell', 'hold')
-                # print('volume_based_strategy: ', volume_based_strategy)
-                # detect change in recommendation
-                # if VOLUME_BASED_RECOMMENDATIONS[symbol] != volume_based_strategy:
-                    # print(f"strategy change: {str(VOLUME_BASED_RECOMMENDATIONS[symbol]).upper()} --> {str(volume_based_strategy).upper()}")
-                    # if IS_TEST_MODE == False:
-                        # send_email_notification(
-                        #     subject=f"{symbol} - strategy change: {str(VOLUME_BASED_RECOMMENDATIONS[symbol]).upper()} --> {str(volume_based_strategy).upper()}",
-                        #     text_content=f"{str(VOLUME_BASED_RECOMMENDATIONS[symbol]).upper()} --> {str(volume_based_strategy).upper()}",
-                        #     html_content="strategy changed"
-                        # )
-                    # overwrite stored swing trade recommendation
-                    # VOLUME_BASED_RECOMMENDATIONS[symbol] = volume_based_strategy
-
                 # Initialize last calculated support+resistance price if not set
                 if symbol not in last_calculated_support_resistance_pivot_prices:
                     last_calculated_support_resistance_pivot_prices[symbol] = current_price
@@ -1264,44 +1137,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 # Get stored support and resistance levels
                 levels = SUPPORT_RESISTANCE_LEVELS.get(symbol, {})
 
-                # Calculate and set levels if empty not set yet
-                # if levels == {}:
-                #     pivot, support, resistance = calculate_support_resistance_1(LOCAL_PRICE_DATA[symbol], SUPPORT_RESISTANCE_WINDOW_SIZE)
-                #     # pivot, support, resistance = calculate_support_resistance_2(LOCAL_PRICE_DATA[symbol])
-                #     last_calculated_support_resistance_pivot_prices[symbol] = current_price  # Update the last calculated price
-                #
-                #     # Store the calculated support and resistance levels
-                #     SUPPORT_RESISTANCE_LEVELS[symbol] = {
-                #         'pivot': pivot,
-                #         'support': support,
-                #         'resistance': resistance
-                #     }
-                #
-                # # print(levels)
-                # pivot = levels.get('pivot', 0)
-                # support = levels.get('support', 0)
-                # resistance = levels.get('resistance', 0)
-                #
-                # # Check if we should recalculate support and resistance levels
-                # if should_recalculate_support_resistance_1(LOCAL_PRICE_DATA[symbol], last_calculated_support_resistance_pivot_prices[symbol]):
-                #     # recalculate support
-                #     pivot, support, resistance = calculate_support_resistance_1(LOCAL_PRICE_DATA[symbol], SUPPORT_RESISTANCE_WINDOW_SIZE)
-                #     # pivot, support, resistance = calculate_support_resistance_2(LOCAL_PRICE_DATA[symbol])
-                #     # Update the last calculated price
-                #     last_calculated_support_resistance_pivot_prices[symbol] = current_price
-                #
-                #     # Update stored support and resistance levels
-                #     SUPPORT_RESISTANCE_LEVELS[symbol] = {
-                #         'pivot': pivot,
-                #         'support': support,
-                #         'resistance': resistance
-                #     }
-                #     print(f"Recalculated support and resistance for {symbol}")
-                #
-                #
                 print(f"current_price: {current_price}")
-                # print(f"support: {support}")
-                # print(f"resistance: {resistance}")
 
                 # trade range
                 minimum_price_in_chart = min(LOCAL_PRICE_DATA[symbol])
@@ -1321,10 +1157,6 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 upper_bollinger_band, lower_bollinger_band, _ = calculate_bollinger_bands(LOCAL_PRICE_DATA[symbol])
                 # print(f"Bollinger Bands - Upper: {upper_bollinger_band}, Lower: {lower_bollinger_band}")
 
-                # Calculate Fibonacci levels
-                # fibonacci_levels = calculate_fibonacci_levels(LOCAL_PRICE_DATA[symbol])
-                # print(f"Fibonacci Levels: {fibonacci_levels}")
-
                 #
                 #
                 # Manage order data (order types, order info, etc.) in local ledger
@@ -1335,10 +1167,8 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 last_order = get_last_order_from_local_json_ledger(symbol)
                 last_order_type = detect_stored_coinbase_order_type(last_order)
 
-                # if READY_TO_TRADE == True:
-                #     print('ready_to_trade: ', READY_TO_TRADE)
-
-                event_type = 'interval'
+                if READY_TO_TRADE == True:
+                    print('ready_to_trade: ', READY_TO_TRADE)
 
                 #
                 # Handle unverified BUY / SELL order
@@ -1348,8 +1178,6 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                         last_order_id = last_order['response']['order_id']
                     else:
                         last_order_id = last_order['order_id']
-
-                    # print('last id: ', last_order_id)
 
                     fulfilled_order_data = get_coinbase_order_by_order_id(coinbase_client, last_order_id)
                     print('who')
@@ -1363,75 +1191,20 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                         print('still waiting to pull full order data info \n')
 
                 #
+                #
                 # BUY logic
                 elif last_order_type == 'none' or last_order_type == 'sell':
-                    print('looking to BUY')
+                    print('looking to BUY at $', BUY_AT_PRICE)
 
-                    #
-                    # stable pairs
-                    #
-                    if stable_pair == True:
-                        if current_price <= stable_buy_at_price:
-                            if READY_TO_TRADE == True:
-                                print(symbol)
-                                print(SHARES_TO_ACQUIRE)
-                                place_market_buy_order(coinbase_client, symbol, SHARES_TO_ACQUIRE)
-                                event_type = 'buy'
-                            else:
-                                print('trading disabled')
-                    #
-                    # regular asset
-                    #
-                    else:
+                    if float(trading_range_percentage) < float(TARGET_PROFIT_PERCENTAGE):
+                        print('trading range smaller than target_profit_percentage')
+                        continue
 
-                        # if float(trading_range_percentage) < float(TARGET_PROFIT_PERCENTAGE):
-                            # print('trading range smaller than target_profit_percentage')
-                            # continue
+                    if current_price < BUY_AT_PRICE:
+                        if READY_TO_TRADE == True:
+                            place_market_buy_order(coinbase_client, symbol, SHARES_TO_ACQUIRE)
 
-                        print('buy_at_price: ', BUY_AT_PRICE)
-
-                        # Strategy #1
-
-                        if current_price < BUY_AT_PRICE:
-                            if READY_TO_TRADE == True:
-                                place_market_buy_order(coinbase_client, symbol, SHARES_TO_ACQUIRE)
-
-
-                        #     if current_price < fibonacci_levels['level_61.8']:
-                        #         if current_price_position_within_trading_range < BUY_AT_PRICE_POSITION_PERCENTAGE:
-                        #             # if downward_divergence == True:
-                        #             # Determine the lower of the pivot and lower Bollinger band
-                        #             lower_threshold = min(pivot, lower_bollinger_band)
-                        #             # Track number of divergences
-                        #             downward_divergence_below_threshold_count = 0
-                        #             # Iterate backward through the price data from current price
-                        #             recent_prices = list(LOCAL_PRICE_DATA[symbol])
-                        #             for price in reversed(recent_prices):
-                        #                 if price > lower_threshold:
-                        #                     # print(' price broke threshold: ', price)
-                        #                     break
-                        #                 if price in LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA[symbol]:
-                        #                     downward_divergence_below_threshold_count += 1
-                        #
-                        #             print(f"downward_divergence_below_threshold_count: {downward_divergence_below_threshold_count}")
-                        #             print('ALERT_DOWNWARD_DIVERGENCE: ', ALERT_DOWNWARD_DIVERGENCE)
-                        #             print('BUY_AT_DOWNWARD_DIVERGENCE_COUNT: ', BUY_AT_DOWNWARD_DIVERGENCE_COUNT)
-                        #             if downward_divergence_below_threshold_count > 2 and ALERT_DOWNWARD_DIVERGENCE == True:
-                        #                 send_email_notification(
-                        #                     subject=f"downward divergence count: {downward_divergence_below_threshold_count}",
-                        #                     text_content=f"downward dv - {downward_divergence_below_threshold_count}",
-                        #                     html_content=f"downward dv - {downward_divergence_below_threshold_count}"
-                        #                 )
-                        #
-                        #             if downward_divergence_below_threshold_count >= BUY_AT_DOWNWARD_DIVERGENCE_COUNT:
-                        #                 print('~ BUY OPPORTUNITY (current price < pivot, current_price < lower_bollinger_band, downward divergence, position is good)~')
-                        #                 if READY_TO_TRADE == True:
-                        #                     place_market_buy_order(coinbase_client, symbol, SHARES_TO_ACQUIRE)
-                        #                     event_type = 'buy'
-                        #                 else:
-                        #                     print('trading disabled')
-
-
+                #
                 #
                 # SELL logic
                 elif last_order_type == 'buy': # and volume_based_strategy == 'sell':
@@ -1461,41 +1234,12 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     potential_profit_percentage = (potential_profit / entry_position_value_after_fees) * 100
                     print(f"potential_profit_percentage: {potential_profit_percentage:.4f}%")
 
-                    #
-                    # stable pairs
-                    #
-                    if stable_pair == True:
-                        if current_price >= stable_sell_at_price or potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
-                            if READY_TO_TRADE == True:
-                                place_market_sell_order(coinbase_client, symbol, number_of_shares, potential_profit, potential_profit_percentage)
-                                event_type = 'sell'
-                            else:
-                                print('trading disabled')
-                    #
-                    # regular asset
-                    #
-                    else:
-
-                        if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
-
-                            # take profits at x percent
-                            print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
-                            if READY_TO_TRADE == True:
-                                place_market_sell_order(coinbase_client, symbol, number_of_shares, potential_profit, potential_profit_percentage)
-                                event_type = 'sell'
-                            else:
-                                print('trading disabled')
-
-
-                            # fib level indicator
-                            if fibonacci_levels['level_61.8'] > current_price:
-                                print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
-                                if READY_TO_TRADE == True:
-                                    place_market_sell_order(coinbase_client, symbol, number_of_shares, potential_profit, potential_profit_percentage)
-                                    event_type = 'sell'
-                                else:
-                                    print('trading disabled')
-
+                    if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
+                        print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
+                        if READY_TO_TRADE == True:
+                            place_market_sell_order(coinbase_client, symbol, number_of_shares, potential_profit, potential_profit_percentage)
+                        else:
+                            print('trading disabled')
 
                 current_time = time.time() # call it once instead of twice for the following functions
 
