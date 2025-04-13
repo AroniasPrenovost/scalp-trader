@@ -815,15 +815,11 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
             # if has_one_hour_passed(APP_START_TIME_DATA['start_time']) == False:
             #     print('Waiting to collect 1 full hour of data')
             #     continue;
+
             if files_in_folder < 2:
                 print('waiting for more data to do calculations')
             else:
                 for coin in current_listed_coins_dictionary:
-
-                    if coin['product_id'] not in UPTREND_NOTIFICATIONS:
-                        UPTREND_NOTIFICATIONS[coin['product_id']] = 0
-
-                    # check stored data
 
                     if coin['product_id'] == 'YFI-BTC' or '-BTC' in coin['product_id'] or 'ZETACHAIN' in coin['product_id'] or 'RNDR' in coin['product_id'] or coin['product_id'] == 'REZ-USD' or "USDC" in coin['product_id'] or "USDT" in coin['product_id'] or "ETH" in coin['product_id'] or "EUR" in coin['product_id'] or "GBP" in coin['product_id']:
                         continue
@@ -931,7 +927,6 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     if coinbase_data_signal != 'hold':
 
                         time.sleep(4) # helps with rate limiting
-
 
                         # tracking changes recommendations
                         cb_string = ''
