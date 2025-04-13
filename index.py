@@ -1137,7 +1137,6 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 #
                 #
                 # Manage order data (order types, order info, etc.) in local ledger
-                #
 
                 entry_price = 0
 
