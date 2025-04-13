@@ -554,13 +554,6 @@ def volume_based_strategy_recommendation(data):
         return 'hold'
         # Insufficient clear signals"
 
-
-
-
-
-#
-#
-#
 #
 #
 #
@@ -594,16 +587,6 @@ def convert_products_to_dicts(products):
 #
 #
 
-# def get_price_from_data(data, symbol):
-#     for coin in data:
-#         if coin['product_id'] == symbol:
-#             price = coin.get('price', '')
-#             if price:  # Check if price is not an empty string
-#                 return float(price)
-#             else:
-#                 print(f"Warning: Price for {symbol} is missing or empty.")
-#                 return None
-#     return None
 
 def calculate_changes_for_assets_old(directory, symbol):
     # Get all JSON files in the directory, sorted by creation time
@@ -715,12 +698,6 @@ def calculate_price_momentum(price_changes):
 
     # Usage example: calculate_coin_price_changes('/path/to/directory', 'BTC-USD')
 
-
-#
-
-#
-#
-#
 #
 #
 
@@ -1209,6 +1186,10 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 # SELL logic
                 elif last_order_type == 'buy': # and volume_based_strategy == 'sell':
                     print('looking to SELL')
+
+                    if float(trading_range_percentage) < float(TARGET_PROFIT_PERCENTAGE):
+                        print('trading range smaller than target_profit_percentage')
+                        continue
 
                     entry_price = float(last_order['order']['average_filled_price'])
                     print(f"entry_price: {entry_price}")
