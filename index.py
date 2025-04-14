@@ -30,6 +30,10 @@ from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, 
 coinbase_client = get_coinbase_client()
 # custom coinbase listings check
 from utils.new_coinbase_listings import check_for_new_coinbase_listings
+# plotting data
+from utils.matplotlib import plot_graph
+
+
 # load .env
 load_dotenv()
 
@@ -766,7 +770,6 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
     while True:
 
 
-
         if 'start_time' not in APP_START_TIME_DATA:
             APP_START_TIME_DATA['start_time'] = time.time()
 
@@ -833,7 +836,13 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                     # Updated logic to check if the coin's product_id is in the top 20 list
                     if coin['product_id'] in top_20_cryptos:
 
-                        # time.sleep(2) # helps with rate limiting
+                        plot_graph(
+                            True, # enabled
+                            time.time(),
+                            coin['product_id'],
+                            [0, 1, 2, 3, 4],
+                            0
+                        )
 
                         # calculate price change over different timeframes minutes (5, 15, 30, 60)
                         price_change_percentages = calculate_coin_price_changes(coinbase_price_history_directory, coin['product_id'])
