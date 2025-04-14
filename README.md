@@ -47,7 +47,7 @@ This project is a cryptocurrency trading bot that interacts with the Coinbase AP
 
 3. Copy the `.env.sample` file and create an `.env` file in the root directory. Add your Coinbase and Mailjet API credentials, along with other tax and fee configurations to the `.env` file:
 
-   ```plaintext
+   ```bash
    COINBASE_API_KEY=your_api_key
    COINBASE_API_SECRET=your_api_secret
    COINBASE_SPOT_MAKER_FEE=0.5
