@@ -136,8 +136,6 @@ TEST_DOWNWARD_TREND_DIVERGENCE_DATA = {}
 
 coinbase_spot_maker_fee = float(os.environ.get('COINBASE_SPOT_MAKER_FEE'))
 coinbase_spot_taker_fee = float(os.environ.get('COINBASE_SPOT_TAKER_FEE'))
-coinbase_stable_pair_spot_maker_fee = float(os.environ.get('COINBASE_STABLE_PAIR_SPOT_MAKER_FEE'))
-coinbase_stable_pair_spot_taker_fee = float(os.environ.get('COINBASE_STABLE_PAIR_SPOT_TAKER_FEE'))
 federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
 
 
@@ -819,6 +817,8 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 print('Waiting to collect 4 full hours of data')
                 continue;
 
+
+
             if files_in_folder < 2:
                 print('waiting for more data to do calculations')
             else:
@@ -839,13 +839,13 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                         # do we have 2 hours of data_points
 
 
-                        plot_graph(
-                            True, # enabled
-                            time.time(),
-                            coin['product_id'],
-                            [0, 1, 2, 3, 4],
-                            0
-                        )
+                        # plot_graph(
+                        #     True, # enabled
+                        #     time.time(),
+                        #     coin['product_id'],
+                        #     [0, 1, 2, 3, 4],
+                        #     0
+                        # )
 
                         # calculate price change over different timeframes minutes (5, 15, 30, 60)
                         price_change_percentages = calculate_coin_price_changes(coinbase_price_history_directory, coin['product_id'])
@@ -988,11 +988,8 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
             enabled = asset['enabled']
             symbol = asset['symbol']
             # fees
-            stable_pair = asset['stable_pair']
-            stable_buy_at_price = asset['stable_buy_at_price']
-            stable_sell_at_price = asset['stable_sell_at_price']
-            maker_f = coinbase_spot_maker_fee if stable_pair == False else coinbase_stable_pair_spot_maker_fee
-            taker_f = coinbase_spot_taker_fee if stable_pair == False else coinbase_stable_pair_spot_taker_fee
+            maker_f = coinbase_spot_maker_fee
+            taker_f = coinbase_spot_taker_fee
             # trading flags
             READY_TO_TRADE = asset['ready_to_trade']
             TARGET_PROFIT_PERCENTAGE = asset['target_profit_percentage']

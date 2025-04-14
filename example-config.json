@@ -3,9 +3,6 @@
       {
         "enabled": true,
         "symbol": "MATIC-USD",
-        "stable_pair": false,
-        "stable_buy_at_price": 0,
-        "stable_sell_at_price": 0,
         "title": "MATIC 4-hour trader",
         "ready_to_trade": true,
         "target_profit_percentage": 1.1,
@@ -27,9 +24,6 @@
       {
         "enabled": true,
         "symbol": "BTC-USD",
-        "stable_pair": false,
-        "stable_buy_at_price": 0,
-        "stable_sell_at_price": 0,
         "title": "BTC 4-hour trader",
         "ready_to_trade": false,
         "target_profit_percentage": 1.1,
