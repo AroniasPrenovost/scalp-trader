@@ -114,24 +114,7 @@ MAX_LAST_EXCEPTION_ERROR_COUNT = 8
 
 #
 #
-# Initialize a dictionary to store trend data for each asset
 #
-
-LOCAL_TREND_1_DATA = {}
-TEST_TREND_1_DATA = {}
-TREND_1_PRICE_OFFSET_PERCENT = 0.05 # for visibility on graph
-
-LOCAL_TREND_2_DATA = {}
-TEST_TREND_2_DATA = {}
-TREND_2_PRICE_OFFSET_PERCENT = 0.1 # for visibility on graph
-
-# for mapping the divergent outcomes between these 2 ^
-LOCAL_UPWARD_TREND_DIVERGENCE_DATA = {}
-TEST_UPWARD_TREND_DIVERGENCE_DATA = {}
-
-LOCAL_DOWNWARD_TREND_DIVERGENCE_DATA = {}
-TEST_DOWNWARD_TREND_DIVERGENCE_DATA = {}
-
 
 
 coinbase_spot_maker_fee = float(os.environ.get('COINBASE_SPOT_MAKER_FEE'))
