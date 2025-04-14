@@ -1186,7 +1186,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 #
                 #
                 # SELL logic
-                elif last_order_type == 'buy': # and volume_based_strategy == 'sell':
+                elif last_order_type == 'buy':
                     print('looking to SELL')
 
                     entry_price = float(last_order['order']['average_filled_price'])
