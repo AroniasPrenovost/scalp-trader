@@ -806,9 +806,9 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         enable_all_coin_scanning = True
         if enable_all_coin_scanning:
             coinbase_price_history_directory = 'coinbase-data'
-            if is_most_recent_file_older_than_x_minutes(coinbase_price_history_directory, minutes=10):
+            if is_most_recent_file_older_than_x_minutes(coinbase_price_history_directory, minutes=15):
                 save_new_coinbase_data(current_listed_coins_dictionary, coinbase_price_history_directory)
-            delete_files_older_than_x_hours(coinbase_price_history_directory, hours=3)
+            delete_files_older_than_x_hours(coinbase_price_history_directory, hours=5)
 
             files_in_folder = count_files_in_directory(coinbase_price_history_directory)
 
@@ -823,10 +823,11 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
                     # Define a list of top 20 cryptocurrency product_ids
                     top_20_cryptos = [
-                        'BTC-USD', 'ETH-USD', 'BNB-USD', 'USDT-USD', 'USDC-USD',
-                        'XRP-USD', 'ADA-USD', 'DOGE-USD', 'SOL-USD', 'DOT-USD',
-                        'MATIC-USD', 'LTC-USD', 'SHIB-USD', 'AVAX-USD', 'UNI-USD',
-                        'WBTC-USD', 'LINK-USD', 'ATOM-USD', 'XMR-USD', 'BCH-USD'
+                        # 'BTC-USD', 'ETH-USD', 'BNB-USD', 'USDT-USD', 'USDC-USD',
+                        # 'XRP-USD', 'ADA-USD', 'DOGE-USD', 'SOL-USD', 'DOT-USD',
+                        # 'MATIC-USD', 'LTC-USD', 'SHIB-USD', 'AVAX-USD', 'UNI-USD',
+                        # 'WBTC-USD', 'LINK-USD', 'ATOM-USD', 'XMR-USD', 'BCH-USD'
+                        'MATIC-USD'
                     ]
 
                     # Updated logic to check if the coin's product_id is in the top 20 list
