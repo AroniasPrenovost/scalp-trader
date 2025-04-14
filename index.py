@@ -771,7 +771,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         if 'start_time' not in APP_START_TIME_DATA:
             APP_START_TIME_DATA['start_time'] = time.time()
 
-        print_local_time();
+        # print_local_time();
 
         #
         # ERROR TRACKING
@@ -817,7 +817,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 print('Waiting to collect 4 full hours of data')
                 continue;
 
-
+            print_local_time();
 
             if files_in_folder < 2:
                 print('waiting for more data to do calculations')
