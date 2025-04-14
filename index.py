@@ -744,7 +744,7 @@ def detect_volume_spike(current_volume_24h, volume_change_24h):
 
 
 
-def has_one_hour_passed(start_time):
+def has_four_hours_passed(start_time):
     """
     Check if one hour has passed since the application started.
 
@@ -755,7 +755,7 @@ def has_one_hour_passed(start_time):
     elapsed_time = time.time() - start_time
 
     # Check if one hour (3600 seconds) has passed
-    if elapsed_time >= 3600:
+    if elapsed_time >= 14400:
         return True
     else:
         return False
@@ -815,9 +815,9 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
             files_in_folder = count_files_in_directory(coinbase_price_history_directory)
 
-            # if has_one_hour_passed(APP_START_TIME_DATA['start_time']) == False:
-            #     print('Waiting to collect 1 full hour of data')
-            #     continue;
+            if has_four_hours_passed(APP_START_TIME_DATA['start_time']) == False:
+                print('Waiting to collect 4 full hours of data')
+                continue;
 
             if files_in_folder < 2:
                 print('waiting for more data to do calculations')
@@ -835,6 +835,9 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
                     # Updated logic to check if the coin's product_id is in the top 20 list
                     if coin['product_id'] in top_20_cryptos:
+
+                        # do we have 2 hours of data_points
+
 
                         plot_graph(
                             True, # enabled
