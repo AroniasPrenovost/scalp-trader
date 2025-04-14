@@ -35,8 +35,7 @@ This project is a cryptocurrency trading bot that interacts with the Coinbase AP
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/AroniasPrenovost/scalp-trader/tree/main
-   cd coinbase-trading-bot
+   git clone https://github.com/AroniasPrenovost/scalp-trader/tree/main && cd coinbase-trading-bot
    ```
 
 2. Install the required packages:
