@@ -767,6 +767,8 @@ def has_one_hour_passed(start_time):
 def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes):
     while True:
 
+
+
         if 'start_time' not in APP_START_TIME_DATA:
             APP_START_TIME_DATA['start_time'] = time.time()
 
@@ -821,142 +823,148 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
             else:
                 for coin in current_listed_coins_dictionary:
 
-                    if coin['product_id'] == 'YFI-BTC' or '-BTC' in coin['product_id'] or 'ZETACHAIN' in coin['product_id'] or 'RNDR' in coin['product_id'] or coin['product_id'] == 'REZ-USD' or "USDC" in coin['product_id'] or "USDT" in coin['product_id'] or "ETH" in coin['product_id'] or "EUR" in coin['product_id'] or "GBP" in coin['product_id']:
-                        continue
+                    # Define a list of top 20 cryptocurrency product_ids
+                    top_20_cryptos = [
+                        'BTC-USD', 'ETH-USD', 'BNB-USD', 'USDT-USD', 'USDC-USD',
+                        'XRP-USD', 'ADA-USD', 'DOGE-USD', 'SOL-USD', 'DOT-USD',
+                        'MATIC-USD', 'LTC-USD', 'SHIB-USD', 'AVAX-USD', 'UNI-USD',
+                        'WBTC-USD', 'LINK-USD', 'ATOM-USD', 'XMR-USD', 'BCH-USD'
+                    ]
 
-                    time.sleep(2) # helps with rate limiting
+                    # Updated logic to check if the coin's product_id is in the top 20 list
+                    if coin['product_id'] in top_20_cryptos:
 
+                        # time.sleep(2) # helps with rate limiting
 
+                        # calculate price change over different timeframes minutes (5, 15, 30, 60)
+                        price_change_percentages = calculate_coin_price_changes(coinbase_price_history_directory, coin['product_id'])
+                        momentum_info = calculate_price_momentum(price_change_percentages)
+                        # if momentum_info['signal'] != 'neutral':
+                        #     print(f"{momentum_info['signal']}: {momentum_info['weighted_sum']}")
+                        # print(momentum_info['signal'])
 
-                    # calculate price change over different timeframes minutes (5, 15, 30, 60)
-                    price_change_percentages = calculate_coin_price_changes(coinbase_price_history_directory, coin['product_id'])
-                    momentum_info = calculate_price_momentum(price_change_percentages)
-                    # if momentum_info['signal'] != 'neutral':
-                    #     print(f"{momentum_info['signal']}: {momentum_info['weighted_sum']}")
-                    # print(momentum_info['signal'])
-
-                    volume_24h = 0
-                    volume_percentage_change_24h = 0
-                    price_percentage_change_24h = 0
-                    try:
-                        volume_24h = float(coin['volume_24h'])
-                        # print('volume_24h', volume_24h)
-                        volume_percentage_change_24h = float(coin['volume_percentage_change_24h'])
-                        # print('volume_percentage_change_24h', volume_percentage_change_24h)
-                        price_percentage_change_24h = float(coin['price_percentage_change_24h'])
-                        # print('price_percentage_change_24h', price_percentage_change_24h)
-                    except ValueError as e:
-                        print(f"Error: Could not convert volume or price change data for {coin['product_id']}. Error: {e}")
-                        continue
-
-                    if volume_24h and volume_percentage_change_24h and price_percentage_change_24h:
-                        spike_detected_info = detect_volume_spike(volume_24h, volume_percentage_change_24h)
-
-
-                    # if price_change_percentages[5] != 0.0:
-                    #     print(price_change_percentages, momentum_info['signal'])
-
-
-                    coin_obj = {
-                        'symbol': coin['product_id'],
-                        'weighted_sum': round(momentum_info['weighted_sum'], 2),
-                        'price_change_intervals': price_change_percentages,
-                        'spike_detected': spike_detected_info['volume_spike_detected'],
-                        'volume_%_change_24h': round(spike_detected_info['volume_change_24h'], 2),
-                        'price_%_change_24h': round(price_percentage_change_24h, 2),
-                        'price': coin['price'],
-                        # 'mcap_efficiency_ratio': efficiency_ratio,
-                        # 'mcap_desc': description,
-                        'timestamp': time.time(),
-                    }
-
-                    # print(coin_obj)
-
-                    if momentum_info['signal'] == 'upward' and spike_detected_info['volume_spike_detected'] == True or price_change_percentages[5] != 0.0:
-                        # if coin_obj['weighted_sum'] > UPTREND_NOTIFICATIONS[coin['product_id']]:
-                        append_to_json_array('uptrend-data/data.json', coin_obj)
-
+                        volume_24h = 0
+                        volume_percentage_change_24h = 0
+                        price_percentage_change_24h = 0
                         try:
-                            pretty_data = json.dumps(coin_obj, indent=4)
-                            # print(pretty_data)
-                        except TypeError as e:
-                            print(f"Error serializing data: {e}")
+                            volume_24h = float(coin['volume_24h'])
+                            # print('volume_24h', volume_24h)
+                            volume_percentage_change_24h = float(coin['volume_percentage_change_24h'])
+                            # print('volume_percentage_change_24h', volume_percentage_change_24h)
+                            price_percentage_change_24h = float(coin['price_percentage_change_24h'])
+                            # print('price_percentage_change_24h', price_percentage_change_24h)
+                        except ValueError as e:
+                            print(f"Error: Could not convert volume or price change data for {coin['product_id']}. Error: {e}")
+                            continue
 
-                    # UPTREND_NOTIFICATIONS[coin['product_id']] = momentum_info['weighted_sum']
+                        if volume_24h and volume_percentage_change_24h and price_percentage_change_24h:
+                            spike_detected_info = detect_volume_spike(volume_24h, volume_percentage_change_24h)
 
-                    time_since_signal, price_change = calculate_price_change('uptrend-data/data.json', coin['product_id'], coin['price'])
-                    if time_since_signal != 0 and time_since_signal != '' and price_change != 0:
-                        print(coin['product_id'])
-                        print(f"uptrend_predict_age: {time_since_signal}, price_change_%: {round(price_change, 2)}")
-                        print('\n')
 
-                    remove_old_entries('uptrend-data/data.json', 1)
-                    continue
+                        # if price_change_percentages[5] != 0.0:
+                        #     print(price_change_percentages, momentum_info['signal'])
 
-                    #
-                    #
-                    #
 
-                    price_change_percentage_range = calculate_changes_for_assets_old(coinbase_price_history_directory, coin['product_id'])
-                    # print('price_change_percentage_range', price_change_percentage_range)
-                    try:
-                        volume_24h = float(coin['volume_24h'])
-                        # print('volume_24h', volume_24h)
-                        volume_percentage_change_24h = float(coin['volume_percentage_change_24h'])
-                        # print('volume_percentage_change_24h', volume_percentage_change_24h)
-                        price_percentage_change_24h = float(coin['price_percentage_change_24h'])
-                        # print('price_percentage_change_24h', price_percentage_change_24h)
-                    except ValueError as e:
-                        print(f"Error: Could not convert volume or price change data for {coin['product_id']}. Error: {e}")
+                        coin_obj = {
+                            'symbol': coin['product_id'],
+                            'weighted_sum': round(momentum_info['weighted_sum'], 2),
+                            'price_change_intervals': price_change_percentages,
+                            'spike_detected': spike_detected_info['volume_spike_detected'],
+                            'volume_%_change_24h': round(spike_detected_info['volume_change_24h'], 2),
+                            'price_%_change_24h': round(price_percentage_change_24h, 2),
+                            'price': coin['price'],
+                            # 'mcap_efficiency_ratio': efficiency_ratio,
+                            # 'mcap_desc': description,
+                            'timestamp': time.time(),
+                        }
+
+                        print(coin_obj)
+
+                        # if momentum_info['signal'] == 'upward' and spike_detected_info['volume_spike_detected'] == True or price_change_percentages[5] != 0.0:
+                        #     # if coin_obj['weighted_sum'] > UPTREND_NOTIFICATIONS[coin['product_id']]:
+                        #     append_to_json_array('uptrend-data/data.json', coin_obj)
+                        #
+                        #     try:
+                        #         pretty_data = json.dumps(coin_obj, indent=4)
+                        #         # print(pretty_data)
+                        #     except TypeError as e:
+                        #         print(f"Error serializing data: {e}")
+                        #
+                        # # UPTREND_NOTIFICATIONS[coin['product_id']] = momentum_info['weighted_sum']
+                        #
+                        # time_since_signal, price_change = calculate_price_change('uptrend-data/data.json', coin['product_id'], coin['price'])
+                        # if time_since_signal != 0 and time_since_signal != '' and price_change != 0:
+                        #     print(coin['product_id'])
+                        #     print(f"uptrend_predict_age: {time_since_signal}, price_change_%: {round(price_change, 2)}")
+                        #     print('\n')
+
+                        remove_old_entries('uptrend-data/data.json', 1)
                         continue
 
-                    volume_signal = generate_volume_signal(volume_24h, volume_percentage_change_24h, price_percentage_change_24h)
-                    volatility = volume_volatility_indicator(volume_24h, volume_percentage_change_24h, price_change_percentage_range)
-                    coinbase_data_signal = 'hold'
-                    if volume_signal == 1 and volatility < 2:
-                        coinbase_data_signal = 'buy'
-                    elif volume_signal == -1 and volatility > 3:
-                        coinbase_data_signal = 'sell'
+                        #
+                        #
+                        #
 
-                    # storing in local arrays
-                    if coin['product_id'] not in COINBASE_DATA_RECOMMENDATIONS:
-                        COINBASE_DATA_RECOMMENDATIONS[coin['product_id']] = 0
-                    if coin['product_id'] not in TREND_NOTIFICATIONS:
-                        TREND_NOTIFICATIONS[coin['product_id']] = 0
-
-                    if coinbase_data_signal != 'hold':
-
-                        time.sleep(4) # helps with rate limiting
-
-                        # tracking changes recommendations
-                        cb_string = ''
-                        if COINBASE_DATA_RECOMMENDATIONS[coin['product_id']] != coinbase_data_signal:
-                            cb_string = f"coinbase: {str(COINBASE_DATA_RECOMMENDATIONS[coin['product_id']]).upper()} --> {str(coinbase_data_signal).upper()}"
-                            COINBASE_DATA_RECOMMENDATIONS[coin['product_id']] = coinbase_data_signal
-
-
-                        changed_recommendation = False
-                        if cb_string != '':
-                            changed_recommendation = True
-
-                        if changed_recommendation == True:
-                            print(f"{coin['product_id']} ({price_change_percentage_range:.2f}%)")
-                            print(f"24h: {coin['price_percentage_change_24h']}%")
-                            if cb_string != '':
-                                print(cb_string)
-
-                            # print('coinbase signal: ', coinbase_data_signal.upper())
-
-                        print(coin['product_id'])
-
-                        if coinbase_data_signal == 'buy':
-                            print('BUY BUY')
-                            print(coin['product_id'])
-                        else:
-                            print('SELL SELL')
-                            print(coin['product_id'])
-
-                        print('\n')
+                        # price_change_percentage_range = calculate_changes_for_assets_old(coinbase_price_history_directory, coin['product_id'])
+                        # # print('price_change_percentage_range', price_change_percentage_range)
+                        # try:
+                        #     volume_24h = float(coin['volume_24h'])
+                        #     # print('volume_24h', volume_24h)
+                        #     volume_percentage_change_24h = float(coin['volume_percentage_change_24h'])
+                        #     # print('volume_percentage_change_24h', volume_percentage_change_24h)
+                        #     price_percentage_change_24h = float(coin['price_percentage_change_24h'])
+                        #     # print('price_percentage_change_24h', price_percentage_change_24h)
+                        # except ValueError as e:
+                        #     print(f"Error: Could not convert volume or price change data for {coin['product_id']}. Error: {e}")
+                        #     continue
+                        #
+                        # volume_signal = generate_volume_signal(volume_24h, volume_percentage_change_24h, price_percentage_change_24h)
+                        # volatility = volume_volatility_indicator(volume_24h, volume_percentage_change_24h, price_change_percentage_range)
+                        # coinbase_data_signal = 'hold'
+                        # if volume_signal == 1 and volatility < 2:
+                        #     coinbase_data_signal = 'buy'
+                        # elif volume_signal == -1 and volatility > 3:
+                        #     coinbase_data_signal = 'sell'
+                        #
+                        # # storing in local arrays
+                        # if coin['product_id'] not in COINBASE_DATA_RECOMMENDATIONS:
+                        #     COINBASE_DATA_RECOMMENDATIONS[coin['product_id']] = 0
+                        # if coin['product_id'] not in TREND_NOTIFICATIONS:
+                        #     TREND_NOTIFICATIONS[coin['product_id']] = 0
+                        #
+                        # if coinbase_data_signal != 'hold':
+                        #
+                        #     time.sleep(4) # helps with rate limiting
+                        #
+                        #     # tracking changes recommendations
+                        #     cb_string = ''
+                        #     if COINBASE_DATA_RECOMMENDATIONS[coin['product_id']] != coinbase_data_signal:
+                        #         cb_string = f"coinbase: {str(COINBASE_DATA_RECOMMENDATIONS[coin['product_id']]).upper()} --> {str(coinbase_data_signal).upper()}"
+                        #         COINBASE_DATA_RECOMMENDATIONS[coin['product_id']] = coinbase_data_signal
+                        #
+                        #
+                        #     changed_recommendation = False
+                        #     if cb_string != '':
+                        #         changed_recommendation = True
+                        #
+                        #     if changed_recommendation == True:
+                        #         print(f"{coin['product_id']} ({price_change_percentage_range:.2f}%)")
+                        #         print(f"24h: {coin['price_percentage_change_24h']}%")
+                        #         if cb_string != '':
+                        #             print(cb_string)
+                        #
+                        #         # print('coinbase signal: ', coinbase_data_signal.upper())
+                        #
+                        #     print(coin['product_id'])
+                        #
+                        #     if coinbase_data_signal == 'buy':
+                        #         print('BUY BUY')
+                        #         print(coin['product_id'])
+                        #     else:
+                        #         print('SELL SELL')
+                        #         print(coin['product_id'])
+                        #
+                        #     print('\n')
 
         #
         #
@@ -1180,10 +1188,6 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 # SELL logic
                 elif last_order_type == 'buy': # and volume_based_strategy == 'sell':
                     print('looking to SELL')
-
-                    if float(trading_range_percentage) < float(TARGET_PROFIT_PERCENTAGE):
-                        print('trading range smaller than target_profit_percentage')
-                        continue
 
                     entry_price = float(last_order['order']['average_filled_price'])
                     print(f"entry_price: {entry_price}")
