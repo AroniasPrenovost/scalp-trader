@@ -84,8 +84,8 @@ APP_START_TIME_DATA = {} # global data to help manage time
 #
 
 # ------------------
-INTERVAL_SECONDS = 10
-INTERVAL_MINUTES = 0.25
+INTERVAL_SECONDS = 300
+INTERVAL_MINUTES = 3
 # ------------------
 # INTERVAL_SECONDS = 2
 # INTERVAL_MINUTES = 360
