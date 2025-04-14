@@ -756,8 +756,6 @@ def has_one_hour_passed(start_time):
     else:
         return False
 
-
-#
 #
 #
 #
@@ -808,9 +806,9 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         enable_all_coin_scanning = True
         if enable_all_coin_scanning:
             coinbase_price_history_directory = 'coinbase-data'
-            if is_most_recent_file_older_than_x_minutes(coinbase_price_history_directory, minutes=5):
+            if is_most_recent_file_older_than_x_minutes(coinbase_price_history_directory, minutes=10):
                 save_new_coinbase_data(current_listed_coins_dictionary, coinbase_price_history_directory)
-            delete_files_older_than_x_hours(coinbase_price_history_directory, hours=1)
+            delete_files_older_than_x_hours(coinbase_price_history_directory, hours=3)
 
             files_in_folder = count_files_in_directory(coinbase_price_history_directory)
 
@@ -898,7 +896,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                         #     print(f"uptrend_predict_age: {time_since_signal}, price_change_%: {round(price_change, 2)}")
                         #     print('\n')
 
-                        remove_old_entries('uptrend-data/data.json', 1)
+                        remove_old_entries('uptrend-data/data.json', 6)
                         continue
 
                         #
