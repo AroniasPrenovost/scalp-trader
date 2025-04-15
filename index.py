@@ -155,7 +155,7 @@ def convert_products_to_dicts(products):
 
 enabled_crypocurrencies = [
     'BTC-USD', # 'ETH-USD', 'BNB-USD',
-    'XRP-USD', 'ADA-USD', 'DOGE-USD',
+    'XRP-USD', 'ADA-USD', 'DOGE-USD', 'AVAX-USD',
     'MATIC-USD', # 'LTC-USD', 'SHIB-USD', 'AVAX-USD', 'UNI-USD',
     # 'WBTC-USD', 'LINK-USD', 'ATOM-USD', 'XMR-USD', 'BCH-USD'
 ]
