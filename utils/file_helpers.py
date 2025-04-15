@@ -89,6 +89,9 @@ def is_most_recent_file_older_than_x_minutes(directory, minutes):
 #
 
 
+
+
+
 def append_to_json_array(file_path, obj):
     # Check if the file exists
     if not os.path.exists(file_path):
@@ -103,8 +106,10 @@ def append_to_json_array(file_path, obj):
         except json.JSONDecodeError:
             raise ValueError("The file does not contain valid JSON data.")
 
-    # Check for the existence of the symbol in the current data
-    if any(entry.get('symbol') == obj.get('symbol') for entry in data):
+    # Check for the existence of the symbol in the current data older than 20 mins
+    current_time = time.time()
+    twenty_minutes_ago = current_time - 1200  # 20 minutes in seconds
+    if any(entry.get('symbol') == obj.get('symbol') and entry.get('timestamp', 0) > twenty_minutes_ago for entry in data):
         return
 
     # Append the new object to the array
@@ -196,3 +201,49 @@ def remove_old_entries(file_path, max_hours_old):
 
     # Example usage:
     # remove_old_entries('/path/to/your/data.json', 24)
+
+#
+#
+#
+
+
+def get_property_values_from_files(directory, product_id, property_name):
+    """
+    Iterates through JSON files in the specified directory and extracts the specified property
+    for the given product_id.
+
+    :param directory: Path to the directory containing JSON files
+    :param product_id: The product_id to search for in the files
+    :param property_name: The property to extract from the product data
+    :return: List of property values for the specified product_id
+    """
+    property_values = []
+
+    # Ensure the directory exists
+    if not os.path.exists(directory):
+        raise FileNotFoundError(f"The directory {directory} does not exist.")
+
+    # Get a sorted list of JSON files in the directory
+    files = sorted([f for f in os.listdir(directory) if f.endswith('.json')])
+
+    # Iterate through each file
+    for file_name in files:
+        file_path = os.path.join(directory, file_name)
+
+        # Read the JSON data from the file
+        with open(file_path, 'r') as file:
+            try:
+                data = json.load(file)
+                if not isinstance(data, list):
+                    raise ValueError("The JSON data is not an array.")
+            except json.JSONDecodeError:
+                continue
+
+        # Extract the specified property for the given product_id
+        for entry in data:
+            if entry.get('product_id') == product_id:
+                property_value = entry.get(property_name)
+                if property_value is not None:
+                    property_values.append(property_value)
+
+    return property_values

@@ -213,12 +213,6 @@ def place_market_sell_order(client, symbol, base_size, potential_profit, potenti
 
 #
 #
-#
-#
-
-
-#
-#
 # get_last_order_from_local_json_ledger
 #
 
@@ -242,36 +236,3 @@ def get_last_order_from_local_json_ledger(symbol):
     except Exception as e:
         print(f"Error retrieving order from ledger for {symbol}: {e}")
         return None
-
-
-
-
-# def place_market_sell_order(client, symbol, base_size, potential_profit, potential_profit_percentage):
-#     try:
-#         order = client.market_order_sell(
-#             client_order_id=generate_client_order_id(symbol, 'sell'), # id must be unique
-#             product_id=symbol,
-#             base_size=str(base_size)  # Convert base_size to string
-#         )
-#
-#         if 'order_id' in order['response']:
-#             order_id = order['response']['order_id']
-#             print(f"SELL ORDER placed successfully. Order ID: {order_id}")
-#
-#             # Clear out existing ledger since there is no need to wait and confirm a sell transaction as long as we got programmatic confirmation
-#             reset_json_ledger_file(symbol)
-#
-#             send_email_notification(
-#                 subject=f"Sell Order - {symbol}: ${potential_profit} (+{potential_profit_percentage}%)",
-#                 text_content=f"SELL ORDER placed successfully for {symbol}. Order ID: {order_id}",
-#                 html_content=f"<h3>SELL ORDER placed successfully for {symbol}. Order ID: {order_id}</h3>"
-#             )
-#         else:
-#             print(f"Unexpected response: {dumps(order)}")
-#     except Exception as e:
-#         print(f"Error placing SELL order for {symbol}: {e}")
-
-
-#
-#
-#

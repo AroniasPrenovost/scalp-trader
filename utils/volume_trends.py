@@ -88,3 +88,41 @@ def volume_based_strategy_recommendation(data):
     else:
         return 'hold'
         # Insufficient clear signals"
+
+
+
+def detect_volume_spike(current_volume_24h, volume_change_24h):
+    """
+    Analyzes the volume data of a given coin to detect potential volume spikes.
+
+    Parameters:
+    - coin_data: A dictionary containing volume and price change information for a coin.
+
+    Returns:
+    - A dictionary containing information about the volume spike.
+    """
+
+    try:
+        # Assuming the "volume_change_24h" indicates the percentage change in volume, calculate expected volume
+        if volume_change_24h is not None:
+            previous_volume_24h = current_volume_24h / (1 + (volume_change_24h / 100))
+        else:
+            print("Volume change data not available.")
+            return None
+
+        # Determine if a spike has occurred by checking if the volume has increased significantly above previous volume
+        threshold = 1.5  # Example threshold for what we consider a spike (50% more than the previously expected volume)
+        spike_occurred = current_volume_24h > previous_volume_24h * threshold
+
+        spike_info = {
+            'current_volume_24h': current_volume_24h,
+            'previous_volume_24h': previous_volume_24h,
+            'volume_change_24h': volume_change_24h,
+            'volume_spike_detected': spike_occurred
+        }
+
+        return spike_info
+
+    except KeyError as e:
+        print(f"Key error: Missing expected data field - {str(e)}")
+        return None

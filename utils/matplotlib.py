@@ -20,16 +20,20 @@ import argparse
 # related to price change % logic
 import glob
 
-
 import os
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+
+from utils.price_helpers import calculate_trading_range_percentage
 
 def plot_graph(
     enabled,
     current_timestamp,
     symbol,
     price_data,
+    min_price,
+    max_price,
+    trade_range_percentage,
     entry_price
 ):
     if not enabled:
@@ -46,18 +50,18 @@ def plot_graph(
 
     colors = ['cadetblue', 'blue', 'green', 'orange', 'lime', 'lavender']
 
-    # min_displayed_price = min(min(price_data), support, resistance, lower_bollinger_band)
-    # max_displayed_price = max(max(price_data), support, resistance, upper_bollinger_band)
-    # price_range = max_displayed_price - min_displayed_price
-    # buffer = price_range * 0.05
     #
-    # plt.gca().set_ylim(min_displayed_price - buffer, max_displayed_price + buffer)
-    # plt.gca().xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
-    # plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.6f'))
+    #
+    price_range = max_price - min_price
+    buffer = price_range * 0.05
+
+    plt.gca().set_ylim(min_price - buffer, max_price + buffer)
+    plt.gca().xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
+    plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.4f'))
 
     plt.title(f"{symbol}")
     plt.xlabel("time range")
-    plt.ylabel("price")
+    plt.ylabel(f"price range: {trade_range_percentage}%")
     plt.legend(loc='upper left', fontsize='small')
     plt.grid(True)
 

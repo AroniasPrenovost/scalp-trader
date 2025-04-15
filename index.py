@@ -21,7 +21,7 @@ import glob
 
 # custom imports
 from utils.email import send_email_notification
-from utils.file_helpers import save_obj_dict_to_file, count_files_in_directory, delete_files_older_than_x_hours, is_most_recent_file_older_than_x_minutes, append_to_json_array, calculate_price_change, remove_old_entries
+from utils.file_helpers import save_obj_dict_to_file, count_files_in_directory, delete_files_older_than_x_hours, is_most_recent_file_older_than_x_minutes, append_to_json_array, calculate_price_change, remove_old_entries, get_property_values_from_files
 from utils.price_helpers import calculate_trading_range_percentage, calculate_current_price_position_within_trading_range, calculate_offset_price, calculate_price_change_percentage
 from utils.technical_indicators import calculate_market_cap_efficiency, calculate_fibonacci_levels
 from utils.time_helpers import print_local_time
@@ -75,8 +75,6 @@ last_calculated_support_resistance_pivot_prices = {}  # Store the last calculate
 #
 # Time tracking
 #
-
-APP_START_TIME_DATA = {} # global data to help manage time
 
 #
 #
@@ -152,189 +150,18 @@ def convert_products_to_dicts(products):
 #
 #
 #
-#
-
-
-def calculate_changes_for_assets_old(directory, symbol):
-    # Get all JSON files in the directory, sorted by creation time
-    files = sorted(glob.glob(os.path.join(directory, '*.json')), key=os.path.getctime)
-
-    if len(files) < 2:
-        print("Not enough data files to calculate price changes.")
-        return None
-
-    # Load the oldest and newest data files
-    with open(files[0], 'r') as old_file:
-        old_data = json.load(old_file)
-    with open(files[-1], 'r') as new_file:
-        new_data = json.load(new_file)
-
-    # Get prices for the specified symbol
-    old_price = get_price_from_data(old_data, symbol)
-    new_price = get_price_from_data(new_data, symbol)
-
-    if old_price is None or new_price is None:
-        print(f"Price data for {symbol} not found in the files.")
-        return None
-
-    # Calculate the price change percentage
-    price_change_percentage = calculate_price_change_percentage(old_price, new_price)
-    return price_change_percentage
-
-
-
-def get_price_from_data(data, symbol):
-    for coin in data:
-        if coin['product_id'] == symbol:
-            price = coin.get('price', '')
-            if price:
-                return float(price)
-    return None
-
-def calculate_coin_price_changes(directory, symbol):
-    # Calculate the current time and get the list of all files
-    current_time = time.time()
-    file_paths = sorted(glob.glob(os.path.join(directory, '*.json')), key=os.path.getctime)
-
-    # We will check for the files that correspond to the requested timeframes
-    timeframes = [5*60, 15*60, 30*60, 60*60]  # Timeframes in seconds
-    price_changes = {}
-
-    for timeframe in timeframes:
-        # Find the index of the file closest to the timeframe
-        for i, file_path in enumerate(file_paths):
-            file_time = os.path.getctime(file_path)
-            if current_time - file_time <= timeframe:
-                with open(file_path, 'r') as file:
-                    data = json.load(file)
-                old_price = get_price_from_data(data, symbol)
-                if old_price is not None:
-                    break
-        else:
-            print(f"Not enough data for {timeframe//60} minutes timeframe.")
-            old_price = None
-
-        if old_price is None:
-            continue
-
-        # Always get the latest price
-        with open(file_paths[-1], 'r') as file:
-            new_data = json.load(file)
-        new_price = get_price_from_data(new_data, symbol)
-
-        if new_price is None:
-            print(f"Price data for {symbol} not found in the latest file.")
-            continue
-
-        # Calculate the price change percentage
-        price_change_percentage = ((new_price - old_price) / old_price) * 100
-        price_changes[timeframe // 60] = round(price_change_percentage, 2)
-
-    return price_changes
-
-
-def calculate_price_momentum(price_changes):
-    """
-    Calculate the momentum of price changes to catch market pumps.
-
-    :param price_changes: A dictionary with keys as time intervals (in minutes) and values as price changes.
-    :return: A string indicating the momentum.
-    """
-    # Define weights for each time interval (minutes)
-    weights = {5: 0.4, 15: 0.3, 30: 0.2, 60: 0.1}
-
-    # Calculate weighted sum of price changes
-    weighted_sum = sum(price_changes[time] * weights[time] for time in price_changes)
-
-    str = 'neutral'
-    if weighted_sum > 0:
-        str = 'upward'
-    elif weighted_sum < 0:
-        str = 'downward'
-
-    # Determine the momentum based on the weighted sum
-    momentum_info = {
-        'weighted_sum': weighted_sum,
-        'signal': str,
-    }
-
-    return momentum_info
-
-
-
-
-    # Usage example: calculate_coin_price_changes('/path/to/directory', 'BTC-USD')
-
-#
-#
-
-
-def detect_volume_spike(current_volume_24h, volume_change_24h):
-    """
-    Analyzes the volume data of a given coin to detect potential volume spikes.
-
-    Parameters:
-    - coin_data: A dictionary containing volume and price change information for a coin.
-
-    Returns:
-    - A dictionary containing information about the volume spike.
-    """
-
-    try:
-        # Assuming the "volume_change_24h" indicates the percentage change in volume, calculate expected volume
-        if volume_change_24h is not None:
-            previous_volume_24h = current_volume_24h / (1 + (volume_change_24h / 100))
-        else:
-            print("Volume change data not available.")
-            return None
-
-        # Determine if a spike has occurred by checking if the volume has increased significantly above previous volume
-        threshold = 1.5  # Example threshold for what we consider a spike (50% more than the previously expected volume)
-        spike_occurred = current_volume_24h > previous_volume_24h * threshold
-
-        spike_info = {
-            'current_volume_24h': current_volume_24h,
-            'previous_volume_24h': previous_volume_24h,
-            'volume_change_24h': volume_change_24h,
-            'volume_spike_detected': spike_occurred
-        }
-
-        return spike_info
-
-    except KeyError as e:
-        print(f"Key error: Missing expected data field - {str(e)}")
-        return None
-
-
-
-def has_four_hours_passed(start_time):
-    """
-    Check if one hour has passed since the application started.
-
-    :param start_time: The start time of the application in seconds since the epoch.
-    :return: A string indicating whether one hour has passed.
-    """
-    # Calculate the elapsed time in seconds
-    elapsed_time = time.time() - start_time
-
-    # Check if one hour (3600 seconds) has passed
-    if elapsed_time >= 14400:
-        return True
-    else:
-        return False
-
-#
-#
-#
 # main logic loop
 #
 
+enabled_crypocurrencies = [
+    'BTC-USD', # 'ETH-USD', 'BNB-USD',
+    'XRP-USD', 'ADA-USD', 'DOGE-USD',
+    'MATIC-USD', # 'LTC-USD', 'SHIB-USD', 'AVAX-USD', 'UNI-USD',
+    # 'WBTC-USD', 'LINK-USD', 'ATOM-USD', 'XMR-USD', 'BCH-USD'
+]
+
 def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes):
     while True:
-
-
-        if 'start_time' not in APP_START_TIME_DATA:
-            APP_START_TIME_DATA['start_time'] = time.time()
 
         print_local_time();
 
@@ -372,75 +199,110 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         enable_all_coin_scanning = True
         if enable_all_coin_scanning:
             coinbase_price_history_directory = 'coinbase-data'
-            if is_most_recent_file_older_than_x_minutes(coinbase_price_history_directory, minutes=15):
+            if is_most_recent_file_older_than_x_minutes(coinbase_price_history_directory, minutes=5):
                 save_new_coinbase_data(current_listed_coins_dictionary, coinbase_price_history_directory)
-            delete_files_older_than_x_hours(coinbase_price_history_directory, hours=5)
+            delete_files_older_than_x_hours(coinbase_price_history_directory, hours=6)
 
             files_in_folder = count_files_in_directory(coinbase_price_history_directory)
 
-            # if has_four_hours_passed(APP_START_TIME_DATA['start_time']) == False:
-            #     print('Waiting to collect 4 full hours of data')
-            #     continue;
-
-            if files_in_folder < 2:
+            if files_in_folder < 4:
                 print('waiting for more data to do calculations')
             else:
                 for coin in current_listed_coins_dictionary:
+                    if coin['product_id'] in enabled_crypocurrencies:
+                        time.sleep(2) # stop system from overheating
 
-                    # Define a list of top 20 cryptocurrency product_ids
-                    top_20_cryptos = [
-                        # 'BTC-USD', 'ETH-USD', 'BNB-USD', 'USDT-USD', 'USDC-USD',
-                        # 'XRP-USD', 'ADA-USD', 'DOGE-USD', 'SOL-USD', 'DOT-USD',
-                        # 'MATIC-USD', 'LTC-USD', 'SHIB-USD', 'AVAX-USD', 'UNI-USD',
-                        # 'WBTC-USD', 'LINK-USD', 'ATOM-USD', 'XMR-USD', 'BCH-USD'
-                        'MATIC-USD'
-                    ]
+                        current_price = float(coin['price'])
+                        current_price_percentage_change_24h = float(coin['price_percentage_change_24h'])
+                        current_volume_24h = float(coin['volume_24h'])
+                        current_volume_percentage_change_24h = float(coin['volume_percentage_change_24h'])
 
-                    # Updated logic to check if the coin's product_id is in the top 20 list
-                    if coin['product_id'] in top_20_cryptos:
+                        # Convert each list to a list of floats
+                        # append current data to account for gap in incrementally stored data
+                        coin_prices_LIST = get_property_values_from_files(coinbase_price_history_directory, coin['product_id'], 'price')
+                        coin_prices_LIST = [float(price) for price in coin_prices_LIST] # Convert to list of floats
+                        coin_prices_LIST.append(current_price)
+
+                        coin_price_percentage_change_24h_LIST = get_property_values_from_files(coinbase_price_history_directory, coin['product_id'], 'price_percentage_change_24h')
+                        coin_price_percentage_change_24h_LIST = [float(price_percentage_change_24h) for price_percentage_change_24h in coin_price_percentage_change_24h_LIST]
+                        coin_price_percentage_change_24h_LIST.append(current_price_percentage_change_24h)
+
+                        coin_volume_24h_LIST = get_property_values_from_files(coinbase_price_history_directory, coin['product_id'], 'volume_24h')
+                        coin_volume_24h_LIST = [float(volume_24h) for volume_24h in coin_volume_24h_LIST]
+                        coin_volume_24h_LIST.append(current_volume_24h)
+
+                        coin_volume_percentage_change_24h_LIST = get_property_values_from_files(coinbase_price_history_directory, coin['product_id'], 'volume_percentage_change_24h')
+                        coin_volume_percentage_change_24h_LIST = [float(volume_percentage_change_24h) for volume_percentage_change_24h in coin_volume_percentage_change_24h_LIST]
+                        coin_volume_percentage_change_24h_LIST.append(current_volume_percentage_change_24h)
+
+                        #
+                        min_price = min(coin_prices_LIST)
+                        max_price = max(coin_prices_LIST)
+
+                        trade_range_percentage = calculate_trading_range_percentage(min_price, max_price)
+                        price_position_within_trade_range = calculate_current_price_position_within_trading_range(current_price, min_price, max_price)
+                        print('current price position: ', price_position_within_trade_range)
+
+
+                        # volume_based_strategy = volume_based_strategy_recommendation()
+                        # print(volume_based_strategy)
+
+                        if (price_position_within_trade_range < 4):
+
+                            plot_graph(
+                                True, # enabled
+                                time.time(),
+                                coin['product_id'],
+                                coin_prices_LIST,
+                                min_price,
+                                max_price,
+                                trade_range_percentage,
+                                0
+                            )
+
+                            coin_obj = {
+                                'symbol': coin['product_id'],
+                                'price': current_price,
+                                'price_percentage_change_24h': current_price_percentage_change_24h,
+                                'volume_24h': current_volume_24h,
+                                'volume_percentage_change_24h': current_volume_percentage_change_24h,
+                                'timestamp': time.time(),
+                            }
+
+                            append_to_json_array('uptrend-data/data.json', coin_obj)
+                        # remove_old_entries('uptrend-data/data.json', 6)
+
+
+                        # exit()
 
                         # plot_graph(
                         #     True, # enabled
                         #     time.time(),
                         #     coin['product_id'],
-                        #     [0, 1, 2, 3, 4],
+                        #     coin_price_percentage_change_24h_LIST,
                         #     0
                         # )
 
-                        # calculate price change over different timeframes minutes (5, 15, 30, 60)
-                        price_change_percentages = calculate_coin_price_changes(coinbase_price_history_directory, coin['product_id'])
-                        momentum_info = calculate_price_momentum(price_change_percentages)
+                        # plot_graph(
+                        #     True, # enabled
+                        #     time.time(),
+                        #     coin['product_id'],
+                        #     coin_volume_24h_LIST,
+                        #     0
+                        # )
 
-                        volume_24h = 0
-                        volume_percentage_change_24h = 0
-                        price_percentage_change_24h = 0
-                        try:
-                            volume_24h = float(coin['volume_24h'])
-                            # print('volume_24h', volume_24h)
-                            volume_percentage_change_24h = float(coin['volume_percentage_change_24h'])
-                            # print('volume_percentage_change_24h', volume_percentage_change_24h)
-                            price_percentage_change_24h = float(coin['price_percentage_change_24h'])
-                            # print('price_percentage_change_24h', price_percentage_change_24h)
-                        except ValueError as e:
-                            print(f"Error: Could not convert volume or price change data for {coin['product_id']}. Error: {e}")
-                            continue
+                        # plot_graph(
+                        #     True, # enabled
+                        #     time.time(),
+                        #     coin['product_id'],
+                        #     coin_volume_percentage_change_24h_LIST,
+                        #     0
+                        # )
 
 
-                        coin_obj = {
-                            'symbol': coin['product_id'],
-                            'weighted_sum': round(momentum_info['weighted_sum'], 2),
-                            'price_change_intervals': price_change_percentages,
-                            # 'spike_detected': spike_detected_info['volume_spike_detected'],
-                            # 'volume_%_change_24h': round(spike_detected_info['volume_change_24h'], 2),
-                            'price_%_change_24h': round(price_percentage_change_24h, 2),
-                            'price': coin['price'],
-                            'timestamp': time.time(),
-                        }
 
-                        print(coin_obj)
 
-                        append_to_json_array('uptrend-data/data.json', coin_obj)
-                        remove_old_entries('uptrend-data/data.json', 6)
+
                         continue
 
                         #
