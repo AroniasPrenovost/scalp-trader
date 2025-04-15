@@ -82,8 +82,8 @@ last_calculated_support_resistance_pivot_prices = {}  # Store the last calculate
 #
 
 # ------------------
-INTERVAL_SECONDS = 10
-INTERVAL_MINUTES = 3
+INTERVAL_SECONDS = 30
+INTERVAL_MINUTES = 10
 # ------------------
 # INTERVAL_SECONDS = 2
 # INTERVAL_MINUTES = 360
