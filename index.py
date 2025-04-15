@@ -218,7 +218,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                         current_volume_percentage_change_24h = float(coin['volume_percentage_change_24h'])
 
                         # Convert each list to a list of floats
-                        # append current data to account for gap in incrementally stored data
+                        # append current data to account for the gap in incrementally stored data
                         coin_prices_LIST = get_property_values_from_files(coinbase_price_history_directory, coin['product_id'], 'price')
                         coin_prices_LIST = [float(price) for price in coin_prices_LIST] # Convert to list of floats
                         coin_prices_LIST.append(current_price)
