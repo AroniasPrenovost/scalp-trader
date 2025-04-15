@@ -67,6 +67,12 @@ def plot_graph(
 
     filename = os.path.join("./screenshots", f"{symbol}_chart_{current_timestamp}.png")
     if os.path.exists(filename):
+        current_time = time.time()
+        twenty_minutes_ago = current_time - 1200  # 20 minutes in seconds
+        file_mod_time = os.path.getmtime(filename)
+        if file_mod_time > twenty_minutes_ago:
+            print(f"Chart for {symbol} is less than 20 minutes old, not saving a new one.")
+            return
         os.remove(filename)
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     plt.close('all')

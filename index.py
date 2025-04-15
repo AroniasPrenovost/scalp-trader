@@ -199,7 +199,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         enable_all_coin_scanning = True
         if enable_all_coin_scanning:
             coinbase_price_history_directory = 'coinbase-data'
-            if is_most_recent_file_older_than_x_minutes(coinbase_price_history_directory, minutes=5):
+            if is_most_recent_file_older_than_x_minutes(coinbase_price_history_directory, minutes=15):
                 save_new_coinbase_data(current_listed_coins_dictionary, coinbase_price_history_directory)
             delete_files_older_than_x_hours(coinbase_price_history_directory, hours=6)
 
