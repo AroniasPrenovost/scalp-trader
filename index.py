@@ -210,7 +210,9 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
             else:
                 for coin in current_listed_coins_dictionary:
                     if coin['product_id'] in enabled_crypocurrencies:
+                        print('\n______________\n')
                         time.sleep(2) # stop system from overheating
+                        print(coin['product_id'])
 
                         current_price = float(coin['price'])
                         current_price_percentage_change_24h = float(coin['price_percentage_change_24h'])
@@ -241,8 +243,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
                         trade_range_percentage = calculate_trading_range_percentage(min_price, max_price)
                         price_position_within_trade_range = calculate_current_price_position_within_trading_range(current_price, min_price, max_price)
-                        print('current price position: ', price_position_within_trade_range)
-
+                        print('current price position: ', f"{price_position_within_trade_range}%")
 
                         # volume_based_strategy = volume_based_strategy_recommendation()
                         # print(volume_based_strategy)
@@ -270,34 +271,39 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                             }
 
                             append_to_json_array('uptrend-data/data.json', coin_obj)
-                        # remove_old_entries('uptrend-data/data.json', 6)
+                            remove_old_entries('uptrend-data/data.json', 6)
 
+                            price_change_data = calculate_price_change('uptrend-data/data.json', coin['product_id'], current_price)
+                            time_since_signal = price_change_data[0]
+                            change = round(price_change_data[1], 2)
 
-                        # exit()
+                            print(f"time_since: {time_since_signal}   ({change}%)")
 
-                        # plot_graph(
-                        #     True, # enabled
-                        #     time.time(),
-                        #     coin['product_id'],
-                        #     coin_price_percentage_change_24h_LIST,
-                        #     0
-                        # )
+                            # exit()
 
-                        # plot_graph(
-                        #     True, # enabled
-                        #     time.time(),
-                        #     coin['product_id'],
-                        #     coin_volume_24h_LIST,
-                        #     0
-                        # )
+                            # plot_graph(
+                            #     True, # enabled
+                            #     time.time(),
+                            #     coin['product_id'],
+                            #     coin_price_percentage_change_24h_LIST,
+                            #     0
+                            # )
 
-                        # plot_graph(
-                        #     True, # enabled
-                        #     time.time(),
-                        #     coin['product_id'],
-                        #     coin_volume_percentage_change_24h_LIST,
-                        #     0
-                        # )
+                            # plot_graph(
+                            #     True, # enabled
+                            #     time.time(),
+                            #     coin['product_id'],
+                            #     coin_volume_24h_LIST,
+                            #     0
+                            # )
+
+                            # plot_graph(
+                            #     True, # enabled
+                            #     time.time(),
+                            #     coin['product_id'],
+                            #     coin_volume_percentage_change_24h_LIST,
+                            #     0
+                            # )
 
 
 

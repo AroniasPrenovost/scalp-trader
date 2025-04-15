@@ -51,6 +51,9 @@ def count_files_in_directory(directory):
         return None
 
 
+
+
+
 # Function to delete files older than a specified number of hours
 def delete_files_older_than_x_hours(directory, hours):
     if not os.path.exists(directory):
@@ -66,6 +69,9 @@ def delete_files_older_than_x_hours(directory, hours):
             if file_creation_time < cutoff_time:
                 os.remove(file_path)
                 print(f"Deleted old file: {file_path}")
+
+
+
 
 
 # Function to check if the most recent file is older than 30 minutes
