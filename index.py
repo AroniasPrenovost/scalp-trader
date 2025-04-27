@@ -324,6 +324,9 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         config = load_config('config.json')
 
         for asset in config['assets']:
+            if asset['symbol'] == 'SYSTEM':
+                continue
+
             enabled = asset['enabled']
             symbol = asset['symbol']
             # fees
