@@ -41,7 +41,7 @@ This project is a cryptocurrency trading bot that interacts with the Coinbase AP
 2. Install the required packages:
 
    ```bash
-   pip install
+   pip install requirements.txt
    ```
 
 3. Copy the `.env.sample` file and create an `.env` file in the root directory. Add your Coinbase and Mailjet API credentials, along with other tax and fee configurations to the `.env` file:

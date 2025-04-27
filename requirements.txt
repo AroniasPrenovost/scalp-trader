@@ -1,0 +1,7 @@
+python-dotenv
+numpy
+pandas
+requests
+coinbase-advanced-py
+matplotlib
+mailjet-rest

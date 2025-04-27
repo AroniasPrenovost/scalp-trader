@@ -400,13 +400,15 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                 elif last_order_type == 'none' or last_order_type == 'sell':
                     print('looking to BUY at $', BUY_AT_PRICE)
 
-                    if float(trading_range_percentage) < float(TARGET_PROFIT_PERCENTAGE):
-                        print('trading range smaller than target_profit_percentage')
-                        continue
+                    # if float(trading_range_percentage) < float(TARGET_PROFIT_PERCENTAGE):
+                    #     print('trading range smaller than target_profit_percentage')
+                    #     continue
 
-                    if current_price < BUY_AT_PRICE:
-                        if READY_TO_TRADE == True:
-                            place_market_buy_order(coinbase_client, symbol, SHARES_TO_ACQUIRE)
+                    # if current_price < BUY_AT_PRICE:
+                    if READY_TO_TRADE == True:
+                        place_market_buy_order(coinbase_client, symbol, SHARES_TO_ACQUIRE)
+                    else:
+                        print('not ready to trade')
 
                 #
                 #
