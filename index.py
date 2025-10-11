@@ -82,8 +82,13 @@ last_calculated_support_resistance_pivot_prices = {}  # Store the last calculate
 #
 
 # ------------------
-INTERVAL_SECONDS = 30
-INTERVAL_MINUTES = 10
+INTERVAL_SECONDS = 600 # (10 minutes) # takes into account the 3 (dependent on number of assets) sleep(2)'s (minus 6 seconds)
+INTERVAL_MINUTES = 10 # not 100% sure what this does
+
+# how often it saves stock data
+INTERVAL_SAVE_DATA_MINUTES=30
+DELETE_FILES_OLDER_THAN_X_HOURS=120 # 4 days
+
 # ------------------
 # INTERVAL_SECONDS = 2
 # INTERVAL_MINUTES = 360
@@ -123,18 +128,18 @@ federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
 #
 #
 
-# Function to save current listed coins to a timestamped file
-def save_new_coinbase_data(coins, directory):
+# Function to save strcutured data to a timestamped file
+def save_dictionary_data_to_local_file(data, directory, file_name):
     if not os.path.exists(directory):
         os.makedirs(directory)
 
     timestamp = time.strftime("%Y%m%d%H%M%S", time.localtime())
-    file_name = f"listed_coins_{timestamp}.json"
+    file_name = f"{file_name}_{timestamp}.json"
     file_path = os.path.join(directory, file_name)
 
     with open(file_path, 'w') as file:
-        json.dump(coins, file, indent=4)
-    print(f"Listed coins saved to {file_path}.")
+        json.dump(data, file, indent=4)
+    print(f"Data saved to '{file_name}_{file_path}'")
 
 #
 #
@@ -154,9 +159,12 @@ def convert_products_to_dicts(products):
 #
 
 enabled_crypocurrencies = [
-    'BTC-USD', # 'ETH-USD', 'BNB-USD',
-    'XRP-USD', 'ADA-USD', 'DOGE-USD', 'AVAX-USD',
-    'MATIC-USD', # 'LTC-USD', 'SHIB-USD', 'AVAX-USD', 'UNI-USD',
+    # 'BTC-USD', # 'ETH-USD', 'BNB-USD',
+    # 'XRP-USD',
+    'ADA-USD',
+    # 'DOGE-USD', 'AVAX-USD',
+    'ALGO-USD',
+    'XLM-USD', # 'LTC-USD', 'SHIB-USD', 'AVAX-USD', 'UNI-USD',
     # 'WBTC-USD', 'LINK-USD', 'ATOM-USD', 'XMR-USD', 'BCH-USD'
 ]
 
@@ -175,6 +183,9 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
         current_listed_coins = coinbase_client.get_products()['products']
         current_listed_coins_dictionary = {}
         current_listed_coins_dictionary = convert_products_to_dicts(current_listed_coins)
+        # - filter out all crypto data except for those defined in enabled_crypocurrencies (reduces size of locally stored files)
+        current_listed_coins_dictionary = [coin for coin in current_listed_coins_dictionary if coin['product_id'] in enabled_crypocurrencies]
+        # print(current_listed_coins_dictionary)
 
         #
         # ALERT NEW COIN LISTINGS
@@ -195,24 +206,26 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
         #
         #
-        # Save coinbase assets data
+        # Save coinbase asset data and analyze
         enable_all_coin_scanning = True
         if enable_all_coin_scanning:
             coinbase_price_history_directory = 'coinbase-data'
-            if is_most_recent_file_older_than_x_minutes(coinbase_price_history_directory, minutes=10):
-                save_new_coinbase_data(current_listed_coins_dictionary, coinbase_price_history_directory)
-            delete_files_older_than_x_hours(coinbase_price_history_directory, hours=6)
+            if is_most_recent_file_older_than_x_minutes(coinbase_price_history_directory, minutes=INTERVAL_SAVE_DATA_MINUTES):
+                save_dictionary_data_to_local_file(current_listed_coins_dictionary, coinbase_price_history_directory, 'listed_coins')
+            delete_files_older_than_x_hours(coinbase_price_history_directory, hours=DELETE_FILES_OLDER_THAN_X_HOURS)
 
             files_in_folder = count_files_in_directory(coinbase_price_history_directory)
 
-            if files_in_folder < 4:
+            print('did it work?')
+
+            if files_in_folder < 1:
                 print('waiting for more data to do calculations')
             else:
                 for coin in current_listed_coins_dictionary:
                     if coin['product_id'] in enabled_crypocurrencies:
                         print('\n______________\n')
                         time.sleep(2) # stop system from overheating
-                        print(coin['product_id'])
+                        # print(coin['product_id'])
 
                         current_price = float(coin['price'])
                         current_price_percentage_change_24h = float(coin['price_percentage_change_24h'])
@@ -243,41 +256,55 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
                         trade_range_percentage = calculate_trading_range_percentage(min_price, max_price)
                         price_position_within_trade_range = calculate_current_price_position_within_trading_range(current_price, min_price, max_price)
-                        print('current price position: ', f"{price_position_within_trade_range}%")
+                        # print('current price position: ', f"{price_position_within_trade_range}%")
 
-                        # volume_based_strategy = volume_based_strategy_recommendation()
-                        # print(volume_based_strategy)
+                        # volume_based_strategy = volume_based_strategy_recommendation() (outdated?)
 
-                        if (price_position_within_trade_range < 4):
+                        coin_obj = {
+                            'symbol': coin['product_id'],
+                            'price': current_price,
+                            'price_percentage_change_24h': current_price_percentage_change_24h,
+                            'volume_24h': current_volume_24h,
+                            'volume_percentage_change_24h': current_volume_percentage_change_24h,
+                            'timestamp': time.time(),
+                            'prices_list': coin_prices_LIST,
+                            'time_interval_minutes': INTERVAL_SAVE_DATA_MINUTES,
+                        }
 
-                            plot_graph(
-                                True, # enabled
-                                time.time(),
-                                coin['product_id'],
-                                coin_prices_LIST,
-                                min_price,
-                                max_price,
-                                trade_range_percentage,
-                                0
-                            )
+                        print(coin_obj)
 
-                            coin_obj = {
-                                'symbol': coin['product_id'],
-                                'price': current_price,
-                                'price_percentage_change_24h': current_price_percentage_change_24h,
-                                'volume_24h': current_volume_24h,
-                                'volume_percentage_change_24h': current_volume_percentage_change_24h,
-                                'timestamp': time.time(),
-                            }
 
-                            append_to_json_array('uptrend-data/data.json', coin_obj)
-                            remove_old_entries('uptrend-data/data.json', 6)
 
-                            price_change_data = calculate_price_change('uptrend-data/data.json', coin['product_id'], current_price)
-                            time_since_signal = price_change_data[0]
-                            change = round(price_change_data[1], 2)
-
-                            print(f"time_since: {time_since_signal}   ({change}%)")
+                        # if (price_position_within_trade_range < 4):
+                        #
+                        #     plot_graph(
+                        #         True, # enabled
+                        #         time.time(),
+                        #         coin['product_id'],
+                        #         coin_prices_LIST,
+                        #         min_price,
+                        #         max_price,
+                        #         trade_range_percentage,
+                        #         0
+                        #     )
+                        #
+                        #     coin_obj = {
+                        #         'symbol': coin['product_id'],
+                        #         'price': current_price,
+                        #         'price_percentage_change_24h': current_price_percentage_change_24h,
+                        #         'volume_24h': current_volume_24h,
+                        #         'volume_percentage_change_24h': current_volume_percentage_change_24h,
+                        #         'timestamp': time.time(),
+                        #     }
+                        #
+                        #     append_to_json_array('uptrend-data/data.json', coin_obj)
+                        #     remove_old_entries('uptrend-data/data.json', 6)
+                        #
+                        #     price_change_data = calculate_price_change('uptrend-data/data.json', coin['product_id'], current_price)
+                        #     time_since_signal = price_change_data[0]
+                        #     change = round(price_change_data[1], 2)
+                        #
+                        #     print(f"time_since: {time_since_signal}   ({change}%)")
 
                             # exit()
 
@@ -306,9 +333,6 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
                             # )
 
 
-
-
-
                         continue
 
                         #
@@ -323,6 +347,7 @@ def iterate_assets(interval_minutes, interval_seconds, data_points_for_x_minutes
 
         config = load_config('config.json')
 
+        print('Running analysis on assets enabled in "config.json"...')
         for asset in config['assets']:
             if asset['symbol'] == 'SYSTEM':
                 continue

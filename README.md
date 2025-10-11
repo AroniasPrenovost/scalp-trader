@@ -30,7 +30,7 @@ This project is a cryptocurrency trading bot that interacts with the Coinbase AP
   - `MAILJET_TO_EMAIL`
   - `MAILJET_TO_NAME`
 
-## Installation
+## Installation (1)
 
 1. Clone the repository:
 
@@ -74,6 +74,34 @@ This project is a cryptocurrency trading bot that interacts with the Coinbase AP
      ]
    }
    ```
+
+## Installation (2) (creating a virtual environment in your project directory)
+
+1. Create a virtual environment in your project directory
+ ```bash
+    cd ~/scalp-scripts
+  ```
+
+  ```bash
+    python3 -m venv venv
+  ```
+
+2. Activate the virtual environment
+  ```bash
+    source venv/bin/activate
+  ```
+
+3. Install your requirements
+
+  ```bash
+    pip install -r requirements.txt
+  ```
+
+4. Run your app (no sudo needed now!)
+
+  ```bash
+    python3 index.py
+  ```
 
 ## Usage
 
