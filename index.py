@@ -286,7 +286,7 @@ def iterate_assets(interval_seconds):
                         # )
 
 
-                    continue
+                    # continue
 
                     #
                     #
