@@ -157,7 +157,7 @@ def iterate_assets(interval_seconds):
             delete_files_older_than_x_hours(coinbase_data_directory, hours=DELETE_FILES_OLDER_THAN_X_HOURS)
 
             if count_files_in_directory(coinbase_data_directory) < 1:
-                print('waiting for more data to do calculations')
+                print('waiting for more data...')
             else:
                 for coin in coinbase_data_dictionary:
                     time.sleep(1) # stop system from overheating
