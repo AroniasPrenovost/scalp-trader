@@ -289,17 +289,17 @@ def iterate_assets(interval_seconds):
             enabled = asset['enabled']
             symbol = asset['symbol']
 
-            # fees
-            maker_f = coinbase_spot_maker_fee
-            taker_f = coinbase_spot_taker_fee
             # trading flags
             READY_TO_TRADE = asset['ready_to_trade']
-            TARGET_PROFIT_PERCENTAGE = asset['target_profit_percentage']
             BUY_AT_PRICE = asset['buy_at_price']
+            TARGET_PROFIT_PERCENTAGE = asset['target_profit_percentage']
             SHARES_TO_ACQUIRE = asset['shares_to_acquire']
 
             ENABLE_GRAPH_DISPLAY = asset['enable_graph_display']
-            ENABLE_GRAPH_SCREENSHOT = asset['enable_graph_screenshot']
+
+            # Exchange fees
+            maker_f = coinbase_spot_maker_fee
+            taker_f = coinbase_spot_taker_fee
 
             if enabled:
                 print(' ')
