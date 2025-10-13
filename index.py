@@ -50,7 +50,7 @@ def load_config(file_path):
 #
 
 INTERVAL_SECONDS = 600 # (10 minutes) # takes into account the 3 (dependent on number of assets) sleep(2)'s (minus 6 seconds)
-INTERVAL_SAVE_DATA_MINUTES=30 # how often it saves stock data
+INTERVAL_SAVE_DATA_EVERY_X_MINUTES=30
 DELETE_FILES_OLDER_THAN_X_HOURS=120 # 4 days
 
 #
@@ -100,8 +100,6 @@ def convert_products_to_dicts(products):
     return [product.to_dict() if hasattr(product, 'to_dict') else product for product in products]
 
 
-
-#
 #
 #
 # main logic loop
@@ -130,8 +128,6 @@ def iterate_assets(interval_seconds):
         # to reduce file sizes, filter out all crypto data except for those defined in enabled_assets
         coinbase_data_dictionary = [coin for coin in coinbase_data_dictionary if coin['product_id'] in enabled_assets]
 
-
-
         #
         #
         # ALERT NEW COIN LISTINGS
@@ -156,7 +152,7 @@ def iterate_assets(interval_seconds):
         enable_all_coin_scanning = True
         if enable_all_coin_scanning:
             coinbase_data_directory = 'coinbase-data'
-            if is_most_recent_file_older_than_x_minutes(coinbase_data_directory, minutes=INTERVAL_SAVE_DATA_MINUTES):
+            if is_most_recent_file_older_than_x_minutes(coinbase_data_directory, minutes=INTERVAL_SAVE_DATA_EVERY_X_MINUTES):
                 save_dictionary_data_to_local_file(coinbase_data_dictionary, coinbase_data_directory, 'listed_coins')
             delete_files_older_than_x_hours(coinbase_data_directory, hours=DELETE_FILES_OLDER_THAN_X_HOURS)
 
@@ -207,7 +203,7 @@ def iterate_assets(interval_seconds):
                         'volume_percentage_change_24h': current_volume_percentage_change_24h,
                         'timestamp': time.time(),
                         'prices_list': coin_prices_LIST,
-                        'time_interval_minutes': INTERVAL_SAVE_DATA_MINUTES,
+                        'time_interval_minutes': INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
                     }
 
                     print(coin_obj)
