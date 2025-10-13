@@ -225,14 +225,14 @@ def iterate_assets(interval_seconds):
                         'timestamp': time.time(),
                         'time_interval_minutes': INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
                         #
-                        'price': current_price,
-                        'volume_24h': current_volume_24h,
+                        'current_price': current_price,
+                        'current_volume_24h': current_volume_24h,
+                        'current_volume_percentage_change_24h': current_volume_percentage_change_24h,
                         #
                         'coin_prices_list': coin_prices_LIST,
                         'coin_volume_24h_LIST': coin_volume_24h_LIST,
                         'coin_price_percentage_change_24h_LIST': coin_price_percentage_change_24h_LIST,
                         'coin_volume_percentage_change_24h_LIST': coin_volume_percentage_change_24h_LIST,
-                        'volume_percentage_change_24h': current_volume_percentage_change_24h,
                     }
                     # print(coin_data)
 
