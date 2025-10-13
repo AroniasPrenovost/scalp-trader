@@ -68,7 +68,7 @@ MAX_LAST_EXCEPTION_ERROR_COUNT = 8
 # Set exchange fees and tax rates
 #
 
-coinbase_spot_maker_fee = float(os.environ.get('COINBASE_SPOT_MAKER_FEE'))
+coinbase_spot_maker_fee = float(os.environ.get('COINBASE_SPOT_MAKER_FEE')) # unused
 coinbase_spot_taker_fee = float(os.environ.get('COINBASE_SPOT_TAKER_FEE'))
 federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
 
@@ -130,6 +130,8 @@ def iterate_assets(interval_seconds):
         # to reduce file sizes, filter out all crypto data except for those defined in enabled_assets
         coinbase_data_dictionary = [coin for coin in coinbase_data_dictionary if coin['product_id'] in enabled_assets]
 
+
+
         #
         #
         # ALERT NEW COIN LISTINGS
@@ -163,12 +165,6 @@ def iterate_assets(interval_seconds):
             else:
                 for coin in coinbase_data_dictionary:
                     time.sleep(1) # stop system from overheating
-
-
-
-
-
-
 
                     current_price = float(coin['price'])
                     current_price_percentage_change_24h = float(coin['price_percentage_change_24h'])
@@ -301,10 +297,6 @@ def iterate_assets(interval_seconds):
 
             ENABLE_GRAPH_DISPLAY = asset['enable_graph_display']
 
-            # Exchange fees
-            maker_f = coinbase_spot_maker_fee
-            taker_f = coinbase_spot_taker_fee
-
             if enabled:
                 print(' ')
                 print(symbol)
@@ -374,7 +366,7 @@ def iterate_assets(interval_seconds):
                         # calculate profits if we were going to sell now
                         pre_tax_profit = (current_price - entry_price) * number_of_shares
 
-                        sell_now_exchange_fee = calculate_exchange_fee(current_price, number_of_shares, taker_f)
+                        sell_now_exchange_fee = calculate_exchange_fee(current_price, number_of_shares, coinbase_spot_taker_fee)
                         print(f"sell_now_exchange_fee: {sell_now_exchange_fee}")
 
                         sell_now_tax_owed = (federal_tax_rate / 100) * pre_tax_profit
