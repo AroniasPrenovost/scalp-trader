@@ -151,12 +151,12 @@ def iterate_assets(interval_seconds):
         # Save coinbase asset data and analyze
         enable_all_coin_scanning = True
         if enable_all_coin_scanning:
-            coinbase_price_history_directory = 'coinbase-data'
-            if is_most_recent_file_older_than_x_minutes(coinbase_price_history_directory, minutes=INTERVAL_SAVE_DATA_MINUTES):
-                save_dictionary_data_to_local_file(coinbase_data_dictionary, coinbase_price_history_directory, 'listed_coins')
-            delete_files_older_than_x_hours(coinbase_price_history_directory, hours=DELETE_FILES_OLDER_THAN_X_HOURS)
+            coinbase_data_directory = 'coinbase-data'
+            if is_most_recent_file_older_than_x_minutes(coinbase_data_directory, minutes=INTERVAL_SAVE_DATA_MINUTES):
+                save_dictionary_data_to_local_file(coinbase_data_dictionary, coinbase_data_directory, 'listed_coins')
+            delete_files_older_than_x_hours(coinbase_data_directory, hours=DELETE_FILES_OLDER_THAN_X_HOURS)
 
-            if count_files_in_directory(coinbase_price_history_directory) < 1:
+            if count_files_in_directory(coinbase_data_directory) < 1:
                 print('waiting for more data to do calculations')
             else:
                 for coin in coinbase_data_dictionary:
@@ -171,19 +171,19 @@ def iterate_assets(interval_seconds):
 
                     # Convert each list to a list of floats
                     # append current data to account for the gap in incrementally stored data
-                    coin_prices_LIST = get_property_values_from_files(coinbase_price_history_directory, coin['product_id'], 'price')
+                    coin_prices_LIST = get_property_values_from_files(coinbase_data_directory, coin['product_id'], 'price')
                     coin_prices_LIST = [float(price) for price in coin_prices_LIST] # Convert to list of floats
                     coin_prices_LIST.append(current_price)
 
-                    coin_price_percentage_change_24h_LIST = get_property_values_from_files(coinbase_price_history_directory, coin['product_id'], 'price_percentage_change_24h')
+                    coin_price_percentage_change_24h_LIST = get_property_values_from_files(coinbase_data_directory, coin['product_id'], 'price_percentage_change_24h')
                     coin_price_percentage_change_24h_LIST = [float(price_percentage_change_24h) for price_percentage_change_24h in coin_price_percentage_change_24h_LIST]
                     coin_price_percentage_change_24h_LIST.append(current_price_percentage_change_24h)
 
-                    coin_volume_24h_LIST = get_property_values_from_files(coinbase_price_history_directory, coin['product_id'], 'volume_24h')
+                    coin_volume_24h_LIST = get_property_values_from_files(coinbase_data_directory, coin['product_id'], 'volume_24h')
                     coin_volume_24h_LIST = [float(volume_24h) for volume_24h in coin_volume_24h_LIST]
                     coin_volume_24h_LIST.append(current_volume_24h)
 
-                    coin_volume_percentage_change_24h_LIST = get_property_values_from_files(coinbase_price_history_directory, coin['product_id'], 'volume_percentage_change_24h')
+                    coin_volume_percentage_change_24h_LIST = get_property_values_from_files(coinbase_data_directory, coin['product_id'], 'volume_percentage_change_24h')
                     coin_volume_percentage_change_24h_LIST = [float(volume_percentage_change_24h) for volume_percentage_change_24h in coin_volume_percentage_change_24h_LIST]
                     coin_volume_percentage_change_24h_LIST.append(current_volume_percentage_change_24h)
 
