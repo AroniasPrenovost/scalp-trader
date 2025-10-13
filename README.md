@@ -97,19 +97,11 @@ This project is a cryptocurrency trading bot that interacts with the Coinbase AP
     pip install -r requirements.txt
   ```
 
-4. Run your app (no sudo needed now!)
+4. Run the trading bot
 
   ```bash
     python3 index.py
   ```
-
-## Usage
-
-Run the trading bot:
-
-```bash
-python index.py
-```
 
 The bot will continuously monitor the specified assets and execute trades based on the configured strategies.
 
