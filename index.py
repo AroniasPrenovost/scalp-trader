@@ -292,7 +292,6 @@ def iterate_assets(interval_seconds):
                 continue
 
             # continue
-
             enabled = asset['enabled']
             symbol = asset['symbol']
             # fees
@@ -302,26 +301,10 @@ def iterate_assets(interval_seconds):
             READY_TO_TRADE = asset['ready_to_trade']
             TARGET_PROFIT_PERCENTAGE = asset['target_profit_percentage']
             BUY_AT_PRICE = asset['buy_at_price']
-            BUY_AT_PRICE_POSITION_PERCENTAGE = asset['buy_at_price_position_percentage']
-            ALERT_DOWNWARD_DIVERGENCE = asset['alert_downward_divergence']
-            BUY_AT_DOWNWARD_DIVERGENCE_COUNT = asset['buy_at_downward_divergence_count']
             SHARES_TO_ACQUIRE = asset['shares_to_acquire']
-
-            # indicators
-            SUPPORT_RESISTANCE_WINDOW_SIZE = asset['support_resistance_window_size']
-            TREND_1_TIMEFRAME_PERCENT = asset['trend_1_timeframe_percent']
-            TREND_1_DISPLAY = asset['trend_1_display']
-            TREND_2_TIMEFRAME_PERCENT = asset['trend_2_timeframe_percent']
-            TREND_2_DISPLAY = asset['trend_2_display']
 
             ENABLE_GRAPH_DISPLAY = asset['enable_graph_display']
             ENABLE_GRAPH_SCREENSHOT = asset['enable_graph_screenshot']
-
-            ENABLE_TEST_FAILURE = asset['enable_test_failure']
-
-            PRICE_ALERT_ENABLED = asset['price_alert_enabled']
-            PRICE_ALERT_BUY = asset['price_alert_buy']
-            PRICE_ALERT_SELL = asset['price_alert_sell']
 
             if enabled:
                 print(' ')
