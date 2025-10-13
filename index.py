@@ -423,6 +423,9 @@ def iterate_assets(interval_seconds):
                 LAST_EXCEPTION_ERROR_COUNT = 0
                 print('\n')
 
+        #
+        #
+        # End of iteration function
         time.sleep(interval_seconds)
 
 if __name__ == "__main__":
