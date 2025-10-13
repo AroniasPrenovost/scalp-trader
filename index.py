@@ -74,7 +74,7 @@ MAX_LAST_EXCEPTION_ERROR_COUNT = 8
 # Set exchange fees and tax rates
 #
 
-coinbase_spot_maker_fee = float(os.environ.get('COINBASE_SPOT_MAKER_FEE')) # unused
+# coinbase_spot_maker_fee = float(os.environ.get('COINBASE_SPOT_MAKER_FEE')) # unused
 coinbase_spot_taker_fee = float(os.environ.get('COINBASE_SPOT_TAKER_FEE'))
 federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
 
