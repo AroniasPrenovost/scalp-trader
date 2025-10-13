@@ -387,7 +387,6 @@ def iterate_assets(interval_seconds):
                             else:
                                 print('trading disabled')
 
-                current_time = time.time() # call it once instead of twice for the following functions
 
                 #
                 #
