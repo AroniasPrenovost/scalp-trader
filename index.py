@@ -148,7 +148,7 @@ def iterate_assets(interval_seconds):
 
         #
         #
-        # Save coinbase asset data and analyze
+        # STORE COINBASE DATA AND ANALYZE
         enable_all_coin_scanning = True
         if enable_all_coin_scanning:
             coinbase_data_directory = 'coinbase-data'
