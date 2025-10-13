@@ -172,10 +172,6 @@ def iterate_assets(interval_seconds):
                     # set data from coinbase data
                     symbol = coin['product_id']
                     print(f"Analyzing {symbol}...")
-                    current_price = float(coin['price'])
-                    current_price_percentage_change_24h = float(coin['price_percentage_change_24h'])
-                    current_volume_24h = float(coin['volume_24h'])
-                    current_volume_percentage_change_24h = float(coin['volume_percentage_change_24h'])
 
                     # set config.json data
                     READY_TO_TRADE = None
@@ -191,23 +187,33 @@ def iterate_assets(interval_seconds):
                             SHARES_TO_ACQUIRE = asset['shares_to_acquire']
                             ENABLE_GRAPH_DISPLAY = asset['enable_graph_display']
 
+
+                    #
+                    #
+                    # Get current price and append to data to account for the gap in incrementally stored data
+                    current_price = get_asset_price(coinbase_client, symbol) # current_price = float(coin['price'])
+                    # print(f"current_price: {current_price}")
+
+                    current_price_percentage_change_24h = float(coin['price_percentage_change_24h'])
+                    current_volume_24h = float(coin['volume_24h'])
+                    current_volume_percentage_change_24h = float(coin['volume_percentage_change_24h'])
+
                     # Convert each list to a list of floats
-                    # append current data to account for the gap in incrementally stored data
                     coin_prices_LIST = get_property_values_from_files(coinbase_data_directory, symbol, 'price')
                     coin_prices_LIST = [float(price) for price in coin_prices_LIST] # Convert to list of floats
-                    coin_prices_LIST.append(current_price)
+                    coin_prices_LIST.append(current_price) # append most recent API call result to data to account for the gap in stored data locally every X mintues
+
+                    coin_volume_24h_LIST = get_property_values_from_files(coinbase_data_directory, symbol, 'volume_24h')
+                    coin_volume_24h_LIST = [float(volume_24h) for volume_24h in coin_volume_24h_LIST]
+                    coin_volume_24h_LIST.append(current_volume_24h) # append most recent API call result to data to account for the gap in stored data locally every X mintues
 
                     coin_price_percentage_change_24h_LIST = get_property_values_from_files(coinbase_data_directory, symbol, 'price_percentage_change_24h')
                     coin_price_percentage_change_24h_LIST = [float(price_percentage_change_24h) for price_percentage_change_24h in coin_price_percentage_change_24h_LIST]
                     coin_price_percentage_change_24h_LIST.append(current_price_percentage_change_24h)
 
-                    coin_volume_24h_LIST = get_property_values_from_files(coinbase_data_directory, symbol, 'volume_24h')
-                    coin_volume_24h_LIST = [float(volume_24h) for volume_24h in coin_volume_24h_LIST]
-                    coin_volume_24h_LIST.append(current_volume_24h)
-
                     coin_volume_percentage_change_24h_LIST = get_property_values_from_files(coinbase_data_directory, symbol, 'volume_percentage_change_24h')
                     coin_volume_percentage_change_24h_LIST = [float(volume_percentage_change_24h) for volume_percentage_change_24h in coin_volume_percentage_change_24h_LIST]
-                    coin_volume_percentage_change_24h_LIST.append(current_volume_percentage_change_24h)
+                    coin_volume_percentage_change_24h_LIST.append(current_volume_percentage_change_24h) # append most recent API call result to data to account for the gap in stored data locally every X mintues
 
                     min_price = min(coin_prices_LIST)
                     max_price = max(coin_prices_LIST)
@@ -215,17 +221,21 @@ def iterate_assets(interval_seconds):
                     price_position_within_trade_range = calculate_current_price_position_within_trading_range(current_price, min_price, max_price)
                     # print('current price position: ', f"{price_position_within_trade_range}%")
 
-                    coin_obj = {
+                    coin_data = {
                         'symbol': symbol,
-                        'price': current_price,
-                        'price_percentage_change_24h': current_price_percentage_change_24h,
-                        'volume_24h': current_volume_24h,
-                        'volume_percentage_change_24h': current_volume_percentage_change_24h,
                         'timestamp': time.time(),
-                        'prices_list': coin_prices_LIST,
                         'time_interval_minutes': INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                        #
+                        'price': current_price,
+                        'volume_24h': current_volume_24h,
+                        #
+                        'coin_prices_list': coin_prices_LIST,
+                        'coin_volume_24h_LIST': coin_volume_24h_LIST,
+                        'coin_price_percentage_change_24h_LIST': coin_price_percentage_change_24h_LIST,
+                        'coin_volume_percentage_change_24h_LIST': coin_volume_percentage_change_24h_LIST,
+                        'volume_percentage_change_24h': current_volume_percentage_change_24h,
                     }
-                    # print(coin_obj)
+                    # print(coin_data)
 
                     #
                     #
@@ -236,10 +246,12 @@ def iterate_assets(interval_seconds):
                     last_order_type = detect_stored_coinbase_order_type(last_order)
 
                     if READY_TO_TRADE == True:
+                        
                         #
-                        # Handle unverified BUY / SELL order
+                        #
+                        # Pending BUY / SELL order
                         if last_order_type == 'placeholder':
-                            print('Processing PENDING order, please standby...')
+                            print('STATUS: Processing pending order, please standby...')
                             last_order_id = ''
                             if symbol == 'MATIC-USD':
                                 last_order_id = last_order['response']['order_id']
@@ -252,27 +264,26 @@ def iterate_assets(interval_seconds):
                             if fulfilled_order_data:
                                 full_order_dict = fulfilled_order_data['order'] if isinstance(fulfilled_order_data, dict) else fulfilled_order_data.to_dict()
                                 save_order_data_to_local_json_ledger(symbol, full_order_dict)
-                                print('Updated ledger with full order data')
+                                print('STATUS: Updated ledger with processed order data')
                             else:
-                                print('still waiting to pull full order data info')
+                                print('STATUS: Still processing pending order')
 
                         #
                         #
                         # BUY logic
                         elif last_order_type == 'none' or last_order_type == 'sell':
-                            print('Looking to BUY')
-                            print('BUY_AT_PRICE: ', BUY_AT_PRICE)
+                            print(f"STATUS: Looking to BUY at ${BUY_AT_PRICE}")
                             if current_price < BUY_AT_PRICE:
                                 if READY_TO_TRADE == True:
                                     place_market_buy_order(coinbase_client, symbol, SHARES_TO_ACQUIRE)
                                 else:
-                                    print('not ready to trade')
+                                    print('STATUS: Trading disabled')
 
                         #
                         #
                         # SELL logic
                         elif last_order_type == 'buy':
-                            print('Looking to SELL')
+                            print('STATUS: Looking to SELL')
 
                             entry_price = float(last_order['order']['average_filled_price'])
                             print(f"entry_price: {entry_price}")
@@ -303,7 +314,7 @@ def iterate_assets(interval_seconds):
                                 if READY_TO_TRADE == True:
                                     place_market_sell_order(coinbase_client, symbol, number_of_shares, potential_profit, potential_profit_percentage)
                                 else:
-                                    print('trading disabled')
+                                    print('STATUS: Trading disabled')
 
                     print('\n')
 
@@ -320,7 +331,7 @@ def iterate_assets(interval_seconds):
                     #         0
                     #     )
                     #
-                    #     coin_obj = {
+                    #     coin_data = {
                     #         'symbol': coin['product_id'],
                     #         'price': current_price,
                     #         'price_percentage_change_24h': current_price_percentage_change_24h,
@@ -329,7 +340,7 @@ def iterate_assets(interval_seconds):
                     #         'timestamp': time.time(),
                     #     }
                     #
-                    #     append_to_json_array('uptrend-data/data.json', coin_obj)
+                    #     append_to_json_array('uptrend-data/data.json', coin_data)
                     #     remove_old_entries('uptrend-data/data.json', 6)
                     #
                     #     price_change_data = calculate_price_change('uptrend-data/data.json', coin['product_id'], current_price)
