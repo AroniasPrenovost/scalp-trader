@@ -5,4 +5,4 @@ def print_local_time():
     formatted_local_time = time.strftime("%Y-%m-%d %H:%M:%S", local_time)
     current_time = time.time()
 
-    print(f"Time: {formatted_local_time}\n")
+    print(f"Coinbase Trading Bot: {formatted_local_time}\n")
