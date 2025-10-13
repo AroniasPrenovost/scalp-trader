@@ -161,11 +161,26 @@ def iterate_assets(interval_seconds):
                 for coin in coinbase_data_dictionary:
                     time.sleep(1) # stop system from overheating
 
+                    # set data from coinbase data
                     symbol = coin['product_id']
                     current_price = float(coin['price'])
                     current_price_percentage_change_24h = float(coin['price_percentage_change_24h'])
                     current_volume_24h = float(coin['volume_24h'])
                     current_volume_percentage_change_24h = float(coin['volume_percentage_change_24h'])
+
+                    # set config.json data
+                    READY_TO_TRADE = None
+                    BUY_AT_PRICE = None
+                    TARGET_PROFIT_PERCENTAGE = None
+                    SHARES_TO_ACQUIRE = None
+                    ENABLE_GRAPH_DISPLAY = None
+                    for asset in config['assets']:
+                        if symbol == asset['symbol']:
+                            READY_TO_TRADE = asset['ready_to_trade']
+                            BUY_AT_PRICE = asset['buy_at_price']
+                            TARGET_PROFIT_PERCENTAGE = asset['target_profit_percentage']
+                            SHARES_TO_ACQUIRE = asset['shares_to_acquire']
+                            ENABLE_GRAPH_DISPLAY = asset['enable_graph_display']
 
                     # Convert each list to a list of floats
                     # append current data to account for the gap in incrementally stored data
