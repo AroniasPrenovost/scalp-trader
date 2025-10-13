@@ -25,19 +25,22 @@ from utils.file_helpers import save_obj_dict_to_file, count_files_in_directory, 
 from utils.price_helpers import calculate_trading_range_percentage, calculate_current_price_position_within_trading_range, calculate_offset_price, calculate_price_change_percentage
 from utils.technical_indicators import calculate_market_cap_efficiency, calculate_fibonacci_levels
 from utils.time_helpers import print_local_time
-# coinbase api
+# Coinbase helpers and define client
 from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order, get_asset_price, calculate_exchange_fee, save_order_data_to_local_json_ledger, get_last_order_from_local_json_ledger, reset_json_ledger_file, detect_stored_coinbase_order_type
 coinbase_client = get_coinbase_client()
 # custom coinbase listings check
 from utils.new_coinbase_listings import check_for_new_coinbase_listings
 # plotting data
 from utils.matplotlib import plot_graph
-from utils.volume_trends import volume_based_strategy_recommendation
 # LLM analysis (OpenAI)
 # from utils.llm_analysis import analyze_trading_opportunity, analyze_position_management
 
+#
+#
 # load .env file
 load_dotenv()
+#
+#
 # load config.json file
 def load_config(file_path):
     with open(file_path, 'r') as file:
@@ -207,8 +210,6 @@ def iterate_assets(interval_seconds):
                     trade_range_percentage = calculate_trading_range_percentage(min_price, max_price)
                     price_position_within_trade_range = calculate_current_price_position_within_trading_range(current_price, min_price, max_price)
                     # print('current price position: ', f"{price_position_within_trade_range}%")
-
-                    # volume_based_strategy = volume_based_strategy_recommendation() (outdated?)
 
                     coin_obj = {
                         'symbol': symbol,
