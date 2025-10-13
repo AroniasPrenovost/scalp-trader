@@ -160,11 +160,11 @@ def iterate_assets(interval_seconds):
             coinbase_data_directory = 'coinbase-data'
             if is_most_recent_file_older_than_x_minutes(coinbase_data_directory, minutes=INTERVAL_SAVE_DATA_EVERY_X_MINUTES):
                 save_dictionary_data_to_local_file(coinbase_data_dictionary, coinbase_data_directory, 'listed_coins')
-                print(' ')
+                print('\n')
             delete_files_older_than_x_hours(coinbase_data_directory, hours=DELETE_FILES_OLDER_THAN_X_HOURS)
 
             if count_files_in_directory(coinbase_data_directory) < 1:
-                print('waiting for more data...')
+                print('waiting for more data...\n')
             else:
                 for coin in coinbase_data_dictionary:
                     time.sleep(1) # stop system from overheating
@@ -209,10 +209,8 @@ def iterate_assets(interval_seconds):
                     coin_volume_percentage_change_24h_LIST = [float(volume_percentage_change_24h) for volume_percentage_change_24h in coin_volume_percentage_change_24h_LIST]
                     coin_volume_percentage_change_24h_LIST.append(current_volume_percentage_change_24h)
 
-                    #
                     min_price = min(coin_prices_LIST)
                     max_price = max(coin_prices_LIST)
-
                     trade_range_percentage = calculate_trading_range_percentage(min_price, max_price)
                     price_position_within_trade_range = calculate_current_price_position_within_trading_range(current_price, min_price, max_price)
                     # print('current price position: ', f"{price_position_within_trade_range}%")
@@ -239,7 +237,6 @@ def iterate_assets(interval_seconds):
                     last_order_type = detect_stored_coinbase_order_type(last_order)
 
                     if READY_TO_TRADE == True:
-
                         #
                         # Handle unverified BUY / SELL order
                         if last_order_type == 'placeholder':
@@ -256,9 +253,9 @@ def iterate_assets(interval_seconds):
                             if fulfilled_order_data:
                                 full_order_dict = fulfilled_order_data['order'] if isinstance(fulfilled_order_data, dict) else fulfilled_order_data.to_dict()
                                 save_order_data_to_local_json_ledger(symbol, full_order_dict)
-                                print('Updated ledger with full order data \n')
+                                print('Updated ledger with full order data')
                             else:
-                                print('still waiting to pull full order data info \n')
+                                print('still waiting to pull full order data info')
 
                         #
                         #
@@ -309,6 +306,7 @@ def iterate_assets(interval_seconds):
                                 else:
                                     print('trading disabled')
 
+                    print('\n')
 
                     # if (price_position_within_trade_range < 4):
                     #
@@ -478,10 +476,9 @@ def iterate_assets(interval_seconds):
 
                 #
                 #
-                # Reset error count if they're non-consecutive
+                # ERROR TRACKING: reset error count if they're non-consecutive
                 LAST_EXCEPTION_ERROR = None
                 LAST_EXCEPTION_ERROR_COUNT = 0
-                print('\n')
 
         #
         #
