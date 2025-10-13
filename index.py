@@ -225,7 +225,6 @@ def iterate_assets(interval_seconds):
                         'prices_list': coin_prices_LIST,
                         'time_interval_minutes': INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
                     }
-
                     # print(coin_obj)
 
                     #
