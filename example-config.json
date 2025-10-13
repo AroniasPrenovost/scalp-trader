@@ -1,20 +1,20 @@
 {
   "assets": [
       {
+        "title": "ALGO chart",
         "enabled": true,
         "ready_to_trade": true,
         "symbol": "MATIC-USD",
-        "title": "ALGO chart",
         "shares_to_acquire": 100,
-        "enable_graph_display": false
+        "enable_screenshots": false
       },
       {
+        "title": "BTC chart",
         "enabled": true,
         "ready_to_trade": false,
         "symbol": "BTC-USD",
-        "title": "BTC chart",
         "shares_to_acquire": 0.00001,
-        "enable_graph_display": false
+        "enable_screenshots": false
       }
     ]
 }

@@ -180,12 +180,12 @@ def iterate_assets(interval_seconds):
                     # set config.json data
                     READY_TO_TRADE = None
                     SHARES_TO_ACQUIRE = None
-                    ENABLE_GRAPH_DISPLAY = None
+                    ENABLE_SCREENSHOTS = None
                     for asset in config['assets']:
                         if symbol == asset['symbol']:
                             READY_TO_TRADE = asset['ready_to_trade']
                             SHARES_TO_ACQUIRE = asset['shares_to_acquire']
-                            ENABLE_GRAPH_DISPLAY = asset['enable_graph_display']
+                            ENABLE_SCREENSHOTS = asset['enable_screenshots']
 
                     #
                     #
@@ -236,11 +236,10 @@ def iterate_assets(interval_seconds):
                     }
                     # print(coin_data)
 
-
+                    #
                     #
                     #
                     # Manage order data (order types, order info, etc.) in local ledger files
-
                     entry_price = 0
                     last_order = get_last_order_from_local_json_ledger(symbol)
                     last_order_type = detect_stored_coinbase_order_type(last_order)
@@ -320,7 +319,7 @@ def iterate_assets(interval_seconds):
                     #
                     #
                     plot_graph(
-                        ENABLE_GRAPH_DISPLAY, # enabled
+                        ENABLE_SCREENSHOTS,
                         time.time(),
                         INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
                         symbol,
