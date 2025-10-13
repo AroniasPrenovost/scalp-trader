@@ -236,6 +236,7 @@ def iterate_assets(interval_seconds):
                     }
                     # print(coin_data)
 
+
                     #
                     #
                     # Manage order data (order types, order info, etc.) in local ledger files
@@ -311,6 +312,24 @@ def iterate_assets(interval_seconds):
                                 place_market_sell_order(coinbase_client, symbol, number_of_shares, potential_profit, potential_profit_percentage)
                             else:
                                 print('STATUS: Trading disabled')
+
+
+
+                    #
+                    #
+                    #
+                    #
+                    plot_graph(
+                        ENABLE_GRAPH_DISPLAY, # enabled
+                        time.time(),
+                        INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                        symbol,
+                        coin_prices_LIST,
+                        min_price,
+                        max_price,
+                        trade_range_percentage,
+                        entry_price
+                    )
 
                     print('\n')
 

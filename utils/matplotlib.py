@@ -29,6 +29,7 @@ from utils.price_helpers import calculate_trading_range_percentage
 def plot_graph(
     enabled,
     current_timestamp,
+    interval,
     symbol,
     price_data,
     min_price,
@@ -60,8 +61,8 @@ def plot_graph(
     plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.4f'))
 
     plt.title(f"{symbol}")
-    plt.xlabel("time range")
-    plt.ylabel(f"price range: {trade_range_percentage}%")
+    plt.xlabel(f"interval (minutes): {interval}")
+    plt.ylabel(f"trade range: {trade_range_percentage}%")
     plt.legend(loc='upper left', fontsize='small')
     plt.grid(True)
 
