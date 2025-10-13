@@ -55,7 +55,7 @@ DELETE_FILES_OLDER_THAN_X_HOURS=120 # 4 days
 
 #
 #
-# Store the last error and manage number of errors before killing program
+# Store the last error and manage number of errors before exiting program
 #
 
 LAST_EXCEPTION_ERROR = None
@@ -65,12 +65,14 @@ MAX_LAST_EXCEPTION_ERROR_COUNT = 8
 
 #
 #
+# Set exchange fees and tax rates
 #
 
 coinbase_spot_maker_fee = float(os.environ.get('COINBASE_SPOT_MAKER_FEE'))
 coinbase_spot_taker_fee = float(os.environ.get('COINBASE_SPOT_TAKER_FEE'))
 federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
 
+#
 #
 #
 #
@@ -161,6 +163,12 @@ def iterate_assets(interval_seconds):
             else:
                 for coin in coinbase_data_dictionary:
                     time.sleep(1) # stop system from overheating
+
+
+
+
+
+
 
                     current_price = float(coin['price'])
                     current_price_percentage_change_24h = float(coin['price_percentage_change_24h'])
