@@ -36,13 +36,12 @@ from utils.volume_trends import volume_based_strategy_recommendation
 # LLM analysis (OpenAI)
 # from utils.llm_analysis import analyze_trading_opportunity, analyze_position_management
 
-# load .env
+# load .env file
 load_dotenv()
-
+# load config.json file
 def load_config(file_path):
     with open(file_path, 'r') as file:
         return load(file)
-
 
 #
 #
