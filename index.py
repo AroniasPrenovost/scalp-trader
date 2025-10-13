@@ -43,29 +43,14 @@ def load_config(file_path):
     with open(file_path, 'r') as file:
         return load(file)
 
-#
-#
-# Initialize a dictionary to store support and resistance levels for each asset
-#
-
-SUPPORT_RESISTANCE_LEVELS = {}
-last_calculated_support_resistance_pivot_prices = {}  # Store the last calculated price for each asset
-
-#
-#
-# Time tracking
-#
 
 #
 #
 # Define time intervals
 #
 
-# ------------------
 INTERVAL_SECONDS = 600 # (10 minutes) # takes into account the 3 (dependent on number of assets) sleep(2)'s (minus 6 seconds)
-
-# how often it saves stock data
-INTERVAL_SAVE_DATA_MINUTES=30
+INTERVAL_SAVE_DATA_MINUTES=30 # how often it saves stock data
 DELETE_FILES_OLDER_THAN_X_HOURS=120 # 4 days
 
 #
@@ -299,7 +284,7 @@ def iterate_assets(interval_seconds):
         #
 
         print('Running analysis on assets enabled in "config.json"...')
-        
+
         for asset in config['assets']:
             if asset['symbol'] == 'SYSTEM':
                 continue
