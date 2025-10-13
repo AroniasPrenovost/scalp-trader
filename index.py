@@ -281,8 +281,6 @@ def iterate_assets(interval_seconds):
         print('Running analysis on assets enabled in "config.json"...')
 
         for asset in config['assets']:
-            if asset['symbol'] == 'SYSTEM':
-                continue
 
             enabled = asset['enabled']
             symbol = asset['symbol']
