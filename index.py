@@ -67,7 +67,6 @@ MAX_LAST_EXCEPTION_ERROR_COUNT = 8
 #
 #
 
-
 coinbase_spot_maker_fee = float(os.environ.get('COINBASE_SPOT_MAKER_FEE'))
 coinbase_spot_taker_fee = float(os.environ.get('COINBASE_SPOT_TAKER_FEE'))
 federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
@@ -155,11 +154,7 @@ def iterate_assets(interval_seconds):
                 save_dictionary_data_to_local_file(cb_asset_dictionary, coinbase_price_history_directory, 'listed_coins')
             delete_files_older_than_x_hours(coinbase_price_history_directory, hours=DELETE_FILES_OLDER_THAN_X_HOURS)
 
-            files_in_folder = count_files_in_directory(coinbase_price_history_directory)
-
-            print('did it work?')
-
-            if files_in_folder < 1:
+            if count_files_in_directory(coinbase_price_history_directory) < 1:
                 print('waiting for more data to do calculations')
             else:
                 for coin in cb_asset_dictionary:
