@@ -32,8 +32,6 @@ coinbase_client = get_coinbase_client()
 from utils.new_coinbase_listings import check_for_new_coinbase_listings
 # plotting data
 from utils.matplotlib import plot_graph
-# LLM analysis (OpenAI)
-# from utils.llm_analysis import analyze_trading_opportunity, analyze_position_management
 
 #
 # end imports
