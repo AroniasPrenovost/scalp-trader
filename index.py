@@ -314,7 +314,6 @@ def iterate_assets(interval_seconds):
             ENABLE_GRAPH_DISPLAY = asset['enable_graph_display']
 
             if enabled:
-                print(' ')
                 print(symbol)
 
                 current_price = get_asset_price(coinbase_client, symbol)
@@ -335,6 +334,7 @@ def iterate_assets(interval_seconds):
                     #
                     # Handle unverified BUY / SELL order
                     if last_order_type == 'placeholder':
+                        print('Processing PENDING order, please standby...')
                         last_order_id = ''
                         if symbol == 'MATIC-USD':
                             last_order_id = last_order['response']['order_id']
@@ -355,7 +355,7 @@ def iterate_assets(interval_seconds):
                     #
                     # BUY logic
                     elif last_order_type == 'none' or last_order_type == 'sell':
-                        print('Looking to buy...')
+                        print('Looking to BUY')
                         print('BUY_AT_PRICE: ', BUY_AT_PRICE)
                         if current_price < BUY_AT_PRICE:
                             if READY_TO_TRADE == True:
@@ -367,7 +367,7 @@ def iterate_assets(interval_seconds):
                     #
                     # SELL logic
                     elif last_order_type == 'buy':
-                        print('looking to SELL')
+                        print('Looking to SELL')
 
                         entry_price = float(last_order['order']['average_filled_price'])
                         print(f"entry_price: {entry_price}")
