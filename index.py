@@ -286,13 +286,6 @@ def iterate_assets(interval_seconds):
                         # )
 
 
-                    # continue
-
-                    #
-                    #
-                    #
-
-
         #
         #
         # iterate through config assets
