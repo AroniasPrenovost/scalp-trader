@@ -393,10 +393,7 @@ def iterate_assets(interval_seconds):
         #     TARGET_PROFIT_PERCENTAGE = asset['target_profit_percentage']
         #     SHARES_TO_ACQUIRE = asset['shares_to_acquire']
         #
-        #     ENABLE_GRAPH_DISPLAY = asset['enable_graph_display']
-        #
         #     if enabled:
-        #         print(symbol)
         #
         #         current_price = get_asset_price(coinbase_client, symbol)
         #         print(f"current_price: {current_price}")
@@ -407,7 +404,6 @@ def iterate_assets(interval_seconds):
         #         # Manage order data (order types, order info, etc.) in local ledger
         #
         #         entry_price = 0
-        #
         #         last_order = get_last_order_from_local_json_ledger(symbol)
         #         last_order_type = detect_stored_coinbase_order_type(last_order)
         #
