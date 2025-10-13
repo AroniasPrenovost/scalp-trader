@@ -107,25 +107,23 @@ def convert_products_to_dicts(products):
 
 def iterate_assets(interval_seconds):
     while True:
-
         print_local_time()
-
-        config = load_config('config.json')
-        enabled_cryptos = [asset['symbol'] for asset in config['assets'] if asset['enabled']]
 
         #
         # ERROR TRACKING
         global LAST_EXCEPTION_ERROR
         global LAST_EXCEPTION_ERROR_COUNT
 
-        #
-        # COINBASE ASSETS
+        # load config
+        config = load_config('config.json')
+        enabled_cryptos = [asset['symbol'] for asset in config['assets'] if asset['enabled']]
+
+
         coinbase_data = coinbase_client.get_products()['products']
         coinbase_data_dictionary = {}
         coinbase_data_dictionary = convert_products_to_dicts(coinbase_data)
-        # - filter out all crypto data except for those defined in enabled_cryptos (reduces size of locally stored files)
+        # to reduce file sizes, filter out all crypto data except for those defined in enabled_cryptos
         coinbase_data_dictionary = [coin for coin in coinbase_data_dictionary if coin['product_id'] in enabled_cryptos]
-        # print(coinbase_data_dictionary)
 
         #
         # ALERT NEW COIN LISTINGS
