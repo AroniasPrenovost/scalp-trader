@@ -420,7 +420,7 @@ def iterate_assets(interval_seconds):
 
                 #
                 #
-                # Clear errors if they're non-consecutive
+                # Reset error count if they're non-consecutive
                 LAST_EXCEPTION_ERROR = None
                 LAST_EXCEPTION_ERROR_COUNT = 0
                 print('\n')
