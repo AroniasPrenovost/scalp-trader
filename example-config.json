@@ -6,18 +6,16 @@
         "title": "ALGO chart",
         "ready_to_trade": true,
         "target_profit_percentage": 1.1,
-        "buy_at_price_position_percentage": 50,
         "shares_to_acquire": 100,
         "enable_graph_display": false,
         "enable_graph_screenshot": true
       },
       {
-        "enabled": false,
+        "enabled": true,
         "symbol": "BTC-USD",
         "title": "BTC chart",
         "ready_to_trade": false,
         "target_profit_percentage": 1.1,
-        "buy_at_price_position_percentage": 50,
         "shares_to_acquire": 0.00001,
         "enable_graph_display": false,
         "enable_graph_screenshot": true

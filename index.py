@@ -117,9 +117,7 @@ def iterate_assets(interval_seconds):
 
         # load config
         config = load_config('config.json')
-        enabled_cryptos = [asset['symbol'] for asset in config['assets'] if asset['enabled']]
-
-
+        enabled_assets = [asset['symbol'] for asset in config['assets'] if asset['enabled']]
 
         #
         #
@@ -128,9 +126,8 @@ def iterate_assets(interval_seconds):
         coinbase_data = coinbase_client.get_products()['products']
         coinbase_data_dictionary = {}
         coinbase_data_dictionary = convert_products_to_dicts(coinbase_data)
-        # to reduce file sizes, filter out all crypto data except for those defined in enabled_cryptos
-        coinbase_data_dictionary = [coin for coin in coinbase_data_dictionary if coin['product_id'] in enabled_cryptos]
-
+        # to reduce file sizes, filter out all crypto data except for those defined in enabled_assets
+        coinbase_data_dictionary = [coin for coin in coinbase_data_dictionary if coin['product_id'] in enabled_assets]
 
         #
         #
@@ -291,9 +288,9 @@ def iterate_assets(interval_seconds):
             if asset['symbol'] == 'SYSTEM':
                 continue
 
-            # continue
             enabled = asset['enabled']
             symbol = asset['symbol']
+
             # fees
             maker_f = coinbase_spot_maker_fee
             taker_f = coinbase_spot_taker_fee
