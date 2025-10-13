@@ -342,7 +342,6 @@ def iterate_assets(interval_seconds):
                             last_order_id = last_order['order_id']
 
                         fulfilled_order_data = get_coinbase_order_by_order_id(coinbase_client, last_order_id)
-                        print('who')
                         print(fulfilled_order_data);
 
                         if fulfilled_order_data:
