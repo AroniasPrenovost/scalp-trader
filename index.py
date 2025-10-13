@@ -74,7 +74,7 @@ MAX_LAST_EXCEPTION_ERROR_COUNT = 8
 # Set exchange fees and tax rates
 #
 
-# coinbase_spot_maker_fee = float(os.environ.get('COINBASE_SPOT_MAKER_FEE')) # unused
+coinbase_spot_maker_fee = float(os.environ.get('COINBASE_SPOT_MAKER_FEE')) # unused
 coinbase_spot_taker_fee = float(os.environ.get('COINBASE_SPOT_TAKER_FEE'))
 federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
 
@@ -313,7 +313,6 @@ def iterate_assets(interval_seconds):
                                 print('STATUS: Trading disabled')
 
 
-
                     #
                     #
                     #
@@ -332,62 +331,6 @@ def iterate_assets(interval_seconds):
 
                     print('\n')
 
-                    # if (price_position_within_trade_range < 4):
-                    #
-                    #     plot_graph(
-                    #         True, # enabled
-                    #         time.time(),
-                    #         coin['product_id'],
-                    #         coin_prices_LIST,
-                    #         min_price,
-                    #         max_price,
-                    #         trade_range_percentage,
-                    #         0
-                    #     )
-                    #
-                    #     coin_data = {
-                    #         'symbol': coin['product_id'],
-                    #         'price': current_price,
-                    #         'price_percentage_change_24h': current_price_percentage_change_24h,
-                    #         'volume_24h': current_volume_24h,
-                    #         'volume_percentage_change_24h': current_volume_percentage_change_24h,
-                    #         'timestamp': time.time(),
-                    #     }
-                    #
-                    #     append_to_json_array('uptrend-data/data.json', coin_data)
-                    #     remove_old_entries('uptrend-data/data.json', 6)
-                    #
-                    #     price_change_data = calculate_price_change('uptrend-data/data.json', coin['product_id'], current_price)
-                    #     time_since_signal = price_change_data[0]
-                    #     change = round(price_change_data[1], 2)
-                    #
-                    #     print(f"time_since: {time_since_signal}   ({change}%)")
-
-                        # exit()
-
-                        # plot_graph(
-                        #     True, # enabled
-                        #     time.time(),
-                        #     coin['product_id'],
-                        #     coin_price_percentage_change_24h_LIST,
-                        #     0
-                        # )
-
-                        # plot_graph(
-                        #     True, # enabled
-                        #     time.time(),
-                        #     coin['product_id'],
-                        #     coin_volume_24h_LIST,
-                        #     0
-                        # )
-
-                        # plot_graph(
-                        #     True, # enabled
-                        #     time.time(),
-                        #     coin['product_id'],
-                        #     coin_volume_percentage_change_24h_LIST,
-                        #     0
-                        # )
 
                 #
                 #
