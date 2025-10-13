@@ -6,7 +6,7 @@
         "ready_to_trade": true,
         "symbol": "MATIC-USD",
         "shares_to_acquire": 100,
-        "enable_screenshots": false
+        "enable_snapshot": false
       },
       {
         "title": "BTC chart",
@@ -14,7 +14,7 @@
         "ready_to_trade": false,
         "symbol": "BTC-USD",
         "shares_to_acquire": 0.00001,
-        "enable_screenshots": false
+        "enable_snapshot": false
       }
     ]
 }

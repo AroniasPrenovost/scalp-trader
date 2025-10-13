@@ -27,7 +27,6 @@ import matplotlib.ticker as ticker
 from utils.price_helpers import calculate_trading_range_percentage
 
 def plot_graph(
-    enabled,
     current_timestamp,
     interval,
     symbol,
@@ -37,10 +36,10 @@ def plot_graph(
     trade_range_percentage,
     entry_price
 ):
-    if not enabled:
-        if plt.get_fignums():
-            plt.close('all')
-        return
+    # if not enabled:
+    #     if plt.get_fignums():
+    #         plt.close('all')
+    #     return
 
     plt.figure(figsize=(9, 7))
 
@@ -67,14 +66,14 @@ def plot_graph(
     plt.grid(True)
 
     filename = os.path.join("./screenshots", f"{symbol}_chart_{current_timestamp}.png")
-    if os.path.exists(filename):
-        current_time = time.time()
-        twenty_minutes_ago = current_time - 1200  # 20 minutes in seconds
-        file_mod_time = os.path.getmtime(filename)
-        if file_mod_time > twenty_minutes_ago:
-            print(f"Chart for {symbol} is less than 20 minutes old, not saving a new one.")
-            return
-        os.remove(filename)
+    # if os.path.exists(filename):
+    #     current_time = time.time()
+    #     twenty_minutes_ago = current_time - 1200  # 20 minutes in seconds
+    #     file_mod_time = os.path.getmtime(filename)
+    #     if file_mod_time > twenty_minutes_ago:
+    #         print(f"Chart for {symbol} is less than 20 minutes old, not saving a new one.")
+    #         return
+    #     os.remove(filename)
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     plt.close('all')
     print(f"Chart saved as {filename}")

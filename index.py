@@ -180,12 +180,12 @@ def iterate_assets(interval_seconds):
                     # set config.json data
                     READY_TO_TRADE = None
                     SHARES_TO_ACQUIRE = None
-                    ENABLE_SCREENSHOTS = None
+                    ENABLE_SNAPSHOT = None
                     for asset in config['assets']:
                         if symbol == asset['symbol']:
                             READY_TO_TRADE = asset['ready_to_trade']
                             SHARES_TO_ACQUIRE = asset['shares_to_acquire']
-                            ENABLE_SCREENSHOTS = asset['enable_screenshots']
+                            ENABLE_SNAPSHOT = asset['enable_snapshot']
 
                     #
                     #
@@ -313,21 +313,18 @@ def iterate_assets(interval_seconds):
                                 print('STATUS: Trading disabled')
 
 
-                    #
-                    #
-                    #
-                    #
-                    plot_graph(
-                        ENABLE_SCREENSHOTS,
-                        time.time(),
-                        INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
-                        symbol,
-                        coin_prices_LIST,
-                        min_price,
-                        max_price,
-                        trade_range_percentage,
-                        entry_price
-                    )
+                    if ENABLE_SNAPSHOT == True:
+                        plot_graph(
+                            time.time(),
+                            INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                            symbol,
+                            coin_prices_LIST,
+                            min_price,
+                            max_price,
+                            trade_range_percentage,
+                            entry_price
+                        )
+
 
                     print('\n')
 
