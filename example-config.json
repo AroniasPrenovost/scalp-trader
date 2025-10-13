@@ -2,9 +2,9 @@
   "assets": [
       {
         "enabled": true,
+        "ready_to_trade": true,
         "symbol": "MATIC-USD",
         "title": "ALGO chart",
-        "ready_to_trade": true,
         "target_profit_percentage": 1.1,
         "shares_to_acquire": 100,
         "enable_graph_display": false,
@@ -12,9 +12,9 @@
       },
       {
         "enabled": true,
+        "ready_to_trade": false,
         "symbol": "BTC-USD",
         "title": "BTC chart",
-        "ready_to_trade": false,
         "target_profit_percentage": 1.1,
         "shares_to_acquire": 0.00001,
         "enable_graph_display": false,

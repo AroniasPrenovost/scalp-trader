@@ -319,80 +319,75 @@ def iterate_assets(interval_seconds):
                 last_order_type = detect_stored_coinbase_order_type(last_order)
 
                 if READY_TO_TRADE == True:
-                    print('ready_to_trade: ', READY_TO_TRADE)
 
-                #
-                # Handle unverified BUY / SELL order
-                if last_order_type == 'placeholder':
-                    last_order_id = ''
-                    if symbol == 'MATIC-USD':
-                        last_order_id = last_order['response']['order_id']
-                    else:
-                        last_order_id = last_order['order_id']
-
-                    fulfilled_order_data = get_coinbase_order_by_order_id(coinbase_client, last_order_id)
-                    print('who')
-                    print(fulfilled_order_data);
-
-                    if fulfilled_order_data:
-                        full_order_dict = fulfilled_order_data['order'] if isinstance(fulfilled_order_data, dict) else fulfilled_order_data.to_dict()
-                        save_order_data_to_local_json_ledger(symbol, full_order_dict)
-                        print('Updated ledger with full order data \n')
-                    else:
-                        print('still waiting to pull full order data info \n')
-
-                #
-                #
-                # BUY logic
-                elif last_order_type == 'none' or last_order_type == 'sell':
-                    print('looking to BUY at $', BUY_AT_PRICE)
-
-                    # if float(trading_range_percentage) < float(TARGET_PROFIT_PERCENTAGE):
-                    #     print('trading range smaller than target_profit_percentage')
-                    #     continue
-
-                    # if current_price < BUY_AT_PRICE:
-                    if READY_TO_TRADE == True:
-                        place_market_buy_order(coinbase_client, symbol, SHARES_TO_ACQUIRE)
-                    else:
-                        print('not ready to trade')
-
-                #
-                #
-                # SELL logic
-                elif last_order_type == 'buy':
-                    print('looking to SELL')
-
-                    entry_price = float(last_order['order']['average_filled_price'])
-                    print(f"entry_price: {entry_price}")
-
-                    entry_position_value_after_fees = float(last_order['order']['total_value_after_fees'])
-                    print(f"entry_position_value_after_fees: {entry_position_value_after_fees}")
-
-                    number_of_shares = float(last_order['order']['filled_size'])
-                    print('number_of_shares: ', number_of_shares)
-
-                    # calculate profits if we were going to sell now
-                    pre_tax_profit = (current_price - entry_price) * number_of_shares
-
-                    sell_now_exchange_fee = calculate_exchange_fee(current_price, number_of_shares, taker_f)
-                    print(f"sell_now_exchange_fee: {sell_now_exchange_fee}")
-
-                    sell_now_tax_owed = (federal_tax_rate / 100) * pre_tax_profit
-                    print(f"sell_now_taxes_owed: {sell_now_tax_owed}")
-
-                    potential_profit = (current_price * number_of_shares) - entry_position_value_after_fees - sell_now_exchange_fee - sell_now_tax_owed
-                    print(f"potential_profit_USD: {potential_profit}")
-
-                    potential_profit_percentage = (potential_profit / entry_position_value_after_fees) * 100
-                    print(f"potential_profit_percentage: {potential_profit_percentage:.4f}%")
-
-                    if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
-                        print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
-                        if READY_TO_TRADE == True:
-                            place_market_sell_order(coinbase_client, symbol, number_of_shares, potential_profit, potential_profit_percentage)
+                    #
+                    # Handle unverified BUY / SELL order
+                    if last_order_type == 'placeholder':
+                        last_order_id = ''
+                        if symbol == 'MATIC-USD':
+                            last_order_id = last_order['response']['order_id']
                         else:
-                            print('trading disabled')
+                            last_order_id = last_order['order_id']
+
+                        fulfilled_order_data = get_coinbase_order_by_order_id(coinbase_client, last_order_id)
+                        print('who')
+                        print(fulfilled_order_data);
+
+                        if fulfilled_order_data:
+                            full_order_dict = fulfilled_order_data['order'] if isinstance(fulfilled_order_data, dict) else fulfilled_order_data.to_dict()
+                            save_order_data_to_local_json_ledger(symbol, full_order_dict)
+                            print('Updated ledger with full order data \n')
+                        else:
+                            print('still waiting to pull full order data info \n')
+
+                    #
+                    #
+                    # BUY logic
+                    elif last_order_type == 'none' or last_order_type == 'sell':
+                        print('Looking to buy...')
+                        print('BUY_AT_PRICE: ', BUY_AT_PRICE)
+                        if current_price < BUY_AT_PRICE:
+                            if READY_TO_TRADE == True:
+                                place_market_buy_order(coinbase_client, symbol, SHARES_TO_ACQUIRE)
+                            else:
+                                print('not ready to trade')
+
+                    #
+                    #
+                    # SELL logic
+                    elif last_order_type == 'buy':
+                        print('looking to SELL')
+
+                        entry_price = float(last_order['order']['average_filled_price'])
+                        print(f"entry_price: {entry_price}")
+
+                        entry_position_value_after_fees = float(last_order['order']['total_value_after_fees'])
+                        print(f"entry_position_value_after_fees: {entry_position_value_after_fees}")
+
+                        number_of_shares = float(last_order['order']['filled_size'])
+                        print('number_of_shares: ', number_of_shares)
+
+                        # calculate profits if we were going to sell now
+                        pre_tax_profit = (current_price - entry_price) * number_of_shares
+
+                        sell_now_exchange_fee = calculate_exchange_fee(current_price, number_of_shares, taker_f)
+                        print(f"sell_now_exchange_fee: {sell_now_exchange_fee}")
+
+                        sell_now_tax_owed = (federal_tax_rate / 100) * pre_tax_profit
+                        print(f"sell_now_taxes_owed: {sell_now_tax_owed}")
+
+                        potential_profit = (current_price * number_of_shares) - entry_position_value_after_fees - sell_now_exchange_fee - sell_now_tax_owed
+                        print(f"potential_profit_USD: {potential_profit}")
+
+                        potential_profit_percentage = (potential_profit / entry_position_value_after_fees) * 100
+                        print(f"potential_profit_percentage: {potential_profit_percentage:.4f}%")
+
+                        if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
+                            print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
+                            if READY_TO_TRADE == True:
+                                place_market_sell_order(coinbase_client, symbol, number_of_shares, potential_profit, potential_profit_percentage)
+                            else:
+                                print('trading disabled')
 
                 current_time = time.time() # call it once instead of twice for the following functions
 
