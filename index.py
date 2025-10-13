@@ -239,7 +239,7 @@ def iterate_assets(interval_seconds):
 
                     #
                     #
-                    # Manage order data (order types, order info, etc.) in local ledger file
+                    # Manage order data (order types, order info, etc.) in local ledger files
 
                     entry_price = 0
                     last_order = get_last_order_from_local_json_ledger(symbol)
