@@ -228,8 +228,6 @@ def iterate_assets(interval_seconds):
 
                     print(coin_obj)
 
-
-
                     # if (price_position_within_trade_range < 4):
                     #
                     #     plot_graph(
@@ -300,8 +298,8 @@ def iterate_assets(interval_seconds):
         # iterate through config assets
         #
 
-
         print('Running analysis on assets enabled in "config.json"...')
+        
         for asset in config['assets']:
             if asset['symbol'] == 'SYSTEM':
                 continue
