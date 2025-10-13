@@ -160,9 +160,7 @@ def iterate_assets(interval_seconds):
                 print('waiting for more data to do calculations')
             else:
                 for coin in coinbase_data_dictionary:
-                    print('\n______________\n')
-                    time.sleep(2) # stop system from overheating
-                    # print(coin['product_id'])
+                    time.sleep(1) # stop system from overheating
 
                     current_price = float(coin['price'])
                     current_price_percentage_change_24h = float(coin['price_percentage_change_24h'])
