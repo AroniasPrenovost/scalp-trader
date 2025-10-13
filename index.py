@@ -173,20 +173,19 @@ def iterate_assets(interval_seconds):
                     symbol = coin['product_id']
                     print(f"Analyzing {symbol}...")
 
+                    # todo: pull from locally stored data
+                    TEMP_BUY_AT_PRICE = 0.0001
+                    TEMP_PROFIT_PERCENTAGE = 2.1
+
                     # set config.json data
                     READY_TO_TRADE = None
-                    BUY_AT_PRICE = None
-                    TARGET_PROFIT_PERCENTAGE = None
                     SHARES_TO_ACQUIRE = None
                     ENABLE_GRAPH_DISPLAY = None
                     for asset in config['assets']:
                         if symbol == asset['symbol']:
                             READY_TO_TRADE = asset['ready_to_trade']
-                            BUY_AT_PRICE = asset['buy_at_price']
-                            TARGET_PROFIT_PERCENTAGE = asset['target_profit_percentage']
                             SHARES_TO_ACQUIRE = asset['shares_to_acquire']
                             ENABLE_GRAPH_DISPLAY = asset['enable_graph_display']
-
 
                     #
                     #
@@ -269,8 +268,8 @@ def iterate_assets(interval_seconds):
                     #
                     # BUY logic
                     elif last_order_type == 'none' or last_order_type == 'sell':
-                        print(f"STATUS: Looking to BUY at ${BUY_AT_PRICE}")
-                        if current_price < BUY_AT_PRICE:
+                        print(f"STATUS: Looking to BUY at ${TEMP_BUY_AT_PRICE}")
+                        if current_price < TEMP_BUY_AT_PRICE:
                             if READY_TO_TRADE == True:
                                 place_market_buy_order(coinbase_client, symbol, SHARES_TO_ACQUIRE)
                             else:
@@ -306,7 +305,7 @@ def iterate_assets(interval_seconds):
                         potential_profit_percentage = (potential_profit / entry_position_value_after_fees) * 100
                         print(f"potential_profit_percentage: {potential_profit_percentage:.4f}%")
 
-                        if potential_profit_percentage >= TARGET_PROFIT_PERCENTAGE:
+                        if potential_profit_percentage >= TEMP_PROFIT_PERCENTAGE:
                             print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
                             if READY_TO_TRADE == True:
                                 place_market_sell_order(coinbase_client, symbol, number_of_shares, potential_profit, potential_profit_percentage)

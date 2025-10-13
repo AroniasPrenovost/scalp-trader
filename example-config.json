@@ -5,8 +5,6 @@
         "ready_to_trade": true,
         "symbol": "MATIC-USD",
         "title": "ALGO chart",
-        "buy_at_price": 0.00001,
-        "target_profit_percentage": 1.1,
         "shares_to_acquire": 100,
         "enable_graph_display": false
       },
@@ -15,8 +13,6 @@
         "ready_to_trade": false,
         "symbol": "BTC-USD",
         "title": "BTC chart",
-        "buy_at_price": 0.00001,
-        "target_profit_percentage": 1.1,
         "shares_to_acquire": 0.00001,
         "enable_graph_display": false
       }
