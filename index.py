@@ -161,6 +161,7 @@ def iterate_assets(interval_seconds):
                 for coin in coinbase_data_dictionary:
                     time.sleep(1) # stop system from overheating
 
+                    symbol = coin['product_id']
                     current_price = float(coin['price'])
                     current_price_percentage_change_24h = float(coin['price_percentage_change_24h'])
                     current_volume_24h = float(coin['volume_24h'])
@@ -168,19 +169,19 @@ def iterate_assets(interval_seconds):
 
                     # Convert each list to a list of floats
                     # append current data to account for the gap in incrementally stored data
-                    coin_prices_LIST = get_property_values_from_files(coinbase_data_directory, coin['product_id'], 'price')
+                    coin_prices_LIST = get_property_values_from_files(coinbase_data_directory, symbol, 'price')
                     coin_prices_LIST = [float(price) for price in coin_prices_LIST] # Convert to list of floats
                     coin_prices_LIST.append(current_price)
 
-                    coin_price_percentage_change_24h_LIST = get_property_values_from_files(coinbase_data_directory, coin['product_id'], 'price_percentage_change_24h')
+                    coin_price_percentage_change_24h_LIST = get_property_values_from_files(coinbase_data_directory, symbol, 'price_percentage_change_24h')
                     coin_price_percentage_change_24h_LIST = [float(price_percentage_change_24h) for price_percentage_change_24h in coin_price_percentage_change_24h_LIST]
                     coin_price_percentage_change_24h_LIST.append(current_price_percentage_change_24h)
 
-                    coin_volume_24h_LIST = get_property_values_from_files(coinbase_data_directory, coin['product_id'], 'volume_24h')
+                    coin_volume_24h_LIST = get_property_values_from_files(coinbase_data_directory, symbol, 'volume_24h')
                     coin_volume_24h_LIST = [float(volume_24h) for volume_24h in coin_volume_24h_LIST]
                     coin_volume_24h_LIST.append(current_volume_24h)
 
-                    coin_volume_percentage_change_24h_LIST = get_property_values_from_files(coinbase_data_directory, coin['product_id'], 'volume_percentage_change_24h')
+                    coin_volume_percentage_change_24h_LIST = get_property_values_from_files(coinbase_data_directory, symbol, 'volume_percentage_change_24h')
                     coin_volume_percentage_change_24h_LIST = [float(volume_percentage_change_24h) for volume_percentage_change_24h in coin_volume_percentage_change_24h_LIST]
                     coin_volume_percentage_change_24h_LIST.append(current_volume_percentage_change_24h)
 
@@ -195,7 +196,7 @@ def iterate_assets(interval_seconds):
                     # volume_based_strategy = volume_based_strategy_recommendation() (outdated?)
 
                     coin_obj = {
-                        'symbol': coin['product_id'],
+                        'symbol': symbol,
                         'price': current_price,
                         'price_percentage_change_24h': current_price_percentage_change_24h,
                         'volume_24h': current_volume_24h,
