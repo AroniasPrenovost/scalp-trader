@@ -5,3 +5,4 @@ requests
 coinbase-advanced-py
 matplotlib
 mailjet-rest
+openai
