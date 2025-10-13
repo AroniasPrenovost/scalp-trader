@@ -160,6 +160,7 @@ def iterate_assets(interval_seconds):
             coinbase_data_directory = 'coinbase-data'
             if is_most_recent_file_older_than_x_minutes(coinbase_data_directory, minutes=INTERVAL_SAVE_DATA_EVERY_X_MINUTES):
                 save_dictionary_data_to_local_file(coinbase_data_dictionary, coinbase_data_directory, 'listed_coins')
+                print(' ')
             delete_files_older_than_x_hours(coinbase_data_directory, hours=DELETE_FILES_OLDER_THAN_X_HOURS)
 
             if count_files_in_directory(coinbase_data_directory) < 1:
@@ -170,6 +171,7 @@ def iterate_assets(interval_seconds):
 
                     # set data from coinbase data
                     symbol = coin['product_id']
+                    print(f"Analyzing {symbol}...")
                     current_price = float(coin['price'])
                     current_price_percentage_change_24h = float(coin['price_percentage_change_24h'])
                     current_volume_24h = float(coin['volume_24h'])
