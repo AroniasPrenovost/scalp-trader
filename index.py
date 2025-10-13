@@ -120,19 +120,19 @@ def iterate_assets(interval_seconds):
 
         #
         # COINBASE ASSETS
-        cb_assets = coinbase_client.get_products()['products']
-        cb_asset_dictionary = {}
-        cb_asset_dictionary = convert_products_to_dicts(cb_assets)
+        coinbase_data = coinbase_client.get_products()['products']
+        coinbase_data_dictionary = {}
+        coinbase_data_dictionary = convert_products_to_dicts(coinbase_data)
         # - filter out all crypto data except for those defined in enabled_cryptos (reduces size of locally stored files)
-        cb_asset_dictionary = [coin for coin in cb_asset_dictionary if coin['product_id'] in enabled_cryptos]
-        # print(cb_asset_dictionary)
+        coinbase_data_dictionary = [coin for coin in coinbase_data_dictionary if coin['product_id'] in enabled_cryptos]
+        # print(coinbase_data_dictionary)
 
         #
         # ALERT NEW COIN LISTINGS
         enable_new_listings_alert = False
         if enable_new_listings_alert:
             coinbase_listed_coins_path = 'coinbase-listings/listed_coins.json'
-            new_coins = check_for_new_coinbase_listings(coinbase_listed_coins_path, cb_asset_dictionary)
+            new_coins = check_for_new_coinbase_listings(coinbase_listed_coins_path, coinbase_data_dictionary)
             if new_coins:
                 for coin in new_coins:
                     print(f"NEW LISTING: {coin['product_id']}")
@@ -142,7 +142,7 @@ def iterate_assets(interval_seconds):
                         html_content=f"Coinbase just listed {coin['product_id']}"
                     )
                     time.sleep(2)
-            save_obj_dict_to_file(coinbase_listed_coins_path, cb_assets)
+            save_obj_dict_to_file(coinbase_listed_coins_path, coinbase_data)
 
         #
         #
@@ -151,13 +151,13 @@ def iterate_assets(interval_seconds):
         if enable_all_coin_scanning:
             coinbase_price_history_directory = 'coinbase-data'
             if is_most_recent_file_older_than_x_minutes(coinbase_price_history_directory, minutes=INTERVAL_SAVE_DATA_MINUTES):
-                save_dictionary_data_to_local_file(cb_asset_dictionary, coinbase_price_history_directory, 'listed_coins')
+                save_dictionary_data_to_local_file(coinbase_data_dictionary, coinbase_price_history_directory, 'listed_coins')
             delete_files_older_than_x_hours(coinbase_price_history_directory, hours=DELETE_FILES_OLDER_THAN_X_HOURS)
 
             if count_files_in_directory(coinbase_price_history_directory) < 1:
                 print('waiting for more data to do calculations')
             else:
-                for coin in cb_asset_dictionary:
+                for coin in coinbase_data_dictionary:
                     print('\n______________\n')
                     time.sleep(2) # stop system from overheating
                     # print(coin['product_id'])
