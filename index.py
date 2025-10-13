@@ -110,6 +110,7 @@ def iterate_assets(interval_seconds):
         print_local_time()
 
         #
+        #
         # ERROR TRACKING
         global LAST_EXCEPTION_ERROR
         global LAST_EXCEPTION_ERROR_COUNT
