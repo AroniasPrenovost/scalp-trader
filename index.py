@@ -121,7 +121,6 @@ def iterate_assets(interval_seconds):
 
         #
         #
-        #
         # get data from coinbase
         coinbase_data = coinbase_client.get_products()['products']
         coinbase_data_dictionary = {}
@@ -129,7 +128,6 @@ def iterate_assets(interval_seconds):
         # to reduce file sizes, filter out all crypto data except for those defined in enabled_assets
         coinbase_data_dictionary = [coin for coin in coinbase_data_dictionary if coin['product_id'] in enabled_assets]
 
-        #
         #
         #
         # ALERT NEW COIN LISTINGS
