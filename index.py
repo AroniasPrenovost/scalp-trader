@@ -419,6 +419,7 @@ def iterate_assets(interval_seconds):
                 current_time = time.time() # call it once instead of twice for the following functions
 
                 #
+                #
                 # Clear errors if they're non-consecutive
                 LAST_EXCEPTION_ERROR = None
                 LAST_EXCEPTION_ERROR_COUNT = 0
