@@ -94,7 +94,7 @@ def save_dictionary_data_to_local_file(data, directory, file_name):
 
     with open(file_path, 'w') as file:
         json.dump(data, file, indent=4)
-    print(f"Data saved to '{file_name}_{file_path}'")
+    print(f"Data saved to '{file_path}'")
 
 #
 #
