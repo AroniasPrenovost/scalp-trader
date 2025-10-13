@@ -120,7 +120,7 @@ def iterate_assets(interval_seconds):
 
         #
         #
-        # get data from coinbase
+        # get crypto price data from coinbase
         coinbase_data = coinbase_client.get_products()['products']
         coinbase_data_dictionary = {}
         coinbase_data_dictionary = convert_products_to_dicts(coinbase_data)
