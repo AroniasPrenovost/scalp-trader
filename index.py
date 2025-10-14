@@ -166,7 +166,6 @@ def iterate_assets(interval_seconds):
                         text_content=f"Coinbase just listed {coin['product_id']}",
                         html_content=f"Coinbase just listed {coin['product_id']}"
                     )
-                    time.sleep(2)
             save_obj_dict_to_file(coinbase_listed_coins_path, coinbase_data)
 
         #
