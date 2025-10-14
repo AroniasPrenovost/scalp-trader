@@ -454,4 +454,4 @@ if __name__ == "__main__":
                     print(f"Same error as last time ({LAST_EXCEPTION_ERROR_COUNT}/{MAX_LAST_EXCEPTION_ERROR_COUNT})")
                     print('\n')
 
-            time.sleep(5)
+            time.sleep(4)
