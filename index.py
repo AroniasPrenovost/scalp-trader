@@ -171,7 +171,7 @@ def iterate_assets(interval_seconds):
 
                     # set data from coinbase data
                     symbol = coin['product_id']
-                    print(f"Analyzing {symbol}...")
+                    print(f"[ {symbol} ]")
 
                     # set config.json data
                     READY_TO_TRADE = False
@@ -183,11 +183,8 @@ def iterate_assets(interval_seconds):
                             SHARES_TO_ACQUIRE = asset['shares_to_acquire']
                             ENABLE_SNAPSHOT = asset['enable_snapshot']
 
-                    #
-                    #
                     # Get current price and append to data to account for the gap in incrementally stored data
                     current_price = get_asset_price(coinbase_client, symbol) # current_price = float(coin['price'])
-                    # print(f"current_price: {current_price}")
 
                     current_price_percentage_change_24h = float(coin['price_percentage_change_24h'])
                     current_volume_24h = float(coin['volume_24h'])
