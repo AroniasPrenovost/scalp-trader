@@ -177,7 +177,6 @@ def iterate_assets(interval_seconds):
                     READY_TO_TRADE = False
                     SHARES_TO_ACQUIRE = 0
                     ENABLE_SNAPSHOT = False
-                    ENABLE_ANALYSIS = False
                     for asset in config['assets']:
                         if symbol == asset['symbol']:
                             READY_TO_TRADE = asset['ready_to_trade']
