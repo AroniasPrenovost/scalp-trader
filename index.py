@@ -249,12 +249,10 @@ def iterate_assets(interval_seconds):
                             print(f"Insufficient price data for analysis ({len(coin_prices_LIST)}/15 points). Waiting for more data...")
                             analysis = None
                         else:
-                            # Generate analysis (optionally with graph if snapshot is enabled)
                             graph_path = None
-                            if ENABLE_SNAPSHOT:
-                                # Generate graph path similar to plot_graph function
-                                timestamp_str = time.strftime("%Y%m%d%H%M%S", time.localtime())
-                                graph_path = f"screenshots/{symbol}_{timestamp_str}.png"
+                            # Generate graph path similar to plot_graph function
+                            timestamp_str = time.strftime("%Y%m%d%H%M%S", time.localtime())
+                            graph_path = f"screenshots/{symbol}_{timestamp_str}.png"
 
                             analysis = analyze_market_with_openai(
                                 symbol,
