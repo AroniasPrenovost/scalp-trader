@@ -55,9 +55,11 @@ def load_config(file_path):
 # Define time intervals
 #
 
-INTERVAL_SECONDS = 300
-INTERVAL_SAVE_DATA_EVERY_X_MINUTES = 5
-DATA_RETENTION_HOURS = 120 # rolling window for analysis and storage
+INTERVAL_SECONDS = 60
+INTERVAL_SAVE_DATA_EVERY_X_MINUTES = (INTERVAL_SECONDS / 60)
+DATA_RETENTION_HOURS = 72 # rolling window for analysis and storage
+
+EXPECTED_DATA_POINTS = int((DATA_RETENTION_HOURS * 60) / INTERVAL_SAVE_DATA_EVERY_X_MINUTES)
 
 #
 #
@@ -269,8 +271,8 @@ def iterate_assets(interval_seconds):
                     if should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours):
                         print(f"Generating new AI analysis for {symbol}...")
                         # Check if we have enough data points
-                        if actual_coin_prices_list_length < 15:
-                            print(f"Insufficient price data for analysis ({actual_coin_prices_list_length}/15 points). Waiting for more data...")
+                        if actual_coin_prices_list_length < EXPECTED_DATA_POINTS:
+                            print(f"Insufficient price data for analysis ({actual_coin_prices_list_length}/{EXPECTED_DATA_POINTS} points). Waiting for more data...")
                             analysis = None
                         else:
                             graph_path = None
