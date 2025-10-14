@@ -113,9 +113,10 @@ def convert_products_to_dicts(products):
 # main logic loop
 #
 
+print_local_time()
+
 def iterate_assets(interval_seconds):
     while True:
-        print_local_time()
 
         #
         #
