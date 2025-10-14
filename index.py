@@ -374,7 +374,6 @@ def iterate_assets(interval_seconds):
                             analysis=analysis
                         )
 
-
                     print('\n')
 
 
