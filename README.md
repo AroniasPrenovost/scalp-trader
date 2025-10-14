@@ -66,14 +66,24 @@ This project is a cryptocurrency trading bot that interacts with the Coinbase AP
    {
      "assets": [
        {
+         "title": "MATIC chart",
          "enabled": true,
+         "ready_to_trade": false,
          "symbol": "MATIC-USD",
-         "shares_to_acquire": 1,
-         "target_profit_percentage": 2
+         "buy_amount_usd": 50,
+         "enable_snapshot": false
        }
      ]
    }
    ```
+
+   **Config Parameters:**
+   - `title`: Friendly name for the asset (for reference)
+   - `enabled`: Whether to monitor this asset (`true`/`false`)
+   - `ready_to_trade`: Whether to execute actual trades (`true`) or run in simulation mode (`false`)
+   - `symbol`: The Coinbase trading pair symbol (e.g., "BTC-USD", "ETH-USD")
+   - `buy_amount_usd`: USD amount to spend per trade. The bot calculates whole shares (rounded down) based on current price
+   - `enable_snapshot`: Whether to generate chart snapshots for this asset (`true`/`false`)
 
 ## Installation (2) (creating a virtual environment in your project directory)
 

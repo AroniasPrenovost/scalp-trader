@@ -5,7 +5,7 @@
         "enabled": true,
         "ready_to_trade": true,
         "symbol": "MATIC-USD",
-        "shares_to_acquire": 100,
+        "buy_amount_usd": 50,
         "enable_snapshot": false,
         "enable_analysis": false
       },
@@ -14,7 +14,7 @@
         "enabled": true,
         "ready_to_trade": false,
         "symbol": "BTC-USD",
-        "shares_to_acquire": 0.00001,
+        "buy_amount_usd": 100,
         "enable_snapshot": false,
         "enable_analysis": false
       }

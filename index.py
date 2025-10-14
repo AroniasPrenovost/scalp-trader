@@ -175,12 +175,12 @@ def iterate_assets(interval_seconds):
 
                     # set config.json data
                     READY_TO_TRADE = False
-                    SHARES_TO_ACQUIRE = 0
+                    BUY_AMOUNT_USD = 0
                     ENABLE_SNAPSHOT = False
                     for asset in config['assets']:
                         if symbol == asset['symbol']:
                             READY_TO_TRADE = asset['ready_to_trade']
-                            SHARES_TO_ACQUIRE = asset['shares_to_acquire']
+                            BUY_AMOUNT_USD = asset['buy_amount_usd']
                             ENABLE_SNAPSHOT = asset['enable_snapshot']
 
                     # Get current price and append to data to account for the gap in incrementally stored data
@@ -312,7 +312,13 @@ def iterate_assets(interval_seconds):
                         print(f"STATUS: Looking to BUY at ${BUY_AT_PRICE}")
                         if current_price <= BUY_AT_PRICE:
                             if READY_TO_TRADE == True:
-                                place_market_buy_order(coinbase_client, symbol, SHARES_TO_ACQUIRE)
+                                # Calculate whole shares (round down) based on buy_amount_usd
+                                shares_to_buy = math.floor(BUY_AMOUNT_USD / current_price)
+                                print(f"Calculated shares to buy: {shares_to_buy} (${BUY_AMOUNT_USD} / ${current_price})")
+                                if shares_to_buy > 0:
+                                    place_market_buy_order(coinbase_client, symbol, shares_to_buy)
+                                else:
+                                    print(f"STATUS: Buy amount ${BUY_AMOUNT_USD} is too small to buy whole shares at ${current_price}")
                             else:
                                 print('STATUS: Trading disabled')
                         else:
