@@ -1,22 +1,20 @@
 {
   "assets": [
       {
-        "title": "ALGO chart",
-        "enabled": true,
-        "ready_to_trade": true,
-        "symbol": "MATIC-USD",
-        "buy_amount_usd": 50,
-        "enable_snapshot": false,
-        "enable_analysis": false
-      },
-      {
-        "title": "BTC chart",
+        "title": "BTC: primary, most predictable",
+        "symbol": "BTC-USD",
         "enabled": true,
         "ready_to_trade": false,
-        "symbol": "BTC-USD",
         "buy_amount_usd": 100,
-        "enable_snapshot": false,
-        "enable_analysis": false
+        "enable_snapshot": false
+      },
+      {
+        "title": "ETH: secondary, follows BTC",
+        "symbol": "ETH-USD",
+        "enabled": true,
+        "ready_to_trade": false,
+        "buy_amount_usd": 100,
+        "enable_snapshot": false
       }
     ]
 }
