@@ -5,9 +5,8 @@ config.json
 *_orders.json
 
 /coinbase-data
-/coinbase-listings
-/uptrend-data
 /analysis
+/coinbase-listings
 
 /screenshots
 

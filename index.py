@@ -356,7 +356,7 @@ def iterate_assets(interval_seconds):
                             print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
                             if READY_TO_TRADE == True:
                                 place_market_sell_order(coinbase_client, symbol, number_of_shares, potential_profit, potential_profit_percentage)
-                                delete_analysis_file(symbol) # Delete the AI analysis file after selling
+                                delete_analysis_file(symbol)
                             else:
                                 print('STATUS: Trading disabled')
 
