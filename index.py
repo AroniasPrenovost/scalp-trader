@@ -261,7 +261,13 @@ def iterate_assets(interval_seconds):
                                 timestamp_str = time.strftime("%Y%m%d%H%M%S", time.localtime())
                                 graph_path = f"screenshots/{symbol}_{timestamp_str}.png"
 
-                            analysis = analyze_market_with_openai(symbol, coin_data, graph_path)
+                            analysis = analyze_market_with_openai(
+                                symbol,
+                                coin_data,
+                                taker_fee_percentage=coinbase_spot_taker_fee,
+                                tax_rate_percentage=federal_tax_rate,
+                                graph_image_path=graph_path
+                            )
                             if analysis:
                                 save_analysis_to_file(symbol, analysis)
                             else:

@@ -5,7 +5,7 @@ import base64
 from openai import OpenAI
 from io import BytesIO
 
-def analyze_market_with_openai(symbol, coin_data, graph_image_path=None):
+def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_rate_percentage=0, graph_image_path=None):
     """
     Analyzes market data using OpenAI's API to determine key support/resistance levels
     and trading recommendations.
@@ -19,6 +19,8 @@ def analyze_market_with_openai(symbol, coin_data, graph_image_path=None):
             - coin_volume_24h_LIST
             - current_volume_percentage_change_24h
             - coin_price_percentage_change_24h_LIST
+        taker_fee_percentage: Exchange taker fee as a percentage (e.g., 0.6 for 0.6%)
+        tax_rate_percentage: Federal tax rate as a percentage (e.g., 37 for 37%)
         graph_image_path: Optional path to a graph image for visual analysis
 
     Returns:
@@ -42,6 +44,10 @@ def analyze_market_with_openai(symbol, coin_data, graph_image_path=None):
     max_price = max(prices) if prices else 0
     avg_price = sum(prices) / len(prices) if prices else 0
 
+    # Calculate total cost burden (fees on both buy and sell, plus taxes on profit)
+    total_fee_percentage = taker_fee_percentage * 2  # Buy fee + Sell fee
+    total_cost_burden = total_fee_percentage + tax_rate_percentage
+
     # Build the prompt
     prompt = f"""Analyze the following market data for {symbol} and provide a technical analysis with specific trading levels.
 
@@ -54,6 +60,11 @@ Market Data:
 - Current 24h Volume: {coin_data.get('current_volume_24h', 0)}
 - 24h Price Change: {coin_data.get('coin_price_percentage_change_24h_LIST', [])[-1] if coin_data.get('coin_price_percentage_change_24h_LIST') else 0}%
 
+Trading Costs (IMPORTANT - Factor these into your recommendations):
+- Exchange Taker Fee: {taker_fee_percentage}% per trade ({total_fee_percentage}% total for buy + sell)
+- Tax Rate on Profits: {tax_rate_percentage}%
+- Minimum Profitable Trade: Must exceed ~{total_cost_burden:.2f}% to break even after all costs
+
 Please analyze this data and respond with a JSON object (ONLY valid JSON, no markdown code blocks) containing:
 {{
     "major_resistance": <price level>,
@@ -62,12 +73,14 @@ Please analyze this data and respond with a JSON object (ONLY valid JSON, no mar
     "minor_support": <price level>,
     "buy_in_price": <recommended buy price>,
     "sell_price": <recommended sell price>,
-    "profit_target_percentage": <recommended profit percentage>,
+    "profit_target_percentage": <recommended NET profit percentage AFTER all fees and taxes - must be positive>,
     "stop_loss": <recommended stop loss price>,
     "confidence_level": <"high", "medium", or "low">,
     "market_trend": <"bullish", "bearish", or "sideways">,
     "reasoning": <brief explanation of the analysis>
 }}
+
+CRITICAL: The profit_target_percentage MUST account for all trading costs. For example, if you recommend a 3% profit target, the trader should NET 3% profit AFTER paying {total_fee_percentage}% in exchange fees and {tax_rate_percentage}% in taxes. Calculate accordingly - the gross price movement must be larger than the net profit target to cover all costs.
 
 Base your analysis on technical indicators, support/resistance levels, and price action."""
 
