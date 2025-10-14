@@ -1,4 +1,6 @@
 {
+  "min_profit_target_percentage": 3.0,
+  "no_trade_refresh_hours": 2.0,
   "assets": [
       {
         "title": "BTC: primary, most predictable",

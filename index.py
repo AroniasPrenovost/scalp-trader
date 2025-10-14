@@ -124,6 +124,8 @@ def iterate_assets(interval_seconds):
         # load config
         config = load_config('config.json')
         enabled_assets = [asset['symbol'] for asset in config['assets'] if asset['enabled']]
+        min_profit_target_percentage = config.get('min_profit_target_percentage', 3.0)
+        no_trade_refresh_hours = config.get('no_trade_refresh_hours', 1.0)
 
         #
         #
@@ -265,7 +267,7 @@ def iterate_assets(interval_seconds):
                     # Get or create AI analysis for trading parameters
                     actual_coin_prices_list_length = len(coin_prices_LIST) - 1 # account for offset
                     analysis = load_analysis_from_file(symbol)
-                    if should_refresh_analysis(symbol, last_order_type):
+                    if should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours):
                         print(f"Generating new AI analysis for {symbol}...")
                         # Check if we have enough data points
                         if actual_coin_prices_list_length < 15:
@@ -282,6 +284,7 @@ def iterate_assets(interval_seconds):
                                 coin_data,
                                 taker_fee_percentage=coinbase_spot_taker_fee,
                                 tax_rate_percentage=federal_tax_rate,
+                                min_profit_target_percentage=min_profit_target_percentage,
                                 graph_image_path=graph_path
                             )
                             if analysis:
@@ -300,9 +303,11 @@ def iterate_assets(interval_seconds):
                     # Set trading parameters from analysis
                     BUY_AT_PRICE = analysis.get('buy_in_price')
                     PROFIT_PERCENTAGE = analysis.get('profit_target_percentage')
+                    TRADE_RECOMMENDATION = analysis.get('trade_recommendation', 'buy')
                     print(f"AI Strategy: Buy at ${BUY_AT_PRICE}, Target profit {PROFIT_PERCENTAGE}%")
                     print(f"Support: ${analysis.get('major_support', 'N/A')} | Resistance: ${analysis.get('major_resistance', 'N/A')}")
                     print(f"Market Trend: {analysis.get('market_trend', 'N/A')} | Confidence: {analysis.get('confidence_level', 'N/A')}")
+                    print(f"Trade Recommendation: {TRADE_RECOMMENDATION}")
 
 
 
@@ -330,19 +335,22 @@ def iterate_assets(interval_seconds):
                     #
                     # BUY logic
                     elif last_order_type == 'none' or last_order_type == 'sell':
-                        print(f"STATUS: Looking to BUY at ${BUY_AT_PRICE}")
-                        if current_price <= BUY_AT_PRICE:
-                            if READY_TO_TRADE == True:
-                                shares_to_buy = math.floor(BUY_AMOUNT_USD / current_price) # Calculate whole shares (rounded down)
-                                print(f"Calculated shares to buy: {shares_to_buy} (${BUY_AMOUNT_USD} / ${current_price})")
-                                if shares_to_buy > 0:
-                                    place_market_buy_order(coinbase_client, symbol, shares_to_buy)
-                                else:
-                                    print(f"STATUS: Buy amount ${BUY_AMOUNT_USD} is too small to buy whole shares at ${current_price}")
-                            else:
-                                print('STATUS: Trading disabled')
+                        if TRADE_RECOMMENDATION == 'no_trade':
+                            print(f"STATUS: AI recommends NO TRADE - market conditions do not support {min_profit_target_percentage}% profit target")
                         else:
-                            print(f"Current price ${current_price} is above buy target ${BUY_AT_PRICE}")
+                            print(f"STATUS: Looking to BUY at ${BUY_AT_PRICE}")
+                            if current_price <= BUY_AT_PRICE:
+                                if READY_TO_TRADE == True:
+                                    shares_to_buy = math.floor(BUY_AMOUNT_USD / current_price) # Calculate whole shares (rounded down)
+                                    print(f"Calculated shares to buy: {shares_to_buy} (${BUY_AMOUNT_USD} / ${current_price})")
+                                    if shares_to_buy > 0:
+                                        place_market_buy_order(coinbase_client, symbol, shares_to_buy)
+                                    else:
+                                        print(f"STATUS: Buy amount ${BUY_AMOUNT_USD} is too small to buy whole shares at ${current_price}")
+                                else:
+                                    print('STATUS: Trading disabled')
+                            else:
+                                print(f"Current price ${current_price} is above buy target ${BUY_AT_PRICE}")
 
                     #
                     #
@@ -374,7 +382,11 @@ def iterate_assets(interval_seconds):
                         potential_profit_percentage = (potential_profit / entry_position_value_after_fees) * 100
                         print(f"potential_profit_percentage: {potential_profit_percentage:.4f}%")
 
-                        if potential_profit_percentage >= PROFIT_PERCENTAGE:
+                        # Use the maximum of AI's target and configured minimum
+                        effective_profit_target = max(PROFIT_PERCENTAGE, min_profit_target_percentage)
+                        print(f"Effective profit target: {effective_profit_target}% (AI: {PROFIT_PERCENTAGE}%, Min: {min_profit_target_percentage}%)")
+
+                        if potential_profit_percentage >= effective_profit_target:
                             print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
                             if READY_TO_TRADE == True:
                                 place_market_sell_order(coinbase_client, symbol, number_of_shares, potential_profit, potential_profit_percentage)

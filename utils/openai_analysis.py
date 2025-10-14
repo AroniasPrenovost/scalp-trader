@@ -5,7 +5,7 @@ import base64
 from openai import OpenAI
 from io import BytesIO
 
-def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_rate_percentage=0, graph_image_path=None):
+def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_rate_percentage=0, min_profit_target_percentage=3.0, graph_image_path=None):
     """
     Analyzes market data using OpenAI's API to determine key support/resistance levels
     and trading recommendations.
@@ -21,6 +21,7 @@ def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_ra
             - coin_price_percentage_change_24h_LIST
         taker_fee_percentage: Exchange taker fee as a percentage (e.g., 0.6 for 0.6%)
         tax_rate_percentage: Federal tax rate as a percentage (e.g., 37 for 37%)
+        min_profit_target_percentage: Minimum profit target percentage (e.g., 3.0 for 3%)
         graph_image_path: Optional path to a graph image for visual analysis
 
     Returns:
@@ -64,6 +65,7 @@ Trading Costs (IMPORTANT - Factor these into your recommendations):
 - Exchange Taker Fee: {taker_fee_percentage}% per trade ({total_fee_percentage}% total for buy + sell)
 - Tax Rate on Profits: {tax_rate_percentage}%
 - Minimum Profitable Trade: Must exceed ~{total_cost_burden:.2f}% to break even after all costs
+- Minimum Required Profit Target: {min_profit_target_percentage}% (NET profit after all costs)
 
 Please analyze this data and respond with a JSON object (ONLY valid JSON, no markdown code blocks) containing:
 {{
@@ -73,14 +75,19 @@ Please analyze this data and respond with a JSON object (ONLY valid JSON, no mar
     "minor_support": <price level>,
     "buy_in_price": <recommended buy price>,
     "sell_price": <recommended sell price>,
-    "profit_target_percentage": <recommended NET profit percentage AFTER all fees and taxes - must be positive>,
+    "profit_target_percentage": <recommended NET profit percentage AFTER all fees and taxes>,
     "stop_loss": <recommended stop loss price>,
     "confidence_level": <"high", "medium", or "low">,
     "market_trend": <"bullish", "bearish", or "sideways">,
-    "reasoning": <brief explanation of the analysis>
+    "reasoning": <brief explanation of the analysis>,
+    "trade_recommendation": <"buy", "sell", "hold", or "no_trade">
 }}
 
-CRITICAL: The profit_target_percentage MUST account for all trading costs. For example, if you recommend a 3% profit target, the trader should NET 3% profit AFTER paying {total_fee_percentage}% in exchange fees and {tax_rate_percentage}% in taxes. Calculate accordingly - the gross price movement must be larger than the net profit target to cover all costs.
+CRITICAL REQUIREMENTS:
+1. If market conditions do NOT support a profitable trade with at least {min_profit_target_percentage}% NET profit (after all fees and taxes), set trade_recommendation to "no_trade" and set profit_target_percentage to {min_profit_target_percentage}%.
+2. Only recommend a "buy" if you can identify a realistic opportunity to achieve at least {min_profit_target_percentage}% NET profit after paying {total_fee_percentage}% in exchange fees and {tax_rate_percentage}% in taxes.
+3. The profit_target_percentage should reflect the realistic profit opportunity. If no opportunity exists that meets the {min_profit_target_percentage}% minimum, set it to {min_profit_target_percentage}% as the baseline and set trade_recommendation to "no_trade".
+4. Calculate the sell_price accordingly - the gross price movement must be larger than the net profit target to cover all costs.
 
 Base your analysis on technical indicators, support/resistance levels, and price action."""
 
@@ -248,13 +255,14 @@ def delete_analysis_file(symbol):
         return False
 
 
-def should_refresh_analysis(symbol, last_order_type):
+def should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours=1):
     """
     Determines if a new analysis should be performed.
 
     Args:
         symbol: The trading pair symbol
         last_order_type: The type of the last order ('none', 'buy', 'sell', 'placeholder')
+        no_trade_refresh_hours: Hours to wait before refreshing a 'no_trade' analysis (default: 1)
 
     Returns:
         Boolean indicating whether to refresh the analysis
@@ -274,6 +282,21 @@ def should_refresh_analysis(symbol, last_order_type):
     # For 'placeholder' (pending orders), don't refresh
     if last_order_type == 'placeholder':
         return False
+
+    # Check if the analysis recommended 'no_trade'
+    trade_recommendation = existing_analysis.get('trade_recommendation', 'buy')
+    if trade_recommendation == 'no_trade':
+        # Check how old the analysis is
+        analyzed_at = existing_analysis.get('analyzed_at', 0)
+        current_time = time.time()
+        hours_since_analysis = (current_time - analyzed_at) / 3600
+
+        if hours_since_analysis >= no_trade_refresh_hours:
+            print(f"Analysis is {hours_since_analysis:.1f} hours old and recommended no_trade. Refreshing...")
+            return True
+        else:
+            print(f"Analysis recommended no_trade {hours_since_analysis:.1f} hours ago. Will refresh in {no_trade_refresh_hours - hours_since_analysis:.1f} hours.")
+            return False
 
     # If we just sold, we should have deleted the analysis file, so we'd be caught
     # by the "not existing_analysis" check above
