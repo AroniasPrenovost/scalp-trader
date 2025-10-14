@@ -272,7 +272,7 @@ def iterate_assets(interval_seconds):
                             else:
                                 print(f"Warning: Failed to generate analysis for {symbol}")
                     else:
-                        print("Skipping AI analysis...")
+                        print("Found existing AI analysis")
 
                     # Only proceed with trading if we have a valid analysis
                     if not analysis:
