@@ -190,8 +190,6 @@ def iterate_assets(interval_seconds):
                 print('waiting for more data...\n')
             else:
                 for coin in coinbase_data_dictionary:
-                    time.sleep(1) # stop system from overheating
-
                     # set data from coinbase data
                     symbol = coin['product_id']
                     print(f"[ {symbol} ]")
