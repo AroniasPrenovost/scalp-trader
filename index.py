@@ -55,9 +55,9 @@ def load_config(file_path):
 # Define time intervals
 #
 
-INTERVAL_SECONDS = 300 # 600 # (10 minutes) # takes into account the 3 (dependent on number of assets) sleep(2)'s (minus 6 seconds)
-INTERVAL_SAVE_DATA_EVERY_X_MINUTES=5 # 30
-DELETE_FILES_OLDER_THAN_X_HOURS=120 # 4 days
+INTERVAL_SECONDS = 900 # (15 minutes) # takes into account the 3 (dependent on number of assets) sleep(2)'s (minus 6 seconds)
+INTERVAL_SAVE_DATA_EVERY_X_MINUTES = 15
+DELETE_FILES_OLDER_THAN_X_HOURS = 120 # 4 days
 
 #
 #
