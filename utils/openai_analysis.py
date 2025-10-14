@@ -219,6 +219,35 @@ def load_analysis_from_file(symbol):
         return None
 
 
+def delete_analysis_file(symbol):
+    """
+    Deletes the AI analysis file for a given symbol.
+    This should be called after a sell order is placed to clear the analysis record.
+
+    Args:
+        symbol: The trading pair symbol (e.g., 'XLM-USD')
+
+    Returns:
+        Boolean indicating whether the file was successfully deleted
+    """
+    try:
+        analysis_dir = 'analysis'
+        filename = f"{symbol.replace('-', '_')}_analysis.json"
+        file_path = os.path.join(analysis_dir, filename)
+
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            print(f"✓ Deleted AI analysis file for {symbol}: {file_path}")
+            return True
+        else:
+            print(f"No analysis file found for {symbol} to delete")
+            return False
+
+    except Exception as e:
+        print(f"ERROR: Failed to delete analysis file for {symbol}: {e}")
+        return False
+
+
 def should_refresh_analysis(symbol, last_order_type):
     """
     Determines if a new analysis should be performed.
@@ -237,11 +266,6 @@ def should_refresh_analysis(symbol, last_order_type):
     if not existing_analysis:
         return True
 
-    # If we just sold (or have no position), refresh for re-entry
-    # 'none' means no orders yet, 'sell' means we just sold
-    if last_order_type in ['none', 'sell']:
-        return True
-
     # If we're holding a position (last order was 'buy'), keep existing analysis
     # Don't refresh while we're in a position
     if last_order_type == 'buy':
@@ -249,6 +273,13 @@ def should_refresh_analysis(symbol, last_order_type):
 
     # For 'placeholder' (pending orders), don't refresh
     if last_order_type == 'placeholder':
+        return False
+
+    # If we just sold, we should have deleted the analysis file, so we'd be caught
+    # by the "not existing_analysis" check above
+    # If analysis exists and we have 'none' or 'sell' status, keep using existing analysis
+    # Only refresh if explicitly deleted or doesn't exist
+    if last_order_type in ['none', 'sell']:
         return False
 
     # Default: don't refresh

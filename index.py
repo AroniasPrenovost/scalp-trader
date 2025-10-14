@@ -33,7 +33,7 @@ from utils.new_coinbase_listings import check_for_new_coinbase_listings
 # plotting data
 from utils.matplotlib import plot_graph
 # openai analysis
-from utils.openai_analysis import analyze_market_with_openai, save_analysis_to_file, load_analysis_from_file, should_refresh_analysis
+from utils.openai_analysis import analyze_market_with_openai, save_analysis_to_file, load_analysis_from_file, should_refresh_analysis, delete_analysis_file
 
 #
 # end imports
@@ -75,7 +75,7 @@ MAX_LAST_EXCEPTION_ERROR_COUNT = 8
 #
 
 # coinbase_spot_maker_fee = float(os.environ.get('COINBASE_SPOT_MAKER_FEE')) # unused
-coinbase_spot_taker_fee = float(os.environ.get('COINBASE_SPOT_TAKER_FEE'))
+coinbase_spot_taker_fee   = float(os.environ.get('COINBASE_SPOT_TAKER_FEE'))
 federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
 
 #
@@ -246,7 +246,6 @@ def iterate_assets(interval_seconds):
                     #
                     # Get or create AI analysis for trading parameters
                     analysis = load_analysis_from_file(symbol)
-
                     if should_refresh_analysis(symbol, last_order_type):
                         print(f"Generating new AI analysis for {symbol}...")
                         # Check if we have enough data points
@@ -272,6 +271,8 @@ def iterate_assets(interval_seconds):
                                 save_analysis_to_file(symbol, analysis)
                             else:
                                 print(f"Warning: Failed to generate analysis for {symbol}")
+                    else:
+                        print("Skipping AI analysis...")
 
                     # Only proceed with trading if we have a valid analysis
                     if not analysis:
@@ -355,6 +356,7 @@ def iterate_assets(interval_seconds):
                             print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
                             if READY_TO_TRADE == True:
                                 place_market_sell_order(coinbase_client, symbol, number_of_shares, potential_profit, potential_profit_percentage)
+                                delete_analysis_file(symbol) # Delete the AI analysis file after selling
                             else:
                                 print('STATUS: Trading disabled')
 
