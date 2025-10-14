@@ -253,3 +253,123 @@ def get_property_values_from_files(directory, product_id, property_name):
                     property_values.append(property_value)
 
     return property_values
+
+
+#
+#
+# NEW APPEND-BASED STORAGE FUNCTIONS
+#
+#
+
+def append_crypto_data_to_file(directory, product_id, data_entry):
+    """
+    Appends a single crypto data entry to its dedicated JSON file.
+    Each crypto gets its own file: {directory}/{product_id}.json
+    The file contains a JSON array of all data snapshots.
+
+    :param directory: Path to the directory containing crypto data files
+    :param product_id: The product_id (e.g., 'BTC-USD')
+    :param data_entry: Dictionary containing the data to append (must include 'timestamp')
+    """
+    # Ensure the directory exists
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    # Create file path: e.g., coinbase-data/BTC-USD.json
+    file_name = f"{product_id}.json"
+    file_path = os.path.join(directory, file_name)
+
+    # Add timestamp if not present
+    if 'timestamp' not in data_entry:
+        data_entry['timestamp'] = time.time()
+
+    # Read existing data or create new array
+    if os.path.exists(file_path):
+        with open(file_path, 'r') as file:
+            try:
+                data = json.load(file)
+                if not isinstance(data, list):
+                    data = []
+            except json.JSONDecodeError:
+                data = []
+    else:
+        data = []
+
+    # Append new entry
+    data.append(data_entry)
+
+    # Write back to file
+    with open(file_path, 'w') as file:
+        json.dump(data, file, indent=4)
+
+
+def get_crypto_data_from_file(directory, product_id, max_age_hours=None):
+    """
+    Reads all data entries for a specific crypto from its dedicated JSON file.
+
+    :param directory: Path to the directory containing crypto data files
+    :param product_id: The product_id (e.g., 'BTC-USD')
+    :param max_age_hours: Optional filter to only return entries younger than X hours
+    :return: List of data entries (dictionaries)
+    """
+    file_name = f"{product_id}.json"
+    file_path = os.path.join(directory, file_name)
+
+    # Return empty list if file doesn't exist
+    if not os.path.exists(file_path):
+        return []
+
+    # Read the JSON array
+    with open(file_path, 'r') as file:
+        try:
+            data = json.load(file)
+            if not isinstance(data, list):
+                return []
+        except json.JSONDecodeError:
+            return []
+
+    # Filter by age if specified
+    if max_age_hours is not None:
+        cutoff_time = time.time() - (max_age_hours * 3600)
+        data = [entry for entry in data if entry.get('timestamp', 0) >= cutoff_time]
+
+    return data
+
+
+def get_property_values_from_crypto_file(directory, product_id, property_name, max_age_hours=None):
+    """
+    Extracts a specific property from all entries in a crypto's data file.
+
+    :param directory: Path to the directory containing crypto data files
+    :param product_id: The product_id (e.g., 'BTC-USD')
+    :param property_name: The property to extract from each entry
+    :param max_age_hours: Optional filter to only return entries younger than X hours
+    :return: List of property values
+    """
+    entries = get_crypto_data_from_file(directory, product_id, max_age_hours)
+    return [entry.get(property_name) for entry in entries if property_name in entry]
+
+
+def cleanup_old_crypto_data(directory, product_id, max_age_hours):
+    """
+    Removes old entries from a crypto's data file, keeping only recent data.
+    Rewrites the file with only entries younger than max_age_hours.
+
+    :param directory: Path to the directory containing crypto data files
+    :param product_id: The product_id (e.g., 'BTC-USD')
+    :param max_age_hours: Maximum age in hours for entries to keep
+    """
+    file_name = f"{product_id}.json"
+    file_path = os.path.join(directory, file_name)
+
+    if not os.path.exists(file_path):
+        return
+
+    # Get all entries that are still fresh
+    fresh_entries = get_crypto_data_from_file(directory, product_id, max_age_hours)
+
+    # Rewrite the file with only fresh entries
+    with open(file_path, 'w') as file:
+        json.dump(fresh_entries, file, indent=4)
+
+    print(f"Cleaned up old data for {product_id}: kept {len(fresh_entries)} entries")

@@ -21,7 +21,7 @@ import glob
 #
 # custom imports
 from utils.email import send_email_notification
-from utils.file_helpers import save_obj_dict_to_file, count_files_in_directory, delete_files_older_than_x_hours, is_most_recent_file_older_than_x_minutes, append_to_json_array, calculate_price_change, remove_old_entries, get_property_values_from_files
+from utils.file_helpers import save_obj_dict_to_file, count_files_in_directory, append_crypto_data_to_file, get_property_values_from_crypto_file, cleanup_old_crypto_data
 from utils.price_helpers import calculate_trading_range_percentage, calculate_current_price_position_within_trading_range, calculate_offset_price, calculate_price_change_percentage
 from utils.technical_indicators import calculate_market_cap_efficiency, calculate_fibonacci_levels
 from utils.time_helpers import print_local_time
@@ -55,9 +55,9 @@ def load_config(file_path):
 # Define time intervals
 #
 
-INTERVAL_SECONDS = 900 # (15 minutes) # takes into account the 3 (dependent on number of assets) sleep(2)'s (minus 6 seconds)
-INTERVAL_SAVE_DATA_EVERY_X_MINUTES = 15
-DELETE_FILES_OLDER_THAN_X_HOURS = 120 # 4 days
+INTERVAL_SECONDS = 300 # 900 # (15 minutes) # takes into account the 3 (dependent on number of assets) sleep(2)'s (minus 6 seconds)
+INTERVAL_SAVE_DATA_EVERY_X_MINUTES = 5 # 15
+DATA_RETENTION_HOURS = 0.25 # 120 # 4 days - rolling window for analysis and storage
 
 #
 #
@@ -173,10 +173,18 @@ def iterate_assets(interval_seconds):
         enable_all_coin_scanning = True
         if enable_all_coin_scanning:
             coinbase_data_directory = 'coinbase-data'
-            if is_most_recent_file_older_than_x_minutes(coinbase_data_directory, minutes=INTERVAL_SAVE_DATA_EVERY_X_MINUTES):
-                save_dictionary_data_to_local_file(coinbase_data_dictionary, coinbase_data_directory, 'listed_coins')
-                print('\n')
-            delete_files_older_than_x_hours(coinbase_data_directory, hours=DELETE_FILES_OLDER_THAN_X_HOURS)
+
+            # NEW STORAGE APPROACH: Append each crypto's data to its own file
+            # Store data for each enabled crypto
+            for coin in coinbase_data_dictionary:
+                product_id = coin['product_id']
+                # Create entry with timestamp
+                data_entry = {
+                    'timestamp': time.time(),
+                    **coin  # Include all coin data (price, volume, etc.)
+                }
+                append_crypto_data_to_file(coinbase_data_directory, product_id, data_entry)
+            print(f"Appended data for {len(coinbase_data_dictionary)} cryptos\n")
 
             if count_files_in_directory(coinbase_data_directory) < 1:
                 print('waiting for more data...\n')
@@ -201,25 +209,28 @@ def iterate_assets(interval_seconds):
                     # Get current price and append to data to account for the gap in incrementally stored data
                     current_price = get_asset_price(coinbase_client, symbol) # current_price = float(coin['price'])
 
-                    # Convert each list to a list of floats
-                    coin_prices_LIST = get_property_values_from_files(coinbase_data_directory, symbol, 'price')
-                    coin_prices_LIST = [float(price) for price in coin_prices_LIST] # Convert to list of floats
-                    coin_prices_LIST.append(current_price) # append most recent API call result to data to account for the gap in stored data locally every X mintues
+                    # NEW RETRIEVAL: Read from individual crypto file (only data from last X hours)
+                    coin_prices_LIST = get_property_values_from_crypto_file(coinbase_data_directory, symbol, 'price', max_age_hours=DATA_RETENTION_HOURS)
+                    coin_prices_LIST = [float(price) for price in coin_prices_LIST if price is not None] # Convert to list of floats
+                    coin_prices_LIST.append(current_price) # append most recent API call result to data to account for the gap in stored data locally
 
-                    coin_volume_24h_LIST = get_property_values_from_files(coinbase_data_directory, symbol, 'volume_24h')
-                    coin_volume_24h_LIST = [float(volume_24h) for volume_24h in coin_volume_24h_LIST]
-                    current_volume_24h = float(coin['volume_24h']) # append most recent API call result to data to account for the gap in stored data locally every X mintues
+                    coin_volume_24h_LIST = get_property_values_from_crypto_file(coinbase_data_directory, symbol, 'volume_24h', max_age_hours=DATA_RETENTION_HOURS)
+                    coin_volume_24h_LIST = [float(volume_24h) for volume_24h in coin_volume_24h_LIST if volume_24h is not None]
+                    current_volume_24h = float(coin['volume_24h']) # append most recent API call result
                     coin_volume_24h_LIST.append(current_volume_24h)
 
-                    coin_price_percentage_change_24h_LIST = get_property_values_from_files(coinbase_data_directory, symbol, 'price_percentage_change_24h')
-                    coin_price_percentage_change_24h_LIST = [float(price_percentage_change_24h) for price_percentage_change_24h in coin_price_percentage_change_24h_LIST]
-                    current_price_percentage_change_24h = float(coin['price_percentage_change_24h']) # append most recent API call result to data to account for the gap in stored data locally every X mintues
+                    coin_price_percentage_change_24h_LIST = get_property_values_from_crypto_file(coinbase_data_directory, symbol, 'price_percentage_change_24h', max_age_hours=DATA_RETENTION_HOURS)
+                    coin_price_percentage_change_24h_LIST = [float(price_percentage_change_24h) for price_percentage_change_24h in coin_price_percentage_change_24h_LIST if price_percentage_change_24h is not None]
+                    current_price_percentage_change_24h = float(coin['price_percentage_change_24h'])
                     coin_price_percentage_change_24h_LIST.append(current_price_percentage_change_24h)
 
-                    coin_volume_percentage_change_24h_LIST = get_property_values_from_files(coinbase_data_directory, symbol, 'volume_percentage_change_24h')
-                    coin_volume_percentage_change_24h_LIST = [float(volume_percentage_change_24h) for volume_percentage_change_24h in coin_volume_percentage_change_24h_LIST]
-                    current_volume_percentage_change_24h = float(coin['volume_percentage_change_24h']) # append most recent API call result to data to account for the gap in stored data locally every X mintues
+                    coin_volume_percentage_change_24h_LIST = get_property_values_from_crypto_file(coinbase_data_directory, symbol, 'volume_percentage_change_24h', max_age_hours=DATA_RETENTION_HOURS)
+                    coin_volume_percentage_change_24h_LIST = [float(volume_percentage_change_24h) for volume_percentage_change_24h in coin_volume_percentage_change_24h_LIST if volume_percentage_change_24h is not None]
+                    current_volume_percentage_change_24h = float(coin['volume_percentage_change_24h'])
                     coin_volume_percentage_change_24h_LIST.append(current_volume_percentage_change_24h)
+
+                    # Periodically cleanup old data from crypto files (runs once per iteration, for each coin)
+                    cleanup_old_crypto_data(coinbase_data_directory, symbol, DATA_RETENTION_HOURS)
 
                     min_price = min(coin_prices_LIST)
                     max_price = max(coin_prices_LIST)
