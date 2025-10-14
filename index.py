@@ -26,7 +26,7 @@ from utils.price_helpers import calculate_trading_range_percentage, calculate_cu
 from utils.technical_indicators import calculate_market_cap_efficiency, calculate_fibonacci_levels
 from utils.time_helpers import print_local_time
 # Coinbase helpers and define client
-from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order, get_asset_price, calculate_exchange_fee, save_order_data_to_local_json_ledger, get_last_order_from_local_json_ledger, reset_json_ledger_file, detect_stored_coinbase_order_type
+from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order, get_asset_price, calculate_exchange_fee, save_order_data_to_local_json_ledger, get_last_order_from_local_json_ledger, reset_json_ledger_file, detect_stored_coinbase_order_type, save_transaction_record
 coinbase_client = get_coinbase_client()
 # custom coinbase listings check
 from utils.new_coinbase_listings import check_for_new_coinbase_listings
@@ -57,7 +57,7 @@ def load_config(file_path):
 
 INTERVAL_SECONDS = 300 # 900 # (15 minutes) # takes into account the 3 (dependent on number of assets) sleep(2)'s (minus 6 seconds)
 INTERVAL_SAVE_DATA_EVERY_X_MINUTES = 5 # 15
-DATA_RETENTION_HOURS = 0.25 # 120 # 4 days - rolling window for analysis and storage
+DATA_RETENTION_HOURS = 120 # 4 days - rolling window for analysis and storage
 
 #
 #
@@ -265,12 +265,13 @@ def iterate_assets(interval_seconds):
                     #
                     #
                     # Get or create AI analysis for trading parameters
+                    actual_coin_prices_list_length = len(coin_prices_LIST) - 1 # account for offset
                     analysis = load_analysis_from_file(symbol)
                     if should_refresh_analysis(symbol, last_order_type):
                         print(f"Generating new AI analysis for {symbol}...")
                         # Check if we have enough data points
-                        if len(coin_prices_LIST) < 15:
-                            print(f"Insufficient price data for analysis ({len(coin_prices_LIST)}/15 points). Waiting for more data...")
+                        if actual_coin_prices_list_length < 15:
+                            print(f"Insufficient price data for analysis ({actual_coin_prices_list_length}/15 points). Waiting for more data...")
                             analysis = None
                         else:
                             graph_path = None
@@ -379,6 +380,21 @@ def iterate_assets(interval_seconds):
                             print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
                             if READY_TO_TRADE == True:
                                 place_market_sell_order(coinbase_client, symbol, number_of_shares, potential_profit, potential_profit_percentage)
+
+                                # Save transaction record
+                                buy_timestamp = last_order['order'].get('created_time')
+                                save_transaction_record(
+                                    symbol=symbol,
+                                    buy_price=entry_price,
+                                    sell_price=current_price,
+                                    potential_profit_percentage=potential_profit_percentage,
+                                    gross_profit=pre_tax_profit,
+                                    taxes=sell_now_tax_owed,
+                                    exchange_fees=sell_now_exchange_fee,
+                                    total_profit=potential_profit,
+                                    buy_timestamp=buy_timestamp
+                                )
+
                                 delete_analysis_file(symbol)
                             else:
                                 print('STATUS: Trading disabled')

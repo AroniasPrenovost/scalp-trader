@@ -257,6 +257,81 @@ def place_market_sell_order(client, symbol, base_size, potential_profit, potenti
 
 #
 #
+# save_transaction_record
+#
+
+def save_transaction_record(symbol, buy_price, sell_price, potential_profit_percentage, gross_profit, taxes, exchange_fees, total_profit, buy_timestamp):
+    """
+    Store/append successful transaction records to /transactions/data.json
+    """
+    import datetime
+
+    # Calculate time held position
+    sell_timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+    # Parse buy timestamp and calculate time held
+    if buy_timestamp:
+        try:
+            buy_time = datetime.datetime.fromisoformat(buy_timestamp.replace('Z', '+00:00'))
+            sell_time = datetime.datetime.now(datetime.timezone.utc)
+            time_held_seconds = (sell_time - buy_time).total_seconds()
+            time_held_position = f"{time_held_seconds / 3600:.2f} hours"
+        except Exception as e:
+            print(f"Error calculating time held: {e}")
+            time_held_position = "unknown"
+    else:
+        time_held_position = "unknown"
+
+    # Create transaction record
+    transaction_record = {
+        "symbol": symbol,
+        "buy_price": buy_price,
+        "sell_price": sell_price,
+        "potential_profit_percentage": potential_profit_percentage,
+        "timestamp": sell_timestamp,
+        "gross_profit": gross_profit,
+        "taxes": taxes,
+        "exchange_fees": exchange_fees,
+        "total_profit": total_profit,
+        "time_held_position": time_held_position,
+        "buy_timestamp": buy_timestamp
+    }
+
+    # Create transactions directory if it doesn't exist
+    transactions_dir = "transactions"
+    if not os.path.exists(transactions_dir):
+        os.makedirs(transactions_dir)
+
+    # Path to data.json
+    file_path = os.path.join(transactions_dir, "data.json")
+
+    # Load existing data or create new list
+    try:
+        if os.path.exists(file_path):
+            with open(file_path, 'r') as f:
+                data = json.load(f)
+                if not isinstance(data, list):
+                    data = []
+        else:
+            data = []
+    except Exception as e:
+        print(f"Error reading transactions file: {e}")
+        data = []
+
+    # Append new transaction
+    data.append(transaction_record)
+
+    # Save back to file
+    try:
+        with open(file_path, 'w') as f:
+            json.dump(data, f, indent=2)
+        print(f"Transaction record saved to {file_path}")
+    except Exception as e:
+        print(f"Error saving transaction record: {e}")
+
+
+#
+#
 # get_last_order_from_local_json_ledger
 #
 
