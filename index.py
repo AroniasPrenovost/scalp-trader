@@ -32,6 +32,8 @@ coinbase_client = get_coinbase_client()
 from utils.new_coinbase_listings import check_for_new_coinbase_listings
 # plotting data
 from utils.matplotlib import plot_graph
+# openai analysis
+from utils.openai_analysis import analyze_market_with_openai, save_analysis_to_file, load_analysis_from_file, should_refresh_analysis
 
 #
 # end imports
@@ -53,8 +55,8 @@ def load_config(file_path):
 # Define time intervals
 #
 
-INTERVAL_SECONDS = 600 # (10 minutes) # takes into account the 3 (dependent on number of assets) sleep(2)'s (minus 6 seconds)
-INTERVAL_SAVE_DATA_EVERY_X_MINUTES=30
+INTERVAL_SECONDS = 300 # 600 # (10 minutes) # takes into account the 3 (dependent on number of assets) sleep(2)'s (minus 6 seconds)
+INTERVAL_SAVE_DATA_EVERY_X_MINUTES=5 # 30
 DELETE_FILES_OLDER_THAN_X_HOURS=120 # 4 days
 
 #
@@ -171,14 +173,11 @@ def iterate_assets(interval_seconds):
                     symbol = coin['product_id']
                     print(f"Analyzing {symbol}...")
 
-                    # todo: pull from locally stored data
-                    TEMP_BUY_AT_PRICE = 0.0001
-                    TEMP_PROFIT_PERCENTAGE = 2.1
-
                     # set config.json data
-                    READY_TO_TRADE = None
-                    SHARES_TO_ACQUIRE = None
-                    ENABLE_SNAPSHOT = None
+                    READY_TO_TRADE = False
+                    SHARES_TO_ACQUIRE = 0
+                    ENABLE_SNAPSHOT = False
+                    ENABLE_ANALYSIS = False
                     for asset in config['assets']:
                         if symbol == asset['symbol']:
                             READY_TO_TRADE = asset['ready_to_trade']
@@ -244,6 +243,47 @@ def iterate_assets(interval_seconds):
 
                     #
                     #
+                    #
+                    # Get or create AI analysis for trading parameters
+                    analysis = load_analysis_from_file(symbol)
+
+                    if should_refresh_analysis(symbol, last_order_type):
+                        print(f"Generating new AI analysis for {symbol}...")
+                        # Check if we have enough data points
+                        if len(coin_prices_LIST) < 15:
+                            print(f"Insufficient price data for analysis ({len(coin_prices_LIST)}/15 points). Waiting for more data...")
+                            analysis = None
+                        else:
+                            # Generate analysis (optionally with graph if snapshot is enabled)
+                            graph_path = None
+                            if ENABLE_SNAPSHOT:
+                                # Generate graph path similar to plot_graph function
+                                timestamp_str = time.strftime("%Y%m%d%H%M%S", time.localtime())
+                                graph_path = f"screenshots/{symbol}_{timestamp_str}.png"
+
+                            analysis = analyze_market_with_openai(symbol, coin_data, graph_path)
+                            if analysis:
+                                save_analysis_to_file(symbol, analysis)
+                            else:
+                                print(f"Warning: Failed to generate analysis for {symbol}")
+
+                    # Only proceed with trading if we have a valid analysis
+                    if not analysis:
+                        print(f"No market analysis available for {symbol}. Skipping trading logic.")
+                        print('\n')
+                        continue
+
+                    # Set trading parameters from analysis
+                    BUY_AT_PRICE = analysis.get('buy_in_price')
+                    PROFIT_PERCENTAGE = analysis.get('profit_target_percentage')
+                    print(f"AI Strategy: Buy at ${BUY_AT_PRICE}, Target profit {PROFIT_PERCENTAGE}%")
+                    print(f"Support: ${analysis.get('major_support', 'N/A')} | Resistance: ${analysis.get('major_resistance', 'N/A')}")
+                    print(f"Market Trend: {analysis.get('market_trend', 'N/A')} | Confidence: {analysis.get('confidence_level', 'N/A')}")
+
+
+
+                    #
+                    #
                     # Pending BUY / SELL order
                     if last_order_type == 'placeholder':
                         print('STATUS: Processing pending order, please standby...')
@@ -266,12 +306,14 @@ def iterate_assets(interval_seconds):
                     #
                     # BUY logic
                     elif last_order_type == 'none' or last_order_type == 'sell':
-                        print(f"STATUS: Looking to BUY at ${TEMP_BUY_AT_PRICE}")
-                        if current_price < TEMP_BUY_AT_PRICE:
+                        print(f"STATUS: Looking to BUY at ${BUY_AT_PRICE}")
+                        if current_price <= BUY_AT_PRICE:
                             if READY_TO_TRADE == True:
                                 place_market_buy_order(coinbase_client, symbol, SHARES_TO_ACQUIRE)
                             else:
                                 print('STATUS: Trading disabled')
+                        else:
+                            print(f"Current price ${current_price} is above buy target ${BUY_AT_PRICE}")
 
                     #
                     #
@@ -303,7 +345,7 @@ def iterate_assets(interval_seconds):
                         potential_profit_percentage = (potential_profit / entry_position_value_after_fees) * 100
                         print(f"potential_profit_percentage: {potential_profit_percentage:.4f}%")
 
-                        if potential_profit_percentage >= TEMP_PROFIT_PERCENTAGE:
+                        if potential_profit_percentage >= PROFIT_PERCENTAGE:
                             print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
                             if READY_TO_TRADE == True:
                                 place_market_sell_order(coinbase_client, symbol, number_of_shares, potential_profit, potential_profit_percentage)
@@ -320,7 +362,9 @@ def iterate_assets(interval_seconds):
                             min_price,
                             max_price,
                             trade_range_percentage,
-                            entry_price
+                            entry_price,
+                            volume_data=coin_volume_24h_LIST,
+                            analysis=analysis
                         )
 
 

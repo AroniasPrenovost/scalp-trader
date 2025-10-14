@@ -182,6 +182,50 @@ def place_market_buy_order(client, symbol, base_size):
         print(f"Error placing BUY order for {symbol}: {e}")
 
 
+def save_trade_record(symbol, buy_price, sell_price, total_profit_percentage, taxes, exchange_fee, total_profit):
+    """
+    Append a completed trade record to the trade history JSON file.
+    """
+    file_name = "trade_history.json"
+    try:
+        # Load existing trade history if the file exists and is not empty
+        if os.path.exists(file_name) and os.path.getsize(file_name) > 0:
+            with open(file_name, 'r') as file:
+                trade_history = json.load(file)
+        else:
+            trade_history = []
+
+        # Create the trade record
+        trade_record = {
+            "symbol": symbol,
+            "timestamp": time.time(),
+            "date": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+            "buy_price": buy_price,
+            "sell_price": sell_price,
+            "total_profit_percentage": total_profit_percentage,
+            "taxes": taxes,
+            "exchange_fee": exchange_fee,
+            "total_profit": total_profit
+        }
+
+        # Append the new trade record
+        trade_history.append(trade_record)
+
+        # Save the updated trade history back to the file
+        with open(file_name, 'w') as file:
+            json.dump(trade_history, file, indent=4)
+
+        print(f"Trade record saved to {file_name}.")
+    except json.JSONDecodeError:
+        print(f"Error decoding JSON from {file_name}. The file might be corrupted.")
+        # Attempt to overwrite the file with the new trade record
+        with open(file_name, 'w') as file:
+            json.dump([trade_record], file, indent=4)
+        print(f"Trade record saved to {file_name} after resetting the file.")
+    except Exception as e:
+        print(f"Error saving trade record for {symbol}: {e}")
+
+
 def place_market_sell_order(client, symbol, base_size, potential_profit, potential_profit_percentage):
     try:
         order = client.market_order_sell(
