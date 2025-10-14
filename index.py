@@ -131,8 +131,23 @@ def iterate_assets(interval_seconds):
         coinbase_data = coinbase_client.get_products()['products']
         coinbase_data_dictionary = {}
         coinbase_data_dictionary = convert_products_to_dicts(coinbase_data)
-        # to reduce file sizes, filter out all crypto data except for those defined in enabled_assets
+        # REDUCE FILE SIZE
+        # filter out all crypto records except for those defined in enabled_assets
         coinbase_data_dictionary = [coin for coin in coinbase_data_dictionary if coin['product_id'] in enabled_assets]
+        # strip unnecessary fields
+        fields_to_remove = [
+        'base_increment', 'quote_increment', 'quote_min_size', 'quote_max_size', 'base_min_size', 'base_max_size',
+        'alias_to',
+        'quote_name', 'base_name', 'watched', 'is_disabled', 'new', 'status', 'cancel_only',
+        'limit_only', 'post_only', 'trading_disabled', 'auction_mode', 'product_type', 'quote_currency_id',
+        'base_currency_id', 'fcm_trading_session_details', 'mid_market_price', 'alias',
+            'base_display_symbol', 'quote_display_symbol', 'view_only', 'price_increment',
+            'display_name', 'product_venue', 'approximate_quote_24h_volume', 'new_at', 'market_cap',
+            'base_cbrn', 'quote_cbrn', 'product_cbrn'
+        ]
+        for coin in coinbase_data_dictionary:
+            for field in fields_to_remove:
+                coin.pop(field, None)
 
         #
         #
@@ -186,10 +201,6 @@ def iterate_assets(interval_seconds):
                     # Get current price and append to data to account for the gap in incrementally stored data
                     current_price = get_asset_price(coinbase_client, symbol) # current_price = float(coin['price'])
 
-                    current_price_percentage_change_24h = float(coin['price_percentage_change_24h'])
-                    current_volume_24h = float(coin['volume_24h'])
-                    current_volume_percentage_change_24h = float(coin['volume_percentage_change_24h'])
-
                     # Convert each list to a list of floats
                     coin_prices_LIST = get_property_values_from_files(coinbase_data_directory, symbol, 'price')
                     coin_prices_LIST = [float(price) for price in coin_prices_LIST] # Convert to list of floats
@@ -197,21 +208,23 @@ def iterate_assets(interval_seconds):
 
                     coin_volume_24h_LIST = get_property_values_from_files(coinbase_data_directory, symbol, 'volume_24h')
                     coin_volume_24h_LIST = [float(volume_24h) for volume_24h in coin_volume_24h_LIST]
-                    coin_volume_24h_LIST.append(current_volume_24h) # append most recent API call result to data to account for the gap in stored data locally every X mintues
+                    current_volume_24h = float(coin['volume_24h']) # append most recent API call result to data to account for the gap in stored data locally every X mintues
+                    coin_volume_24h_LIST.append(current_volume_24h)
 
                     coin_price_percentage_change_24h_LIST = get_property_values_from_files(coinbase_data_directory, symbol, 'price_percentage_change_24h')
                     coin_price_percentage_change_24h_LIST = [float(price_percentage_change_24h) for price_percentage_change_24h in coin_price_percentage_change_24h_LIST]
+                    current_price_percentage_change_24h = float(coin['price_percentage_change_24h']) # append most recent API call result to data to account for the gap in stored data locally every X mintues
                     coin_price_percentage_change_24h_LIST.append(current_price_percentage_change_24h)
 
                     coin_volume_percentage_change_24h_LIST = get_property_values_from_files(coinbase_data_directory, symbol, 'volume_percentage_change_24h')
                     coin_volume_percentage_change_24h_LIST = [float(volume_percentage_change_24h) for volume_percentage_change_24h in coin_volume_percentage_change_24h_LIST]
-                    coin_volume_percentage_change_24h_LIST.append(current_volume_percentage_change_24h) # append most recent API call result to data to account for the gap in stored data locally every X mintues
+                    current_volume_percentage_change_24h = float(coin['volume_percentage_change_24h']) # append most recent API call result to data to account for the gap in stored data locally every X mintues
+                    coin_volume_percentage_change_24h_LIST.append(current_volume_percentage_change_24h)
 
                     min_price = min(coin_prices_LIST)
                     max_price = max(coin_prices_LIST)
                     trade_range_percentage = calculate_trading_range_percentage(min_price, max_price)
                     price_position_within_trade_range = calculate_current_price_position_within_trading_range(current_price, min_price, max_price)
-                    # print('current price position: ', f"{price_position_within_trade_range}%")
 
                     coin_data = {
                         'symbol': symbol,
