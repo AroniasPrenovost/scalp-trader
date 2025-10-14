@@ -310,8 +310,7 @@ def iterate_assets(interval_seconds):
                         print(f"STATUS: Looking to BUY at ${BUY_AT_PRICE}")
                         if current_price <= BUY_AT_PRICE:
                             if READY_TO_TRADE == True:
-                                # Calculate whole shares (round down) based on buy_amount_usd
-                                shares_to_buy = math.floor(BUY_AMOUNT_USD / current_price)
+                                shares_to_buy = math.floor(BUY_AMOUNT_USD / current_price) # Calculate whole shares (rounded down)
                                 print(f"Calculated shares to buy: {shares_to_buy} (${BUY_AMOUNT_USD} / ${current_price})")
                                 if shares_to_buy > 0:
                                     place_market_buy_order(coinbase_client, symbol, shares_to_buy)
