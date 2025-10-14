@@ -55,9 +55,9 @@ def load_config(file_path):
 # Define time intervals
 #
 
-INTERVAL_SECONDS = 300 # 900 # (15 minutes) # takes into account the 3 (dependent on number of assets) sleep(2)'s (minus 6 seconds)
-INTERVAL_SAVE_DATA_EVERY_X_MINUTES = 5 # 15
-DATA_RETENTION_HOURS = 120 # 4 days - rolling window for analysis and storage
+INTERVAL_SECONDS = 300
+INTERVAL_SAVE_DATA_EVERY_X_MINUTES = 5
+DATA_RETENTION_HOURS = 120 # rolling window for analysis and storage
 
 #
 #
