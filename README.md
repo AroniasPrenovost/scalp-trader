@@ -64,6 +64,8 @@ This project is a cryptocurrency trading bot that interacts with the Coinbase AP
 
    ```json
    {
+     "min_profit_target_percentage": 3.0,
+     "no_trade_refresh_hours": 2.0,
      "assets": [
        {
          "title": "MATIC chart",
@@ -78,6 +80,12 @@ This project is a cryptocurrency trading bot that interacts with the Coinbase AP
    ```
 
    **Config Parameters:**
+
+   **Global Settings:**
+   - `min_profit_target_percentage`: Minimum profit percentage threshold to trigger a sell signal (default: 3.0)
+   - `no_trade_refresh_hours`: Hours to wait before re-analyzing an asset after determining no trade should be made (default: 2.0)
+
+   **Asset-Specific Settings:**
    - `title`: Friendly name for the asset (for reference)
    - `enabled`: Whether to monitor this asset (`true`/`false`)
    - `ready_to_trade`: Whether to execute actual trades (`true`) or run in simulation mode (`false`)
