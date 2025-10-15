@@ -224,36 +224,77 @@ def backfill_asset_data(asset, config):
     end_time = datetime.now(timezone.utc)
     start_time = end_time - timedelta(hours=max_hours)
 
-    # CoinGecko free tier only supports up to 6 months (180 days) of historical data
-    max_days = 180
+    # CoinGecko free tier supports up to 365 days of historical data
+    max_days = 365
     if max_hours > max_days * 24:
         print(f"  WARNING: Requested {max_hours} hours ({max_hours/24:.1f} days) but CoinGecko free tier only supports {max_days} days")
         print(f"  Limiting to {max_days} days of historical data")
         start_time = end_time - timedelta(days=max_days)
 
-    # Convert to Unix timestamps (in seconds)
-    time_start = int(start_time.timestamp())
-    time_end = int(end_time.timestamp())
+    # CoinGecko API granularity rules:
+    # - 1 day: 5-minute intervals
+    # - 1-90 days: hourly intervals
+    # - Above 90 days: daily intervals
+    # To get hourly data, we need to chunk requests into 90-day periods
+    chunk_days = 90
+    total_days = (end_time - start_time).days
 
     print(f"  Requesting data from {start_time} to {end_time}")
-    print(f"  Using 15m interval (will fetch ~{int((time_end - time_start) / 900)} data points)")
+    print(f"  Total period: {total_days} days")
 
-    # Fetch historical data from CoinGecko
-    coingecko_data = fetch_coingecko_historical_data(
-        coingecko_id=coingecko_id,
-        time_start=time_start,
-        time_end=time_end
-    )
+    if total_days > chunk_days:
+        print(f"  Splitting into {chunk_days}-day chunks to get hourly granularity (instead of daily)")
+        num_chunks = (total_days // chunk_days) + (1 if total_days % chunk_days else 0)
+        print(f"  Will make {num_chunks} API requests")
+    else:
+        print(f"  Using hourly interval (will fetch ~{total_days * 24} data points)")
 
-    if not coingecko_data:
-        print(f"  ERROR: Failed to fetch data for {symbol}")
-        return
+    # Fetch data in chunks
+    all_transformed_data = []
+    current_start = start_time
+    chunk_num = 0
 
-    # Transform data to Coinbase format
+    while current_start < end_time:
+        chunk_num += 1
+        # Calculate chunk end time (90 days from current start, or end_time if sooner)
+        current_end = min(current_start + timedelta(days=chunk_days), end_time)
+
+        # Convert to Unix timestamps (in seconds)
+        time_start = int(current_start.timestamp())
+        time_end = int(current_end.timestamp())
+
+        chunk_days_actual = (current_end - current_start).days
+        print(f"  Chunk {chunk_num}: {current_start.strftime('%Y-%m-%d')} to {current_end.strftime('%Y-%m-%d')} ({chunk_days_actual} days)")
+
+        # Fetch historical data from CoinGecko
+        coingecko_data = fetch_coingecko_historical_data(
+            coingecko_id=coingecko_id,
+            time_start=time_start,
+            time_end=time_end
+        )
+
+        if not coingecko_data:
+            print(f"  WARNING: Failed to fetch data for chunk {chunk_num}, skipping")
+            current_start = current_end
+            continue
+
+        # Transform data to Coinbase format
+        transformed_data = transform_coingecko_to_coinbase_format(coingecko_data, symbol)
+
+        if transformed_data:
+            all_transformed_data.extend(transformed_data)
+
+        # Move to next chunk
+        current_start = current_end
+
+        # Add delay between chunks to respect rate limits (30 calls/min for free tier)
+        if current_start < end_time:
+            time.sleep(2)
+
     print(f"  Transforming data to match Coinbase format...")
-    transformed_data = transform_coingecko_to_coinbase_format(coingecko_data, symbol)
+    print(f"  Total data points fetched across all chunks: {len(all_transformed_data)}")
 
-    if not transformed_data:
+    if not all_transformed_data:
         print(f"  ERROR: No data to save for {symbol}")
         return
 
@@ -264,7 +305,7 @@ def backfill_asset_data(asset, config):
     print(f"  Found {len(existing_data)} existing data points")
 
     # Merge with existing data
-    merged_data = merge_data(existing_data, transformed_data)
+    merged_data = merge_data(existing_data, all_transformed_data)
 
     # Save merged data
     save_data(data_file, merged_data)

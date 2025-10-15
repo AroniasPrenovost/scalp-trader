@@ -1,5 +1,7 @@
 import os
 import time
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend to prevent display windows
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
@@ -148,7 +150,8 @@ def plot_simple_snapshot(
     timestamp_str = time.strftime("%Y%m%d%H%M%S", time.localtime(current_timestamp))
     filename = os.path.join("./screenshots", f"{symbol}_snapshot_{timestamp_str}.png")
     plt.savefig(filename, dpi=300, bbox_inches='tight')
-    plt.close('all')
+    plt.close(fig)  # Close the specific figure
+    plt.close('all')  # Ensure all figures are closed
     print(f"Snapshot saved as {filename}")
 
 
@@ -312,6 +315,7 @@ def plot_graph(
     filename = os.path.join("./screenshots", f"{symbol}_chart_{event_type}_{timestamp_str}.png")
     print(f"Generating market snapshot: {filename}")
     plt.savefig(filename, dpi=300, bbox_inches='tight')
-    plt.close('all')
+    plt.close(fig)  # Close the specific figure
+    plt.close('all')  # Ensure all figures are closed
     print(f"Chart saved as {filename}")
     return filename
