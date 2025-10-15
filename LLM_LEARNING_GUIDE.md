@@ -2,7 +2,7 @@
 
 ## Overview
 
-This trading bot now includes a **self-learning system** where the LLM (GPT-4o) analyzes historical trading data to improve future trading decisions. The system provides the AI with:
+This trading bot includes a **self-learning system** where the LLM (GPT-4o) analyzes historical trading data to improve future trading decisions. The system provides the AI with:
 
 1. **Historical transaction data** for the specific symbol
 2. **Buy event screenshots** showing market conditions when trades were initiated
