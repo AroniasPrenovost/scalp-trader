@@ -12,6 +12,10 @@ This project is a cryptocurrency trading bot that interacts with the Coinbase AP
 - Send email notifications for order placements using Mailjet.
 - Backfill historical price data from CoinGecko API for analysis (15-minute intervals).
 
+## Documentation
+
+For detailed information about the LLM-based experience and learning system, see [LLM Experience-Based Learning Guide](docs/LLM_EXPERIENCE_BASED_LEARNING.md).
+
 ## Prerequisites
 
 - Python 3.7+
