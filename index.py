@@ -31,7 +31,7 @@ coinbase_client = get_coinbase_client()
 # custom coinbase listings check
 from utils.new_coinbase_listings import check_for_new_coinbase_listings
 # plotting data
-from utils.matplotlib import plot_graph
+from utils.matplotlib import plot_graph, plot_simple_snapshot
 # openai analysis
 from utils.openai_analysis import analyze_market_with_openai, save_analysis_to_file, load_analysis_from_file, should_refresh_analysis, delete_analysis_file
 
@@ -203,13 +203,13 @@ def iterate_assets(interval_seconds):
 
                     # set config.json data
                     READY_TO_TRADE = False
-                    ENABLE_SNAPSHOT = False
+                    ENABLE_CHART_SNAPSHOT = False
                     ENABLE_AI_ANALYSIS = False
                     BUY_AMOUNT_USD = 0
                     for asset in config['assets']:
                         if symbol == asset['symbol']:
                             READY_TO_TRADE = asset['ready_to_trade']
-                            ENABLE_SNAPSHOT = asset['enable_snapshot']
+                            ENABLE_CHART_SNAPSHOT = asset['enable_chart_snapshot']
                             ENABLE_AI_ANALYSIS = asset['enable_ai_analysis']
                             BUY_AMOUNT_USD = asset['buy_amount_usd']
 
@@ -259,6 +259,18 @@ def iterate_assets(interval_seconds):
                         'coin_volume_percentage_change_24h_LIST': coin_volume_percentage_change_24h_LIST,
                     }
                     # print(coin_data)
+
+                    if ENABLE_CHART_SNAPSHOT == True:
+                        plot_simple_snapshot(
+                            time.time(),
+                            INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                            symbol,
+                            coin_prices_LIST,
+                            min_price,
+                            max_price,
+                            trade_range_percentage,
+                            volume_data=coin_volume_24h_LIST
+                        )
 
                     #
                     #
@@ -415,7 +427,7 @@ def iterate_assets(interval_seconds):
                                 print('STATUS: Trading disabled')
 
 
-                    if ENABLE_SNAPSHOT == True:
+                    if ENABLE_CHART_SNAPSHOT == True:
                         plot_graph(
                             time.time(),
                             INTERVAL_SAVE_DATA_EVERY_X_MINUTES,

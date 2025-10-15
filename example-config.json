@@ -9,7 +9,7 @@
         "ready_to_trade": false,
         "buy_amount_usd": 100,
         "enable_ai_analysis": false,
-        "enable_snapshot": false
+        "enable_chart_snapshot": false
       },
       {
         "title": "ETH: secondary, follows BTC",
@@ -18,7 +18,7 @@
         "ready_to_trade": false,
         "buy_amount_usd": 100,
         "enable_ai_analysis": false,
-        "enable_snapshot": false
+        "enable_chart_snapshot": false
       }
     ]
 }

@@ -76,6 +76,80 @@ def calculate_rsi(prices, period=14):
     return rsi_values
 
 
+def plot_simple_snapshot(
+    current_timestamp,
+    interval,
+    symbol,
+    price_data,
+    min_price,
+    max_price,
+    trade_range_percentage,
+    volume_data=None
+):
+    print('Generating market snapshot')
+    """
+    Simple snapshot plot with just price and optional volume data.
+    For use before trading logic when entry_price and analysis are not yet available.
+
+    Args:
+        current_timestamp: timestamp for filename
+        interval: data interval in minutes
+        symbol: trading pair symbol
+        price_data: list of price values
+        min_price: minimum price in range
+        max_price: maximum price in range
+        trade_range_percentage: trading range percentage
+        volume_data: optional list of volume values
+    """
+
+    # Create figure with subplots
+    if volume_data:
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 8), height_ratios=[3, 1])
+        fig.subplots_adjust(hspace=0.3)
+    else:
+        fig, ax1 = plt.subplots(figsize=(14, 6))
+
+    # Plot price line
+    x_values = list(range(len(price_data)))
+    ax1.plot(x_values, price_data, marker=',', label='Price', c='black', linewidth=1.5)
+
+    # Plot min/max lines
+    ax1.axhline(y=min_price, color='green', linewidth=1, linestyle='--',
+                label=f"Min (${min_price:.4f})", alpha=0.6)
+    ax1.axhline(y=max_price, color='red', linewidth=1, linestyle='--',
+                label=f"Max (${max_price:.4f})", alpha=0.6)
+
+    # Configure main chart
+    price_range = max_price - min_price
+    buffer = price_range * 0.1
+    ax1.set_ylim(min_price - buffer, max_price + buffer)
+    ax1.xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
+    ax1.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.4f'))
+    ax1.set_ylabel('Price (USD)', fontsize=10, fontweight='bold')
+    ax1.grid(True, alpha=0.3)
+    ax1.legend(loc='upper left', fontsize='small')
+    ax1.set_title(f"{symbol} - Range: {trade_range_percentage}%", fontsize=12, fontweight='bold')
+
+    if not volume_data:
+        ax1.set_xlabel(f"Data Points (Interval: {interval} min)", fontsize=10, fontweight='bold')
+
+    # Volume subplot (if data provided)
+    if volume_data:
+        colors = ['green' if i == 0 or price_data[i] >= price_data[i-1] else 'red'
+                 for i in range(len(volume_data))]
+        ax2.bar(x_values, volume_data, color=colors, alpha=0.6, width=0.8)
+        ax2.set_ylabel('Volume (24h)', fontsize=10, fontweight='bold')
+        ax2.set_xlabel(f"Data Points (Interval: {interval} min)", fontsize=10, fontweight='bold')
+        ax2.grid(True, alpha=0.3, axis='y')
+        ax2.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, p: f'{x/1e6:.1f}M' if x >= 1e6 else f'{x/1e3:.0f}K'))
+
+    # Save figure
+    filename = os.path.join("./screenshots", f"{symbol}_snapshot_{current_timestamp}.png")
+    plt.savefig(filename, dpi=300, bbox_inches='tight')
+    plt.close('all')
+    print(f"Snapshot saved as {filename}")
+
+
 def plot_graph(
     current_timestamp,
     interval,
