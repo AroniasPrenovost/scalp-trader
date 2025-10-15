@@ -259,7 +259,6 @@ def iterate_assets(interval_seconds):
                         'coin_volume_percentage_change_24h_LIST': coin_volume_percentage_change_24h_LIST,
                     }
                     # print(coin_data)
-
                     if ENABLE_CHART_SNAPSHOT:
                         plot_simple_snapshot(
                             time.time(),
