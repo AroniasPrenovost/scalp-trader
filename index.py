@@ -57,9 +57,9 @@ def load_config(file_path):
 # Define time intervals
 #
 
-INTERVAL_SECONDS = 300 # 5 minute # 900 # 15 minutes
+INTERVAL_SECONDS = 3600 # 1 hour # 300 # 5 minute # 900 # 15 minutes
 INTERVAL_SAVE_DATA_EVERY_X_MINUTES = (INTERVAL_SECONDS / 60)
-DATA_RETENTION_HOURS = 24 # rolling window for analysis and storage
+DATA_RETENTION_HOURS = 168 # 7 days # rolling window for analysis and storage
 
 EXPECTED_DATA_POINTS = int((DATA_RETENTION_HOURS * 60) / INTERVAL_SAVE_DATA_EVERY_X_MINUTES)
 
