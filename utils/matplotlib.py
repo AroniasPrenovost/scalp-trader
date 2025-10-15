@@ -314,3 +314,4 @@ def plot_graph(
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     plt.close('all')
     print(f"Chart saved as {filename}")
+    return filename

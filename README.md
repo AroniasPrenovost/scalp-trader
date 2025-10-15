@@ -22,7 +22,6 @@ This project is a cryptocurrency trading bot that interacts with the Coinbase AP
   - `COINBASE_SPOT_MAKER_FEE`
   - `COINBASE_SPOT_TAKER_FEE`
   - `FEDERAL_TAX_RATE`
-  - `COINMARKETCAP_API_KEY`
   - `MAILJET_API_KEY`
   - `MAILJET_SECRET_KEY`
   - `MAILJET_FROM_EMAIL`

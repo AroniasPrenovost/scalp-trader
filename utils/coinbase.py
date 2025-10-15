@@ -260,9 +260,21 @@ def place_market_sell_order(client, symbol, base_size, potential_profit, potenti
 # save_transaction_record
 #
 
-def save_transaction_record(symbol, buy_price, sell_price, potential_profit_percentage, gross_profit, taxes, exchange_fees, total_profit, buy_timestamp):
+def save_transaction_record(symbol, buy_price, sell_price, potential_profit_percentage, gross_profit, taxes, exchange_fees, total_profit, buy_timestamp, buy_screenshot_path=None):
     """
     Store/append successful transaction records to /transactions/data.json
+
+    Args:
+        symbol: Trading pair symbol
+        buy_price: Entry price
+        sell_price: Exit price
+        potential_profit_percentage: Profit percentage
+        gross_profit: Gross profit before fees/taxes
+        taxes: Taxes owed
+        exchange_fees: Exchange fees
+        total_profit: Net profit after all costs
+        buy_timestamp: Timestamp when position was opened
+        buy_screenshot_path: Optional path to the buy event screenshot
     """
     import datetime
 
@@ -294,7 +306,8 @@ def save_transaction_record(symbol, buy_price, sell_price, potential_profit_perc
         "exchange_fees": exchange_fees,
         "total_profit": total_profit,
         "time_held_position": time_held_position,
-        "buy_timestamp": buy_timestamp
+        "buy_timestamp": buy_timestamp,
+        "buy_screenshot_path": buy_screenshot_path
     }
 
     # Create transactions directory if it doesn't exist

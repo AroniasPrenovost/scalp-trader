@@ -9,31 +9,33 @@ from pprint import pprint
 from collections import deque
 import numpy as np
 import pandas as pd
-import requests # supports CoinMarketCap
-# coinbase api
-from coinbase.rest import RESTClient
+from coinbase.rest import RESTClient # coinbase api
 # from mailjet_rest import Client
-# parse CLI args
-import argparse
-# related to price change % logic
-import glob
+import argparse # parse CLI args
+import glob # related to price change % logic
 
-#
 # custom imports
 from utils.email import send_email_notification
 from utils.file_helpers import save_obj_dict_to_file, count_files_in_directory, append_crypto_data_to_file, get_property_values_from_crypto_file, cleanup_old_crypto_data
 from utils.price_helpers import calculate_trading_range_percentage, calculate_current_price_position_within_trading_range, calculate_offset_price, calculate_price_change_percentage
 from utils.technical_indicators import calculate_market_cap_efficiency, calculate_fibonacci_levels
 from utils.time_helpers import print_local_time
+
+# Coinbase-related
 # Coinbase helpers and define client
 from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order, get_asset_price, calculate_exchange_fee, save_order_data_to_local_json_ledger, get_last_order_from_local_json_ledger, reset_json_ledger_file, detect_stored_coinbase_order_type, save_transaction_record
 coinbase_client = get_coinbase_client()
 # custom coinbase listings check
 from utils.new_coinbase_listings import check_for_new_coinbase_listings
+
 # plotting data
 from utils.matplotlib import plot_graph, plot_simple_snapshot
+
+# LLM-related
 # openai analysis
 from utils.openai_analysis import analyze_market_with_openai, save_analysis_to_file, load_analysis_from_file, should_refresh_analysis, delete_analysis_file
+# trading context for LLM learning
+from utils.trade_context import build_trading_context
 
 #
 # end imports
@@ -129,6 +131,13 @@ def iterate_assets(interval_seconds):
         enabled_assets = [asset['symbol'] for asset in config['assets'] if asset['enabled']]
         min_profit_target_percentage = config.get('min_profit_target_percentage', 3.0)
         no_trade_refresh_hours = config.get('no_trade_refresh_hours', 1.0)
+
+        # LLM Learning configuration
+        llm_learning_config = config.get('llm_learning', {})
+        llm_learning_enabled = llm_learning_config.get('enabled', True)
+        max_historical_trades = llm_learning_config.get('max_historical_trades', 10)
+        include_screenshots = llm_learning_config.get('include_screenshots', True)
+        prune_old_trades_after = llm_learning_config.get('prune_old_trades_after', 50)
 
         #
         #
@@ -293,13 +302,34 @@ def iterate_assets(interval_seconds):
                             timestamp_str = time.strftime("%Y%m%d%H%M%S", time.localtime())
                             graph_path = f"screenshots/{symbol}_{timestamp_str}.png"
 
+                            # Build historical trading context for LLM learning
+                            trading_context = None
+                            if llm_learning_enabled:
+                                print(f"Building historical trading context for {symbol}...")
+                                trading_context = build_trading_context(
+                                    symbol,
+                                    max_trades=max_historical_trades,
+                                    include_screenshots=include_screenshots
+                                )
+                                if trading_context and trading_context.get('total_trades', 0) > 0:
+                                    print(f"✓ Loaded {trading_context['trades_included']} historical trades for context")
+                                    # Optionally prune old trades if we have too many
+                                    if trading_context.get('total_trades', 0) > prune_old_trades_after:
+                                        from utils.trade_context import prune_old_transactions
+                                        prune_old_transactions(symbol, keep_count=prune_old_trades_after)
+                                else:
+                                    print("No historical trades found - this will be the first trade")
+                            else:
+                                print("LLM learning disabled in config")
+
                             analysis = analyze_market_with_openai(
                                 symbol,
                                 coin_data,
                                 taker_fee_percentage=coinbase_spot_taker_fee,
                                 tax_rate_percentage=federal_tax_rate,
                                 min_profit_target_percentage=min_profit_target_percentage,
-                                graph_image_path=graph_path
+                                graph_image_path=graph_path,
+                                trading_context=trading_context
                             )
                             if analysis:
                                 save_analysis_to_file(symbol, analysis)
@@ -355,7 +385,7 @@ def iterate_assets(interval_seconds):
                         else:
                             print(f"STATUS: Looking to BUY at ${BUY_AT_PRICE} (Confidence: {CONFIDENCE_LEVEL})")
                             if current_price <= BUY_AT_PRICE:
-                                plot_graph(
+                                buy_screenshot_path = plot_graph(
                                     time.time(),
                                     INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
                                     symbol,
@@ -373,6 +403,16 @@ def iterate_assets(interval_seconds):
                                     print(f"Calculated shares to buy: {shares_to_buy} (${BUY_AMOUNT_USD} / ${current_price})")
                                     if shares_to_buy > 0:
                                         place_market_buy_order(coinbase_client, symbol, shares_to_buy)
+                                        # Store screenshot path for later use in transaction record
+                                        # This will be retrieved from the ledger when we sell
+                                        last_order = get_last_order_from_local_json_ledger(symbol)
+                                        if last_order:
+                                            last_order['buy_screenshot_path'] = buy_screenshot_path
+                                            # Re-save the ledger with the screenshot path
+                                            import json
+                                            file_name = f"{symbol}_orders.json"
+                                            with open(file_name, 'w') as file:
+                                                json.dump([last_order], file, indent=4)
 
                                     else:
                                         print(f"STATUS: Buy amount ${BUY_AMOUNT_USD} is too small to buy whole shares at ${current_price}")
@@ -436,6 +476,7 @@ def iterate_assets(interval_seconds):
                                 place_market_sell_order(coinbase_client, symbol, number_of_shares, potential_profit, potential_profit_percentage)
                                 # Save transaction record
                                 buy_timestamp = last_order['order'].get('created_time')
+                                buy_screenshot_path = last_order.get('buy_screenshot_path')  # Get screenshot path from ledger
                                 save_transaction_record(
                                     symbol=symbol,
                                     buy_price=entry_price,
@@ -445,7 +486,8 @@ def iterate_assets(interval_seconds):
                                     taxes=sell_now_tax_owed,
                                     exchange_fees=sell_now_exchange_fee,
                                     total_profit=potential_profit,
-                                    buy_timestamp=buy_timestamp
+                                    buy_timestamp=buy_timestamp,
+                                    buy_screenshot_path=buy_screenshot_path
                                 )
 
                                 delete_analysis_file(symbol)
@@ -473,6 +515,7 @@ def iterate_assets(interval_seconds):
                                 place_market_sell_order(coinbase_client, symbol, number_of_shares, potential_profit, potential_profit_percentage)
                                 # Save transaction record
                                 buy_timestamp = last_order['order'].get('created_time')
+                                buy_screenshot_path = last_order.get('buy_screenshot_path')  # Get screenshot path from ledger
                                 save_transaction_record(
                                     symbol=symbol,
                                     buy_price=entry_price,
@@ -482,7 +525,8 @@ def iterate_assets(interval_seconds):
                                     taxes=sell_now_tax_owed,
                                     exchange_fees=sell_now_exchange_fee,
                                     total_profit=potential_profit,
-                                    buy_timestamp=buy_timestamp
+                                    buy_timestamp=buy_timestamp,
+                                    buy_screenshot_path=buy_screenshot_path
                                 )
 
                                 delete_analysis_file(symbol)

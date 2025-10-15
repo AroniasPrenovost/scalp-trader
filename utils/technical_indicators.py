@@ -3,8 +3,6 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 # end boilerplate
-import numpy as np
-import pandas as pd
 
 
 ### Explanation:
@@ -71,6 +69,3 @@ def calculate_fibonacci_levels(prices):
     }
 
     return levels
-
-
- 

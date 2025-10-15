@@ -5,7 +5,7 @@ import base64
 from openai import OpenAI
 from io import BytesIO
 
-def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_rate_percentage=0, min_profit_target_percentage=3.0, graph_image_path=None):
+def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_rate_percentage=0, min_profit_target_percentage=3.0, graph_image_path=None, trading_context=None):
     """
     Analyzes market data using OpenAI's API to determine key support/resistance levels
     and trading recommendations.
@@ -23,6 +23,7 @@ def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_ra
         tax_rate_percentage: Federal tax rate as a percentage (e.g., 37 for 37%)
         min_profit_target_percentage: Minimum profit target percentage (e.g., 3.0 for 3%)
         graph_image_path: Optional path to a graph image for visual analysis
+        trading_context: Optional dictionary containing historical trading context from build_trading_context()
 
     Returns:
         Dictionary with analysis results or None if API call fails
@@ -49,8 +50,15 @@ def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_ra
     total_fee_percentage = taker_fee_percentage * 2  # Buy fee + Sell fee
     total_cost_burden = total_fee_percentage + tax_rate_percentage
 
+    # Build historical context section if provided
+    historical_context_section = ""
+    if trading_context and trading_context.get('total_trades', 0) > 0:
+        from utils.trade_context import format_context_for_llm
+        historical_context_section = f"\n\n{format_context_for_llm(trading_context)}\n"
+
     # Build the prompt
     prompt = f"""Analyze the following market data for {symbol} and provide a technical analysis with specific trading levels.
+{historical_context_section}
 
 Market Data:
 - Current Price: ${current_price}
@@ -110,7 +118,8 @@ Base your analysis on technical indicators, support/resistance levels, and price
                 with open(graph_image_path, "rb") as image_file:
                     base64_image = base64.b64encode(image_file.read()).decode('utf-8')
 
-                messages[1]["content"] = [
+                # Build content array with text and current graph
+                content_array = [
                     {
                         "type": "text",
                         "text": prompt
@@ -118,10 +127,21 @@ Base your analysis on technical indicators, support/resistance levels, and price
                     {
                         "type": "image_url",
                         "image_url": {
-                            "url": f"data:image/png;base64,{base64_image}"
+                            "url": f"data:image/png;base64,{base64_image}",
+                            "detail": "high"
                         }
                     }
                 ]
+
+                # Add historical trade screenshots if available
+                if trading_context:
+                    from utils.trade_context import get_trade_screenshots_for_vision
+                    historical_screenshots = get_trade_screenshots_for_vision(trading_context)
+                    if historical_screenshots:
+                        print(f"Including {len(historical_screenshots)} historical trade screenshots in analysis")
+                        content_array.extend(historical_screenshots)
+
+                messages[1]["content"] = content_array
             except Exception as e:
                 print(f"Warning: Could not load graph image: {e}")
 
