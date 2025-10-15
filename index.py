@@ -360,6 +360,7 @@ def iterate_assets(interval_seconds):
                                     print(f"Calculated shares to buy: {shares_to_buy} (${BUY_AMOUNT_USD} / ${current_price})")
                                     if shares_to_buy > 0:
                                         place_market_buy_order(coinbase_client, symbol, shares_to_buy)
+
                                     else:
                                         print(f"STATUS: Buy amount ${BUY_AMOUNT_USD} is too small to buy whole shares at ${current_price}")
                                 else:
@@ -425,19 +426,18 @@ def iterate_assets(interval_seconds):
                                 print('STATUS: Trading disabled')
 
 
-                    if ENABLE_CHART_SNAPSHOT == True:
-                        plot_graph(
-                            time.time(),
-                            INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
-                            symbol,
-                            coin_prices_LIST,
-                            min_price,
-                            max_price,
-                            trade_range_percentage,
-                            entry_price,
-                            volume_data=coin_volume_24h_LIST,
-                            analysis=analysis
-                        )
+                    plot_graph(
+                        time.time(),
+                        INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                        symbol,
+                        coin_prices_LIST,
+                        min_price,
+                        max_price,
+                        trade_range_percentage,
+                        entry_price,
+                        volume_data=coin_volume_24h_LIST,
+                        analysis=analysis
+                    )
 
                     print('\n')
 
