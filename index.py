@@ -110,6 +110,39 @@ def convert_products_to_dicts(products):
     return [product.to_dict() if hasattr(product, 'to_dict') else product for product in products]
 
 
+def get_hours_since_last_sell(symbol):
+    """
+    Get the number of hours since the last sell for this asset.
+    Returns None if no previous sells found.
+    """
+    from datetime import datetime
+    from utils.trade_context import load_transaction_history
+
+    try:
+        transactions = load_transaction_history(symbol)
+
+        if not transactions or len(transactions) == 0:
+            return None
+
+        # Get most recent transaction
+        last_transaction = transactions[0]
+        last_sell_timestamp_str = last_transaction.get('timestamp')
+
+        if not last_sell_timestamp_str:
+            return None
+
+        # Parse timestamp and calculate hours elapsed
+        last_sell_time = datetime.fromisoformat(last_sell_timestamp_str)
+        current_time = datetime.now()
+        time_elapsed = current_time - last_sell_time
+
+        return time_elapsed.total_seconds() / 3600
+
+    except Exception as e:
+        print(f"ERROR: Failed to get hours since last sell: {e}")
+        return None
+
+
 #
 #
 # main logic loop
@@ -131,6 +164,7 @@ def iterate_assets(interval_seconds):
         enabled_assets = [asset['symbol'] for asset in config['assets'] if asset['enabled']]
         min_profit_target_percentage = config.get('min_profit_target_percentage', 3.0)
         no_trade_refresh_hours = config.get('no_trade_refresh_hours', 1.0)
+        cooldown_hours_after_sell = config.get('cooldown_hours_after_sell', 0)
 
         # LLM Learning configuration
         llm_learning_config = config.get('llm_learning', {})
@@ -205,6 +239,15 @@ def iterate_assets(interval_seconds):
                     # set data from coinbase data
                     symbol = coin['product_id']
                     print(f"[ {symbol} ]")
+
+                    # Check cooldown period after sell
+                    if cooldown_hours_after_sell > 0:
+                        hours_since_last_sell = get_hours_since_last_sell(symbol)
+                        if hours_since_last_sell is not None and hours_since_last_sell < cooldown_hours_after_sell:
+                            hours_remaining = cooldown_hours_after_sell - hours_since_last_sell
+                            print(f"STATUS: In cooldown period - {hours_remaining:.2f} hours remaining until analysis resumes")
+                            print()
+                            continue
 
                     # set config.json data
                     READY_TO_TRADE = False
@@ -290,7 +333,14 @@ def iterate_assets(interval_seconds):
                     # Get or create AI analysis for trading parameters
                     actual_coin_prices_list_length = len(coin_prices_LIST) - 1 # account for offset
                     analysis = load_analysis_from_file(symbol)
-                    if should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours) and ENABLE_AI_ANALYSIS == True:
+
+                    # Check if we need to generate new analysis
+                    should_refresh = should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours)
+
+                    if should_refresh and not ENABLE_AI_ANALYSIS:
+                        print(f"AI analysis is disabled for {symbol} - skipping analysis generation")
+                        analysis = None
+                    elif should_refresh and ENABLE_AI_ANALYSIS:
                         print(f"Generating new AI analysis for {symbol}...")
                         # Check if we have enough data points
                         if actual_coin_prices_list_length < EXPECTED_DATA_POINTS:
@@ -335,8 +385,10 @@ def iterate_assets(interval_seconds):
                                 save_analysis_to_file(symbol, analysis)
                             else:
                                 print(f"Warning: Failed to generate analysis for {symbol}")
+                    elif analysis:
+                        print(f"Using existing AI analysis (generated at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(analysis.get('analyzed_at', 0)))})")
                     else:
-                        print("Found existing AI analysis")
+                        print(f"No existing AI analysis found for {symbol}")
 
                     # Only proceed with trading if we have a valid analysis
                     if not analysis:

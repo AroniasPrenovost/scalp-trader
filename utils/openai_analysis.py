@@ -226,7 +226,7 @@ def load_analysis_from_file(symbol):
         symbol: The trading pair symbol (e.g., 'XLM-USD')
 
     Returns:
-        Dictionary containing the analysis data, or None if file doesn't exist
+        Dictionary containing the analysis data, or None if file doesn't exist or is invalid
     """
     try:
         analysis_dir = 'analysis'
@@ -237,12 +237,35 @@ def load_analysis_from_file(symbol):
             return None
 
         with open(file_path, 'r') as f:
-            analysis_data = json.load(f)
+            file_content = f.read().strip()
+
+            # Check if file is empty
+            if not file_content:
+                print(f"WARNING: Analysis file for {symbol} exists but is empty: {file_path}")
+                return None
+
+            analysis_data = json.loads(file_content)
+
+            # Validate that we got a dictionary with required fields
+            if not isinstance(analysis_data, dict):
+                print(f"WARNING: Analysis file for {symbol} contains invalid data (not a dictionary)")
+                return None
+
+            # Check for required fields
+            required_fields = ['buy_in_price', 'profit_target_percentage', 'trade_recommendation']
+            missing_fields = [field for field in required_fields if field not in analysis_data]
+
+            if missing_fields:
+                print(f"WARNING: Analysis file for {symbol} is missing required fields: {missing_fields}")
+                return None
 
         return analysis_data
 
+    except json.JSONDecodeError as e:
+        print(f"ERROR: Failed to parse analysis file for {symbol} - invalid JSON: {e}")
+        return None
     except Exception as e:
-        print(f"ERROR: Failed to load analysis: {e}")
+        print(f"ERROR: Failed to load analysis for {symbol}: {e}")
         return None
 
 
