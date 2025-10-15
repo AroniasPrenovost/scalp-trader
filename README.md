@@ -10,6 +10,7 @@ This project is a cryptocurrency trading bot that interacts with the Coinbase AP
 - Calculate potential profits, exchange fees, and taxes.
 - Monitor market conditions and trigger buy/sell actions based on technical indicators such as SMA, MACD, and Bollinger Bands.
 - Send email notifications for order placements using Mailjet.
+- Backfill historical price data from CoinGecko API for analysis (15-minute intervals).
 
 ## Prerequisites
 
@@ -28,6 +29,7 @@ This project is a cryptocurrency trading bot that interacts with the Coinbase AP
   - `MAILJET_FROM_NAME`
   - `MAILJET_TO_EMAIL`
   - `MAILJET_TO_NAME`
+  - `COINGECKO_API_KEY` (optional, only needed for historical data backfilling)
 
 ## Installation (1)
 
@@ -121,6 +123,79 @@ This project is a cryptocurrency trading bot that interacts with the Coinbase AP
   ```
 
 The bot will continuously monitor the specified assets and execute trades based on the configured strategies.
+
+## Historical Data Backfilling
+
+The bot includes a feature to backfill historical price data from CoinGecko API. This is useful for populating the `coinbase-data/` directory with historical data for analysis before the bot has been running long enough to collect it naturally.
+
+### Setup
+
+1. Get a CoinGecko API key from https://www.coingecko.com/en/developers/dashboard
+2. Add your API key to the `.env` file:
+   ```bash
+   COINGECKO_API_KEY=your_api_key_here
+   ```
+
+3. Enable backfilling in `config.json`:
+   ```json
+   {
+     "coingecko": {
+       "enable_backfilling_historical_data": true
+     },
+     "data_retention": {
+       "max_hours": 730,
+       "interval_seconds": 900
+     }
+   }
+   ```
+
+4. Ensure each asset has a `coingecko_id` in the config:
+   ```json
+   {
+     "assets": [
+       {
+         "symbol": "BTC-USD",
+         "coingecko_id": "bitcoin",
+         "enabled": true
+       }
+     ]
+   }
+   ```
+
+### Running the Backfill
+
+Run the backfill script to fetch historical data:
+
+```bash
+python3 backfill_historical_data.py
+```
+
+The script will:
+- Fetch 15-minute interval price data for the time period specified in `data_retention.max_hours`
+- Transform the data to match the Coinbase format
+- Merge with existing data (avoiding duplicates)
+- Save to `coinbase-data/{SYMBOL}.json` files
+
+### Notes
+
+- The backfill uses 15-minute intervals
+- Data is fetched based on the `max_hours` setting in your config (up to 6 months for free tier)
+- The script only runs when `enable_backfilling_historical_data` is set to `true`
+- Existing data is preserved - the script only adds missing historical data
+- CoinGecko free tier supports up to 6 months of historical data
+- CoinGecko API rate limits apply (30 calls/min for free tier) - the script includes delays between requests
+
+### Finding CoinGecko IDs
+
+Common CoinGecko IDs:
+- Bitcoin (BTC): `bitcoin`
+- Ethereum (ETH): `ethereum`
+- Cardano (ADA): `cardano`
+- Solana (SOL): `solana`
+
+To find other IDs:
+- Visit https://api.coingecko.com/api/v3/coins/list
+- Or use the CoinGecko website and check the URL (e.g., coingecko.com/en/coins/bitcoin → ID is "bitcoin")
 
 ## Disclaimer
 

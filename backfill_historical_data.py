@@ -1,0 +1,329 @@
+#!/usr/bin/env python3
+"""
+CoinGecko Historical Data Backfill Script
+
+This script fetches historical price data from CoinGecko API and populates
+the coinbase-data JSON files with backfilled data based on the data_retention
+settings defined in config.json.
+
+Only runs if enable_backfilling_historical_data is set to true in config.json.
+"""
+
+import os
+import json
+import time
+import requests
+from datetime import datetime, timedelta, timezone
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+def load_config(file_path='config.json'):
+    """Load configuration from config.json"""
+    with open(file_path, 'r') as file:
+        return json.load(file)
+
+def load_existing_data(file_path):
+    """Load existing data from a JSON file"""
+    if os.path.exists(file_path):
+        with open(file_path, 'r') as file:
+            try:
+                return json.load(file)
+            except json.JSONDecodeError:
+                print(f"Warning: Could not parse {file_path}, starting fresh")
+                return []
+    return []
+
+def save_data(file_path, data):
+    """Save data to a JSON file"""
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    with open(file_path, 'w') as file:
+        json.dump(data, file, indent=4)
+    print(f"✓ Saved {len(data)} data points to {file_path}")
+
+def calculate_percentage_change_24h(data_points, current_index):
+    """
+    Calculate 24-hour percentage change based on available data points.
+    Returns None if insufficient data.
+    """
+    if current_index < 96:  # Need at least 24 hours of data (96 15-minute intervals)
+        return None
+
+    current_price = float(data_points[current_index]['price'])
+    price_24h_ago = float(data_points[current_index - 96]['price'])
+
+    if price_24h_ago == 0:
+        return None
+
+    percentage_change = ((current_price - price_24h_ago) / price_24h_ago) * 100
+    return str(percentage_change)
+
+def fetch_coingecko_historical_data(coingecko_id, time_start, time_end):
+    """
+    Fetch historical data from CoinGecko API
+
+    Args:
+        coingecko_id: CoinGecko ID for the cryptocurrency (e.g., 'bitcoin', 'ethereum')
+        time_start: Start timestamp (Unix timestamp in seconds)
+        time_end: End timestamp (Unix timestamp in seconds)
+
+    Returns:
+        Dict with 'prices', 'market_caps', 'total_volumes' arrays or None if error
+    """
+    api_key = os.getenv('COINGECKO_API_KEY')
+    if not api_key:
+        print("ERROR: COINGECKO_API_KEY not found in environment variables")
+        return None
+
+    url = f'https://api.coingecko.com/api/v3/coins/{coingecko_id}/market_chart/range'
+
+    headers = {
+        'x-cg-demo-api-key': api_key,
+        'Accept': 'application/json'
+    }
+
+    params = {
+        'vs_currency': 'usd',
+        'from': int(time_start),
+        'to': int(time_end)
+    }
+
+    try:
+        print(f"  Fetching data from {datetime.fromtimestamp(time_start, tz=timezone.utc)} to {datetime.fromtimestamp(time_end, tz=timezone.utc)}...")
+        response = requests.get(url, headers=headers, params=params)
+        response.raise_for_status()
+
+        data = response.json()
+
+        # Check if we got the expected data structure
+        if 'prices' not in data:
+            print("ERROR: Unexpected response format from CoinGecko API")
+            return None
+
+        print(f"  ✓ Fetched {len(data['prices'])} data points")
+        return data
+
+    except requests.exceptions.RequestException as e:
+        print(f"ERROR: Failed to fetch data from CoinGecko: {e}")
+        return None
+
+def transform_coingecko_to_coinbase_format(coingecko_data, product_id):
+    """
+    Transform CoinGecko market chart data to match Coinbase data format
+
+    Args:
+        coingecko_data: Dict with 'prices', 'market_caps', 'total_volumes' from CoinGecko API
+        product_id: Product ID (e.g., 'BTC-USD')
+
+    Returns:
+        List of data points in Coinbase format
+    """
+    transformed_data = []
+    prices = coingecko_data.get('prices', [])
+    volumes = coingecko_data.get('total_volumes', [])
+
+    # Create a volume lookup dict by timestamp for easier access
+    volume_dict = {int(v[0]): v[1] for v in volumes}
+
+    for i, price_data in enumerate(prices):
+        timestamp_ms = price_data[0]
+        price = price_data[1]
+
+        # Convert milliseconds to seconds for Unix timestamp
+        unix_timestamp = timestamp_ms / 1000
+
+        # Get volume for this timestamp
+        volume_24h = volume_dict.get(int(timestamp_ms), 0)
+
+        # Calculate percentage changes
+        # For price: compare with price 24 hours ago (96 data points at 15-min intervals)
+        price_percentage_change_24h = "0"
+        if i >= 96:
+            price_24h_ago = prices[i - 96][1]
+            if price_24h_ago != 0:
+                price_percentage_change_24h = str(((price - price_24h_ago) / price_24h_ago) * 100)
+
+        # For volume: compare with volume 24 hours ago
+        volume_percentage_change_24h = "0"
+        if i >= 96:
+            timestamp_24h_ago = prices[i - 96][0]
+            volume_24h_ago = volume_dict.get(int(timestamp_24h_ago), 0)
+            if volume_24h_ago != 0:
+                volume_percentage_change_24h = str(((volume_24h - volume_24h_ago) / volume_24h_ago) * 100)
+
+        data_point = {
+            'timestamp': unix_timestamp,
+            'product_id': product_id,
+            'price': str(price),
+            'price_percentage_change_24h': price_percentage_change_24h,
+            'volume_24h': str(volume_24h),
+            'volume_percentage_change_24h': volume_percentage_change_24h
+        }
+
+        transformed_data.append(data_point)
+
+    return transformed_data
+
+def merge_data(existing_data, new_data):
+    """
+    Merge new data with existing data, avoiding duplicates and sorting by timestamp
+
+    Args:
+        existing_data: List of existing data points
+        new_data: List of new data points to merge
+
+    Returns:
+        Merged and sorted list of data points
+    """
+    # Create a dictionary with timestamp as key to avoid duplicates
+    data_dict = {}
+
+    # Add existing data
+    for point in existing_data:
+        timestamp = point.get('timestamp')
+        if timestamp:
+            data_dict[timestamp] = point
+
+    # Add new data (will overwrite if timestamp already exists)
+    added_count = 0
+    for point in new_data:
+        timestamp = point.get('timestamp')
+        if timestamp and timestamp not in data_dict:
+            data_dict[timestamp] = point
+            added_count += 1
+
+    # Convert back to list and sort by timestamp
+    merged_data = sorted(data_dict.values(), key=lambda x: x.get('timestamp', 0))
+
+    print(f"  ✓ Added {added_count} new data points, total: {len(merged_data)}")
+    return merged_data
+
+def backfill_asset_data(asset, config):
+    """
+    Backfill historical data for a single asset
+
+    Args:
+        asset: Asset configuration dictionary
+        config: Full configuration object
+    """
+    symbol = asset.get('symbol')
+    coingecko_id = asset.get('coingecko_id')
+
+    if not coingecko_id:
+        print(f"  WARNING: No coingecko_id found for {symbol}, skipping")
+        return
+
+    print(f"\n=== Backfilling data for {symbol} ===")
+
+    # Get data retention settings
+    max_hours = config.get('data_retention', {}).get('max_hours', 730)
+    interval_seconds = config.get('data_retention', {}).get('interval_seconds', 900)
+
+    # Calculate start time (max_hours ago from now)
+    end_time = datetime.now(timezone.utc)
+    start_time = end_time - timedelta(hours=max_hours)
+
+    # CoinGecko free tier only supports up to 6 months (180 days) of historical data
+    max_days = 180
+    if max_hours > max_days * 24:
+        print(f"  WARNING: Requested {max_hours} hours ({max_hours/24:.1f} days) but CoinGecko free tier only supports {max_days} days")
+        print(f"  Limiting to {max_days} days of historical data")
+        start_time = end_time - timedelta(days=max_days)
+
+    # Convert to Unix timestamps (in seconds)
+    time_start = int(start_time.timestamp())
+    time_end = int(end_time.timestamp())
+
+    print(f"  Requesting data from {start_time} to {end_time}")
+    print(f"  Using 15m interval (will fetch ~{int((time_end - time_start) / 900)} data points)")
+
+    # Fetch historical data from CoinGecko
+    coingecko_data = fetch_coingecko_historical_data(
+        coingecko_id=coingecko_id,
+        time_start=time_start,
+        time_end=time_end
+    )
+
+    if not coingecko_data:
+        print(f"  ERROR: Failed to fetch data for {symbol}")
+        return
+
+    # Transform data to Coinbase format
+    print(f"  Transforming data to match Coinbase format...")
+    transformed_data = transform_coingecko_to_coinbase_format(coingecko_data, symbol)
+
+    if not transformed_data:
+        print(f"  ERROR: No data to save for {symbol}")
+        return
+
+    # Load existing data
+    data_file = f"coinbase-data/{symbol}.json"
+    existing_data = load_existing_data(data_file)
+
+    print(f"  Found {len(existing_data)} existing data points")
+
+    # Merge with existing data
+    merged_data = merge_data(existing_data, transformed_data)
+
+    # Save merged data
+    save_data(data_file, merged_data)
+
+    print(f"  ✓ Backfill complete for {symbol}")
+
+def main():
+    """Main backfill execution function"""
+    print("=" * 60)
+    print("CoinGecko Historical Data Backfill")
+    print("=" * 60)
+
+    # Load configuration
+    config = load_config()
+
+    # Check if backfilling is enabled
+    coingecko_config = config.get('coingecko', {})
+    enable_backfilling = coingecko_config.get('enable_backfilling_historical_data', False)
+
+    if not enable_backfilling:
+        print("\nBackfilling is DISABLED in config.json")
+        print("Set 'coingecko.enable_backfilling_historical_data' to true to enable")
+        return
+
+    print("\n✓ Backfilling is ENABLED")
+
+    # Check for API key
+    api_key = os.getenv('COINGECKO_API_KEY')
+    if not api_key:
+        print("\nERROR: COINGECKO_API_KEY not found in .env file")
+        print("Please add your CoinGecko API key to .env file:")
+        print("COINGECKO_API_KEY=your_api_key_here")
+        return
+
+    # Get enabled assets
+    assets = config.get('assets', [])
+    enabled_assets = [asset for asset in assets if asset.get('enabled', False)]
+
+    if not enabled_assets:
+        print("\nNo enabled assets found in config.json")
+        return
+
+    print(f"\nFound {len(enabled_assets)} enabled asset(s) to backfill:")
+    for asset in enabled_assets:
+        print(f"  - {asset.get('symbol')}")
+
+    # Backfill each enabled asset
+    for asset in enabled_assets:
+        try:
+            backfill_asset_data(asset, config)
+            # Add a small delay between API calls to avoid rate limiting (CoinGecko: 30 calls/min)
+            time.sleep(2)
+        except Exception as e:
+            print(f"\nERROR: Failed to backfill {asset.get('symbol')}: {e}")
+            continue
+
+    print("\n" + "=" * 60)
+    print("Backfill process complete!")
+    print("=" * 60)
+
+if __name__ == '__main__':
+    main()

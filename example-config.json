@@ -7,7 +7,7 @@
     "include_screenshots": true,
     "prune_old_trades_after": 20
   },
-  "coinmarketcap": {
+  "coingecko": {
     "enable_backfilling_historical_data": false
   },
   "data_retention": {
