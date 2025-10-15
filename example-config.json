@@ -1,6 +1,12 @@
 {
   "min_profit_target_percentage": 3.0,
   "no_trade_refresh_hours": 2.0,
+  "llm_learning": {
+    "enabled": true,
+    "max_historical_trades": 6,
+    "include_screenshots": true,
+    "prune_old_trades_after": 30
+  },
   "assets": [
       {
         "title": "BTC: primary, most predictable",
