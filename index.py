@@ -494,20 +494,6 @@ def iterate_assets(interval_seconds):
                             else:
                                 print('STATUS: Trading disabled')
 
-                    # plot_graph(
-                    #     time.time(),
-                    #     INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
-                    #     symbol,
-                    #     coin_prices_LIST,
-                    #     min_price,
-                    #     max_price,
-                    #     trade_range_percentage,
-                    #     entry_price,
-                    #     volume_data=coin_volume_24h_LIST,
-                    #     analysis=analysis,
-                    #     buy_event=False
-                    # )
-
                     print('\n')
 
 
