@@ -323,9 +323,12 @@ def iterate_assets(interval_seconds):
                     BUY_AT_PRICE = analysis.get('buy_in_price')
                     PROFIT_PERCENTAGE = analysis.get('profit_target_percentage')
                     TRADE_RECOMMENDATION = analysis.get('trade_recommendation', 'buy')
+                    CONFIDENCE_LEVEL = analysis.get('confidence_level', 'low')
+                    STOP_LOSS_PRICE = analysis.get('stop_loss')
                     print(f"AI Strategy: Buy at ${BUY_AT_PRICE}, Target profit {PROFIT_PERCENTAGE}%")
                     print(f"Support: ${analysis.get('major_support', 'N/A')} | Resistance: ${analysis.get('major_resistance', 'N/A')}")
-                    print(f"Market Trend: {analysis.get('market_trend', 'N/A')} | Confidence: {analysis.get('confidence_level', 'N/A')}")
+                    print(f"Market Trend: {analysis.get('market_trend', 'N/A')} | Confidence: {CONFIDENCE_LEVEL}")
+                    print(f"Stop Loss: ${STOP_LOSS_PRICE if STOP_LOSS_PRICE else 'N/A'}")
                     print(f"Trade Recommendation: {TRADE_RECOMMENDATION}")
 
                     #
@@ -352,8 +355,10 @@ def iterate_assets(interval_seconds):
                     elif last_order_type == 'none' or last_order_type == 'sell':
                         if TRADE_RECOMMENDATION == 'no_trade':
                             print(f"STATUS: AI recommends NO TRADE - market conditions do not support {min_profit_target_percentage}% profit target")
+                        elif CONFIDENCE_LEVEL not in ['medium', 'high']:
+                            print(f"STATUS: AI confidence level is '{CONFIDENCE_LEVEL}' - only trading with medium or high confidence")
                         else:
-                            print(f"STATUS: Looking to BUY at ${BUY_AT_PRICE}")
+                            print(f"STATUS: Looking to BUY at ${BUY_AT_PRICE} (Confidence: {CONFIDENCE_LEVEL})")
                             if current_price <= BUY_AT_PRICE:
                                 plot_graph(
                                     time.time(),
@@ -415,7 +420,45 @@ def iterate_assets(interval_seconds):
                         effective_profit_target = max(PROFIT_PERCENTAGE, min_profit_target_percentage)
                         print(f"Effective profit target: {effective_profit_target}% (AI: {PROFIT_PERCENTAGE}%, Min: {min_profit_target_percentage}%)")
 
-                        if potential_profit_percentage >= effective_profit_target:
+                        # Check for stop loss trigger
+                        if STOP_LOSS_PRICE and current_price <= STOP_LOSS_PRICE:
+                            print('~ STOP LOSS TRIGGERED - Selling to limit losses ~')
+                            plot_graph(
+                                time.time(),
+                                INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                                symbol,
+                                coin_prices_LIST,
+                                min_price,
+                                max_price,
+                                trade_range_percentage,
+                                entry_price,
+                                volume_data=coin_volume_24h_LIST,
+                                analysis=analysis,
+                                buy_event=False
+                            )
+
+                            if READY_TO_TRADE:
+                                place_market_sell_order(coinbase_client, symbol, number_of_shares, potential_profit, potential_profit_percentage)
+                                # Save transaction record
+                                buy_timestamp = last_order['order'].get('created_time')
+                                save_transaction_record(
+                                    symbol=symbol,
+                                    buy_price=entry_price,
+                                    sell_price=current_price,
+                                    potential_profit_percentage=potential_profit_percentage,
+                                    gross_profit=pre_tax_profit,
+                                    taxes=sell_now_tax_owed,
+                                    exchange_fees=sell_now_exchange_fee,
+                                    total_profit=potential_profit,
+                                    buy_timestamp=buy_timestamp
+                                )
+
+                                delete_analysis_file(symbol)
+                            else:
+                                print('STATUS: Trading disabled')
+
+                        # Check for profit target
+                        elif potential_profit_percentage >= effective_profit_target:
                             print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
                             plot_graph(
                                 time.time(),
