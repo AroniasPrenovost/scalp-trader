@@ -5,7 +5,10 @@
     "enabled": true,
     "max_historical_trades": 6,
     "include_screenshots": true,
-    "prune_old_trades_after": 30
+    "prune_old_trades_after": 20
+  },
+  "coinmarketcap": {
+    "enable_backfilling_historical_data": false
   },
   "assets": [
       {
@@ -20,7 +23,7 @@
       {
         "title": "ETH: secondary, follows BTC",
         "symbol": "ETH-USD",
-        "enabled": true,
+        "enabled": false,
         "ready_to_trade": false,
         "buy_amount_usd": 100,
         "enable_ai_analysis": false,
