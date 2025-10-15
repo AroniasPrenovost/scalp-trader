@@ -136,14 +136,14 @@ The bot includes a feature to backfill historical price data from CoinGecko API.
    COINGECKO_API_KEY=your_api_key_here
    ```
 
-3. Enable backfilling in `config.json`:
+3. Enable backfilling in `config.json` (example uses 6 months, which is CoinGecko threshold):
    ```json
    {
      "coingecko": {
        "enable_backfilling_historical_data": true
      },
      "data_retention": {
-       "max_hours": 730,
+       "max_hours": 4380,
        "interval_seconds": 900
      }
    }

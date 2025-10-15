@@ -11,7 +11,7 @@
     "enable_backfilling_historical_data": false
   },
   "data_retention": {
-    "max_hours": 730,
+    "max_hours": 4380,
     "interval_seconds": 900
   },
   "assets": [
