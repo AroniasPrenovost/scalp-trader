@@ -61,7 +61,7 @@ def load_config(file_path):
 
 INTERVAL_SECONDS = 5
 INTERVAL_SAVE_DATA_EVERY_X_MINUTES = (INTERVAL_SECONDS / 60)
-DATA_RETENTION_HOURS = 1 # rolling window for analysis and storage
+DATA_RETENTION_HOURS = 2 # rolling window for analysis and storage
 
 EXPECTED_DATA_POINTS = int((DATA_RETENTION_HOURS * 60) / INTERVAL_SAVE_DATA_EVERY_X_MINUTES)
 
@@ -260,7 +260,7 @@ def iterate_assets(interval_seconds):
                     }
                     # print(coin_data)
 
-                    if ENABLE_CHART_SNAPSHOT == True:
+                    if ENABLE_CHART_SNAPSHOT:
                         plot_simple_snapshot(
                             time.time(),
                             INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
@@ -355,7 +355,20 @@ def iterate_assets(interval_seconds):
                         else:
                             print(f"STATUS: Looking to BUY at ${BUY_AT_PRICE}")
                             if current_price <= BUY_AT_PRICE:
-                                if READY_TO_TRADE == True:
+                                plot_graph(
+                                    time.time(),
+                                    INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                                    symbol,
+                                    coin_prices_LIST,
+                                    min_price,
+                                    max_price,
+                                    trade_range_percentage,
+                                    entry_price,
+                                    volume_data=coin_volume_24h_LIST,
+                                    analysis=analysis,
+                                    buy_event=True
+                                )
+                                if READY_TO_TRADE:
                                     shares_to_buy = math.floor(BUY_AMOUNT_USD / current_price) # Calculate whole shares (rounded down)
                                     print(f"Calculated shares to buy: {shares_to_buy} (${BUY_AMOUNT_USD} / ${current_price})")
                                     if shares_to_buy > 0:
@@ -404,9 +417,22 @@ def iterate_assets(interval_seconds):
 
                         if potential_profit_percentage >= effective_profit_target:
                             print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
-                            if READY_TO_TRADE == True:
-                                place_market_sell_order(coinbase_client, symbol, number_of_shares, potential_profit, potential_profit_percentage)
+                            plot_graph(
+                                time.time(),
+                                INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                                symbol,
+                                coin_prices_LIST,
+                                min_price,
+                                max_price,
+                                trade_range_percentage,
+                                entry_price,
+                                volume_data=coin_volume_24h_LIST,
+                                analysis=analysis,
+                                buy_event=False
+                            )
 
+                            if READY_TO_TRADE:
+                                place_market_sell_order(coinbase_client, symbol, number_of_shares, potential_profit, potential_profit_percentage)
                                 # Save transaction record
                                 buy_timestamp = last_order['order'].get('created_time')
                                 save_transaction_record(
@@ -425,19 +451,19 @@ def iterate_assets(interval_seconds):
                             else:
                                 print('STATUS: Trading disabled')
 
-
-                    plot_graph(
-                        time.time(),
-                        INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
-                        symbol,
-                        coin_prices_LIST,
-                        min_price,
-                        max_price,
-                        trade_range_percentage,
-                        entry_price,
-                        volume_data=coin_volume_24h_LIST,
-                        analysis=analysis
-                    )
+                    # plot_graph(
+                    #     time.time(),
+                    #     INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                    #     symbol,
+                    #     coin_prices_LIST,
+                    #     min_price,
+                    #     max_price,
+                    #     trade_range_percentage,
+                    #     entry_price,
+                    #     volume_data=coin_volume_24h_LIST,
+                    #     analysis=analysis,
+                    #     buy_event=False
+                    # )
 
                     print('\n')
 

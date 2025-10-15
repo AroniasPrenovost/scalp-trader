@@ -1,4 +1,5 @@
 import os
+import time
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
@@ -86,7 +87,7 @@ def plot_simple_snapshot(
     trade_range_percentage,
     volume_data=None
 ):
-    print('Generating market snapshot')
+
     """
     Simple snapshot plot with just price and optional volume data.
     For use before trading logic when entry_price and analysis are not yet available.
@@ -144,7 +145,8 @@ def plot_simple_snapshot(
         ax2.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, p: f'{x/1e6:.1f}M' if x >= 1e6 else f'{x/1e3:.0f}K'))
 
     # Save figure
-    filename = os.path.join("./screenshots", f"{symbol}_snapshot_{current_timestamp}.png")
+    timestamp_str = time.strftime("%Y%m%d%H%M%S", time.localtime(current_timestamp))
+    filename = os.path.join("./screenshots", f"{symbol}_snapshot_{timestamp_str}.png")
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     plt.close('all')
     print(f"Snapshot saved as {filename}")
@@ -160,7 +162,8 @@ def plot_graph(
     trade_range_percentage,
     entry_price,
     volume_data=None,
-    analysis=None
+    analysis=None,
+    buy_event=False
 ):
     """
     Enhanced plot with technical indicators and AI analysis
@@ -302,7 +305,12 @@ def plot_graph(
         ax1.set_xlabel(f"Data Points (Interval: {interval} min)", fontsize=10, fontweight='bold')
 
     # Save figure
-    filename = os.path.join("./screenshots", f"{symbol}_chart_{current_timestamp}.png")
+    event_type = 'sell'
+    if buy_event:
+        event_type = 'buy'
+    timestamp_str = time.strftime("%Y%m%d%H%M%S", time.localtime(current_timestamp))
+    filename = os.path.join("./screenshots", f"{symbol}_chart_{event_type}_{timestamp_str}.png")
+    print(f"Generating market snapshot: {filename}")
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     plt.close('all')
     print(f"Chart saved as {filename}")
