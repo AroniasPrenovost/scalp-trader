@@ -66,9 +66,6 @@ DATA_RETENTION_HOURS = config['data_retention']['max_hours'] # 730 # 1 month #
 
 EXPECTED_DATA_POINTS = int((DATA_RETENTION_HOURS * 60) / INTERVAL_SAVE_DATA_EVERY_X_MINUTES)
 
-print(config);
-
-
 #
 #
 # Store the last error and manage number of errors before exiting program
