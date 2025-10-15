@@ -328,8 +328,6 @@ def iterate_assets(interval_seconds):
                     print(f"Market Trend: {analysis.get('market_trend', 'N/A')} | Confidence: {analysis.get('confidence_level', 'N/A')}")
                     print(f"Trade Recommendation: {TRADE_RECOMMENDATION}")
 
-
-
                     #
                     #
                     # Pending BUY / SELL order
