@@ -54,10 +54,14 @@ def load_config(file_path):
 #
 # Define time intervals
 #
+#
+# INTERVAL_SECONDS = 60
+# INTERVAL_SAVE_DATA_EVERY_X_MINUTES = (INTERVAL_SECONDS / 60)
+# DATA_RETENTION_HOURS = 72 # rolling window for analysis and storage
 
-INTERVAL_SECONDS = 60
+INTERVAL_SECONDS = 5
 INTERVAL_SAVE_DATA_EVERY_X_MINUTES = (INTERVAL_SECONDS / 60)
-DATA_RETENTION_HOURS = 72 # rolling window for analysis and storage
+DATA_RETENTION_HOURS = 1 # rolling window for analysis and storage
 
 EXPECTED_DATA_POINTS = int((DATA_RETENTION_HOURS * 60) / INTERVAL_SAVE_DATA_EVERY_X_MINUTES)
 
@@ -136,7 +140,6 @@ def iterate_assets(interval_seconds):
         coinbase_data = coinbase_client.get_products()['products']
         coinbase_data_dictionary = {}
         coinbase_data_dictionary = convert_products_to_dicts(coinbase_data)
-        # REDUCE FILE SIZE
         # filter out all crypto records except for those defined in enabled_assets
         coinbase_data_dictionary = [coin for coin in coinbase_data_dictionary if coin['product_id'] in enabled_assets]
         # strip unnecessary fields
@@ -200,13 +203,15 @@ def iterate_assets(interval_seconds):
 
                     # set config.json data
                     READY_TO_TRADE = False
-                    BUY_AMOUNT_USD = 0
                     ENABLE_SNAPSHOT = False
+                    ENABLE_AI_ANALYSIS = False
+                    BUY_AMOUNT_USD = 0
                     for asset in config['assets']:
                         if symbol == asset['symbol']:
                             READY_TO_TRADE = asset['ready_to_trade']
-                            BUY_AMOUNT_USD = asset['buy_amount_usd']
                             ENABLE_SNAPSHOT = asset['enable_snapshot']
+                            ENABLE_AI_ANALYSIS = asset['enable_ai_analysis']
+                            BUY_AMOUNT_USD = asset['buy_amount_usd']
 
                     # Get current price and append to data to account for the gap in incrementally stored data
                     current_price = get_asset_price(coinbase_client, symbol) # current_price = float(coin['price'])
@@ -269,7 +274,7 @@ def iterate_assets(interval_seconds):
                     # Get or create AI analysis for trading parameters
                     actual_coin_prices_list_length = len(coin_prices_LIST) - 1 # account for offset
                     analysis = load_analysis_from_file(symbol)
-                    if should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours):
+                    if should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours) and ENABLE_AI_ANALYSIS == True:
                         print(f"Generating new AI analysis for {symbol}...")
                         # Check if we have enough data points
                         if actual_coin_prices_list_length < EXPECTED_DATA_POINTS:
