@@ -59,9 +59,9 @@ def encode_image_to_base64(image_path: str) -> Optional[str]:
         return None
 
 
-def calculate_portfolio_metrics(symbol: str, starting_capital_usd: float) -> Dict:
+def calculate_wallet_metrics(symbol: str, starting_capital_usd: float) -> Dict:
     """
-    Calculate portfolio performance metrics for a symbol.
+    Calculate wallet performance metrics for a symbol.
 
     Args:
         symbol: The trading pair symbol (e.g., 'BTC-USD')
@@ -112,7 +112,7 @@ def build_trading_context(symbol: str, max_trades: int = 10, include_screenshots
     - Historical trade performance for the symbol
     - Buy event screenshots (if available and enabled)
     - Performance metrics and patterns
-    - Portfolio metrics (if starting_capital_usd is provided)
+    - Wallet metrics (if starting_capital_usd is provided)
 
     Args:
         symbol: The trading pair symbol (e.g., 'BTC-USD')
@@ -133,7 +133,7 @@ def build_trading_context(symbol: str, max_trades: int = 10, include_screenshots
                 'profitable_trades': int,
                 'losing_trades': int
             },
-            'portfolio_metrics': {  # Only included if starting_capital_usd is provided
+            'wallet_metrics': {  # Only included if starting_capital_usd is provided
                 'starting_capital_usd': float,
                 'current_usd': float,
                 'percentage_gain': float,
@@ -164,9 +164,9 @@ def build_trading_context(symbol: str, max_trades: int = 10, include_screenshots
             'performance_summary': None,
             'trades': []
         }
-        # Include portfolio metrics even if no transactions yet
+        # Include wallet metrics even if no transactions yet
         if starting_capital_usd is not None:
-            result['portfolio_metrics'] = calculate_portfolio_metrics(symbol, starting_capital_usd)
+            result['wallet_metrics'] = calculate_wallet_metrics(symbol, starting_capital_usd)
         return result
 
     # Limit to max_trades
@@ -222,9 +222,9 @@ def build_trading_context(symbol: str, max_trades: int = 10, include_screenshots
         'trades': trades
     }
 
-    # Include portfolio metrics if starting capital is provided
+    # Include wallet metrics if starting capital is provided
     if starting_capital_usd is not None:
-        result['portfolio_metrics'] = calculate_portfolio_metrics(symbol, starting_capital_usd)
+        result['wallet_metrics'] = calculate_wallet_metrics(symbol, starting_capital_usd)
 
     return result
 
@@ -241,12 +241,12 @@ def format_context_for_llm(context: Dict) -> str:
     """
     if context['total_trades'] == 0:
         base_msg = f"No historical trading data available for {context['symbol']}."
-        # Include portfolio metrics even if no trades yet
-        if 'portfolio_metrics' in context:
-            metrics = context['portfolio_metrics']
+        # Include wallet metrics even if no trades yet
+        if 'wallet_metrics' in context:
+            metrics = context['wallet_metrics']
             base_msg += f"""
 
-Portfolio Status:
+Wallet Status:
 - Starting Capital: ${metrics['starting_capital_usd']:.2f}
 - Current Value: ${metrics['current_usd']:.2f}
 - Gross Profit: ${metrics['gross_profit']:.2f}
@@ -262,11 +262,11 @@ Portfolio Status:
 Historical Trading Performance for {context['symbol']}:
 """
 
-    # Add portfolio metrics section if available
-    if 'portfolio_metrics' in context:
-        metrics = context['portfolio_metrics']
+    # Add wallet metrics section if available
+    if 'wallet_metrics' in context:
+        metrics = context['wallet_metrics']
         output += f"""
-Portfolio Status:
+Wallet Status:
 - Starting Capital: ${metrics['starting_capital_usd']:.2f}
 - Current Value: ${metrics['current_usd']:.2f}
 - Gross Profit: ${metrics['gross_profit']:.2f}

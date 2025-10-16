@@ -35,7 +35,7 @@ from utils.matplotlib import plot_graph, plot_simple_snapshot, plot_multi_timefr
 # openai analysis
 from utils.openai_analysis import analyze_market_with_openai, save_analysis_to_file, load_analysis_from_file, should_refresh_analysis, delete_analysis_file
 # trading context for LLM learning
-from utils.trade_context import build_trading_context, calculate_portfolio_metrics
+from utils.trade_context import build_trading_context, calculate_wallet_metrics
 
 #
 # end imports
@@ -258,11 +258,11 @@ def iterate_assets(interval_seconds):
                             ENABLE_AI_ANALYSIS = asset['enable_ai_analysis']
                             STARTING_CAPITAL_USD = asset['starting_capital_usd']
 
-                    # Display portfolio performance metrics
+                    # Display wallet performance metrics
                     if STARTING_CAPITAL_USD > 0:
-                        portfolio_metrics = calculate_portfolio_metrics(symbol, STARTING_CAPITAL_USD)
-                        print("Portfolio Metrics:")
-                        pprint(portfolio_metrics)
+                        wallet_metrics = calculate_wallet_metrics(symbol, STARTING_CAPITAL_USD)
+                        print("Wallet Metrics:")
+                        pprint(wallet_metrics)
 
 
 
