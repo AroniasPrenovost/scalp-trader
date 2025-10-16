@@ -98,12 +98,16 @@ CRITICAL REQUIREMENTS:
 3. The profit_target_percentage should reflect the realistic profit opportunity. If no opportunity exists that meets the {min_profit_target_percentage}% minimum, set it to {min_profit_target_percentage}% as the baseline and set trade_recommendation to "no_trade".
 4. Calculate the sell_price accordingly - the gross price movement must be larger than the net profit target to cover all costs.
 5. POSITION SIZING (REQUIRED): Use the Portfolio Status data to determine buy_amount_usd:
-   - ALWAYS leave at least 25% of current_usd value in reserve (maximum buy should be ~75% of current_usd)
-   - If portfolio is losing money (negative percentage_gain), be MORE conservative - consider 50% or less
-   - If portfolio is profitable and trade confidence is high, you can approach the 75% maximum
-   - If confidence is low or historical performance is poor, reduce position size to 25-50% of current_usd
-   - Scale position size based on confidence: high confidence = up to 75%, medium = 50%, low = 25%
-   - NEVER recommend more than 75% of the current_usd value
+   - NEVER commit more than 75% of current_usd value to a single trade - ALWAYS keep at least 25% in reserve
+   - Portfolio metrics are provided for LEARNING CONTEXT only - to help you understand what worked/didn't work in past trades
+   - DO NOT let portfolio performance (profit/loss) influence your position sizing - maintain the SAME disciplined approach whether up or down
+   - Position sizing based SOLELY on THIS trade's quality and confidence:
+     * HIGH confidence: 50-75% of current_usd (only for exceptional setups with clear technical edge)
+     * MEDIUM confidence: DO NOT TRADE - wait for higher quality opportunities
+     * LOW confidence: DO NOT TRADE - recommend "no_trade" instead
+   - Prioritize QUALITY over QUANTITY - focus on high-likelihood trades with strong technical confirmation
+   - Learn from historical trades (entry/exit timing, market conditions, what worked) but DO NOT increase risk due to past success
+   - Maintain strict risk discipline regardless of win streaks or losing streaks
 
 Base your analysis on technical indicators, support/resistance levels, and price action."""
 
