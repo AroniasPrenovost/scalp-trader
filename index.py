@@ -441,10 +441,13 @@ def iterate_assets(interval_seconds):
                     #
                     # BUY logic
                     elif last_order_type == 'none' or last_order_type == 'sell':
-                        if TRADE_RECOMMENDATION == 'no_trade':
-                            print(f"STATUS: AI recommends NO TRADE - market conditions do not support {min_profit_target_percentage}% profit target")
+                        MARKET_TREND = analysis.get('market_trend', 'N/A')
+                        if TRADE_RECOMMENDATION != 'buy':
+                            print(f"STATUS: AI recommends '{TRADE_RECOMMENDATION}' - only executing buy orders when recommendation is 'buy'")
                         elif CONFIDENCE_LEVEL != 'high':
                             print(f"STATUS: AI confidence level is '{CONFIDENCE_LEVEL}' - only trading with HIGH confidence")
+                        elif MARKET_TREND == 'bearish':
+                            print(f"STATUS: Market trend is BEARISH - not executing buy orders in bearish markets")
                         else:
                             print(f"STATUS: Looking to BUY at ${BUY_AT_PRICE} (Confidence: {CONFIDENCE_LEVEL})")
                             if current_price <= BUY_AT_PRICE:
