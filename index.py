@@ -258,11 +258,8 @@ def iterate_assets(interval_seconds):
                             ENABLE_AI_ANALYSIS = asset['enable_ai_analysis']
                             STARTING_CAPITAL_USD = asset['starting_capital_usd']
 
-                    # Display wallet performance metrics
-                    if STARTING_CAPITAL_USD > 0:
-                        wallet_metrics = calculate_wallet_metrics(symbol, STARTING_CAPITAL_USD)
-                        print("Wallet Metrics:")
-                        pprint(wallet_metrics)
+                    wallet_metrics = calculate_wallet_metrics(symbol, STARTING_CAPITAL_USD)
+                    pprint(wallet_metrics)
 
                     # Check cooldown period after sell
                     if cooldown_hours_after_sell > 0:
