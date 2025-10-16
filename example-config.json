@@ -17,7 +17,7 @@
     "max_hours": 4380,
     "interval_seconds": 3600
   },
-  "assets": [
+  "wallets": [
       {
         "title": "BTC: primary, most predictable",
         "symbol": "BTC-USD",

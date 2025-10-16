@@ -153,7 +153,7 @@ def get_hours_since_last_sell(symbol):
 
 print_local_time()
 
-def iterate_assets(interval_seconds):
+def iterate_wallets(interval_seconds):
     while True:
 
         #
@@ -164,7 +164,7 @@ def iterate_assets(interval_seconds):
 
         # load config
         config = load_config('config.json')
-        enabled_assets = [asset['symbol'] for asset in config['assets'] if asset['enabled']]
+        enabled_wallets = [wallet['symbol'] for wallet in config['wallets'] if wallet['enabled']]
         min_profit_target_percentage = config.get('min_profit_target_percentage', 3.0)
         no_trade_refresh_hours = config.get('no_trade_refresh_hours', 1.0)
         cooldown_hours_after_sell = config.get('cooldown_hours_after_sell', 0)
@@ -184,8 +184,8 @@ def iterate_assets(interval_seconds):
         coinbase_data = coinbase_client.get_products()['products']
         coinbase_data_dictionary = {}
         coinbase_data_dictionary = convert_products_to_dicts(coinbase_data)
-        # filter out all crypto records except for those defined in enabled_assets
-        coinbase_data_dictionary = [coin for coin in coinbase_data_dictionary if coin['product_id'] in enabled_assets]
+        # filter out all crypto records except for those defined in enabled_wallets
+        coinbase_data_dictionary = [coin for coin in coinbase_data_dictionary if coin['product_id'] in enabled_wallets]
         # strip unnecessary fields
         fields_to_remove = [
         'base_increment', 'quote_increment', 'quote_min_size', 'quote_max_size', 'base_min_size', 'base_max_size',
@@ -250,12 +250,12 @@ def iterate_assets(interval_seconds):
                     ENABLE_CHART_SNAPSHOT = False
                     ENABLE_AI_ANALYSIS = False
                     STARTING_CAPITAL_USD = 0
-                    for asset in config['assets']:
-                        if symbol == asset['symbol']:
-                            READY_TO_TRADE = asset['ready_to_trade']
-                            ENABLE_CHART_SNAPSHOT = asset['enable_chart_snapshot']
-                            ENABLE_AI_ANALYSIS = asset['enable_ai_analysis']
-                            STARTING_CAPITAL_USD = asset['starting_capital_usd']
+                    for wallet in config['wallets']:
+                        if symbol == wallet['symbol']:
+                            READY_TO_TRADE = wallet['ready_to_trade']
+                            ENABLE_CHART_SNAPSHOT = wallet['enable_chart_snapshot']
+                            ENABLE_AI_ANALYSIS = wallet['enable_ai_analysis']
+                            STARTING_CAPITAL_USD = wallet['starting_capital_usd']
 
                     wallet_metrics = calculate_wallet_metrics(symbol, STARTING_CAPITAL_USD)
                     pprint(wallet_metrics)
@@ -629,7 +629,7 @@ def iterate_assets(interval_seconds):
 if __name__ == "__main__":
     while True:
         try:
-            iterate_assets(INTERVAL_SECONDS)
+            iterate_wallets(INTERVAL_SECONDS)
         except Exception as e:
             current_exception_error = str(e)
             print(f"An error occurred: {current_exception_error}. Restarting the program...")
