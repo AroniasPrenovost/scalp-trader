@@ -245,14 +245,6 @@ def iterate_assets(interval_seconds):
                     symbol = coin['product_id']
                     print(f"[ {symbol} ]")
 
-                    # Check cooldown period after sell
-                    if cooldown_hours_after_sell > 0:
-                        hours_since_last_sell = get_hours_since_last_sell(symbol)
-                        if hours_since_last_sell is not None and hours_since_last_sell < cooldown_hours_after_sell:
-                            hours_remaining = cooldown_hours_after_sell - hours_since_last_sell
-                            print(f"STATUS: In cooldown period - {hours_remaining:.2f} hours remaining until analysis resumes")
-                            print()
-                            continue
 
                     # set config.json data
                     READY_TO_TRADE = False
@@ -269,7 +261,20 @@ def iterate_assets(interval_seconds):
                     # Display portfolio performance metrics
                     if STARTING_CAPITAL_USD > 0:
                         portfolio_metrics = calculate_portfolio_metrics(symbol, STARTING_CAPITAL_USD)
-                        print(f"Portfolio: Starting=${portfolio_metrics['starting_capital_usd']:.2f} | Current=${portfolio_metrics['current_usd']:.2f} | Gain={portfolio_metrics['percentage_gain']:.2f}% (${portfolio_metrics['total_profit']:.2f})")
+                        print("Portfolio Metrics:")
+                        pprint(portfolio_metrics)
+
+
+
+                    # Check cooldown period after sell
+                    if cooldown_hours_after_sell > 0:
+                        hours_since_last_sell = get_hours_since_last_sell(symbol)
+                        if hours_since_last_sell is not None and hours_since_last_sell < cooldown_hours_after_sell:
+                            hours_remaining = cooldown_hours_after_sell - hours_since_last_sell
+                            print(f"STATUS: In cooldown period - {hours_remaining:.2f} hours remaining until analysis resumes")
+                            print()
+                            continue
+
 
                     # Get current price and append to data to account for the gap in incrementally stored data
                     current_price = get_asset_price(coinbase_client, symbol) # current_price = float(coin['price'])

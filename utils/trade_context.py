@@ -73,13 +73,19 @@ def calculate_portfolio_metrics(symbol: str, starting_capital_usd: float) -> Dic
             'starting_capital_usd': float,
             'current_usd': float,
             'percentage_gain': float,
+            'gross_profit': float,
+            'taxes': float,
+            'exchange_fees': float,
             'total_profit': float
         }
     """
     transactions = load_transaction_history(symbol)
 
-    # Calculate total profit from all completed trades
+    # Calculate cumulative metrics from all completed trades
     total_profit = sum(t.get('total_profit', 0) for t in transactions)
+    gross_profit = sum(t.get('gross_profit', 0) for t in transactions)
+    taxes = sum(t.get('taxes', 0) for t in transactions)
+    exchange_fees = sum(t.get('exchange_fees', 0) for t in transactions)
 
     # Current USD = starting capital + all profits/losses
     current_usd = starting_capital_usd + total_profit
@@ -91,6 +97,9 @@ def calculate_portfolio_metrics(symbol: str, starting_capital_usd: float) -> Dic
         'starting_capital_usd': starting_capital_usd,
         'current_usd': current_usd,
         'percentage_gain': percentage_gain,
+        'gross_profit': gross_profit,
+        'taxes': taxes,
+        'exchange_fees': exchange_fees,
         'total_profit': total_profit
     }
 
@@ -240,7 +249,10 @@ def format_context_for_llm(context: Dict) -> str:
 Portfolio Status:
 - Starting Capital: ${metrics['starting_capital_usd']:.2f}
 - Current Value: ${metrics['current_usd']:.2f}
-- Total Gain/Loss: ${metrics['total_profit']:.2f} ({metrics['percentage_gain']:.2f}%)
+- Gross Profit: ${metrics['gross_profit']:.2f}
+- Taxes Paid: ${metrics['taxes']:.2f}
+- Exchange Fees: ${metrics['exchange_fees']:.2f}
+- Total Net Profit: ${metrics['total_profit']:.2f} ({metrics['percentage_gain']:.2f}%)
 """
         return base_msg
 
@@ -257,7 +269,10 @@ Historical Trading Performance for {context['symbol']}:
 Portfolio Status:
 - Starting Capital: ${metrics['starting_capital_usd']:.2f}
 - Current Value: ${metrics['current_usd']:.2f}
-- Total Gain/Loss: ${metrics['total_profit']:.2f} ({metrics['percentage_gain']:.2f}%)
+- Gross Profit: ${metrics['gross_profit']:.2f}
+- Taxes Paid: ${metrics['taxes']:.2f}
+- Exchange Fees: ${metrics['exchange_fees']:.2f}
+- Total Net Profit: ${metrics['total_profit']:.2f} ({metrics['percentage_gain']:.2f}%)
 
 """
 
