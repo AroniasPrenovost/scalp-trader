@@ -59,7 +59,43 @@ def encode_image_to_base64(image_path: str) -> Optional[str]:
         return None
 
 
-def build_trading_context(symbol: str, max_trades: int = 10, include_screenshots: bool = True) -> Dict:
+def calculate_portfolio_metrics(symbol: str, starting_capital_usd: float) -> Dict:
+    """
+    Calculate portfolio performance metrics for a symbol.
+
+    Args:
+        symbol: The trading pair symbol (e.g., 'BTC-USD')
+        starting_capital_usd: The initial capital allocated to this symbol
+
+    Returns:
+        Dictionary containing:
+        {
+            'starting_capital_usd': float,
+            'current_usd': float,
+            'percentage_gain': float,
+            'total_profit': float
+        }
+    """
+    transactions = load_transaction_history(symbol)
+
+    # Calculate total profit from all completed trades
+    total_profit = sum(t.get('total_profit', 0) for t in transactions)
+
+    # Current USD = starting capital + all profits/losses
+    current_usd = starting_capital_usd + total_profit
+
+    # Calculate percentage gain
+    percentage_gain = ((current_usd - starting_capital_usd) / starting_capital_usd * 100) if starting_capital_usd > 0 else 0
+
+    return {
+        'starting_capital_usd': starting_capital_usd,
+        'current_usd': current_usd,
+        'percentage_gain': percentage_gain,
+        'total_profit': total_profit
+    }
+
+
+def build_trading_context(symbol: str, max_trades: int = 10, include_screenshots: bool = True, starting_capital_usd: Optional[float] = None) -> Dict:
     """
     Build contextual information from past trades for LLM analysis.
 
@@ -67,11 +103,13 @@ def build_trading_context(symbol: str, max_trades: int = 10, include_screenshots
     - Historical trade performance for the symbol
     - Buy event screenshots (if available and enabled)
     - Performance metrics and patterns
+    - Portfolio metrics (if starting_capital_usd is provided)
 
     Args:
         symbol: The trading pair symbol (e.g., 'BTC-USD')
         max_trades: Maximum number of recent trades to include (default: 10)
         include_screenshots: Whether to include base64-encoded screenshots (default: True)
+        starting_capital_usd: Initial capital allocated to this symbol (optional)
 
     Returns:
         Dictionary containing trading context with the following structure:
@@ -85,6 +123,12 @@ def build_trading_context(symbol: str, max_trades: int = 10, include_screenshots
                 'win_rate': float,
                 'profitable_trades': int,
                 'losing_trades': int
+            },
+            'portfolio_metrics': {  # Only included if starting_capital_usd is provided
+                'starting_capital_usd': float,
+                'current_usd': float,
+                'percentage_gain': float,
+                'total_profit': float
             },
             'trades': [
                 {
@@ -104,13 +148,17 @@ def build_trading_context(symbol: str, max_trades: int = 10, include_screenshots
     transactions = load_transaction_history(symbol)
 
     if not transactions:
-        return {
+        result = {
             'symbol': symbol,
             'total_trades': 0,
             'trades_included': 0,
             'performance_summary': None,
             'trades': []
         }
+        # Include portfolio metrics even if no transactions yet
+        if starting_capital_usd is not None:
+            result['portfolio_metrics'] = calculate_portfolio_metrics(symbol, starting_capital_usd)
+        return result
 
     # Limit to max_trades
     limited_transactions = transactions[:max_trades]
@@ -157,13 +205,19 @@ def build_trading_context(symbol: str, max_trades: int = 10, include_screenshots
 
         trades.append(trade_record)
 
-    return {
+    result = {
         'symbol': symbol,
         'total_trades': len(transactions),
         'trades_included': len(limited_transactions),
         'performance_summary': performance_summary,
         'trades': trades
     }
+
+    # Include portfolio metrics if starting capital is provided
+    if starting_capital_usd is not None:
+        result['portfolio_metrics'] = calculate_portfolio_metrics(symbol, starting_capital_usd)
+
+    return result
 
 
 def format_context_for_llm(context: Dict) -> str:
@@ -177,13 +231,37 @@ def format_context_for_llm(context: Dict) -> str:
         Formatted string suitable for including in LLM prompts
     """
     if context['total_trades'] == 0:
-        return f"No historical trading data available for {context['symbol']}."
+        base_msg = f"No historical trading data available for {context['symbol']}."
+        # Include portfolio metrics even if no trades yet
+        if 'portfolio_metrics' in context:
+            metrics = context['portfolio_metrics']
+            base_msg += f"""
+
+Portfolio Status:
+- Starting Capital: ${metrics['starting_capital_usd']:.2f}
+- Current Value: ${metrics['current_usd']:.2f}
+- Total Gain/Loss: ${metrics['total_profit']:.2f} ({metrics['percentage_gain']:.2f}%)
+"""
+        return base_msg
 
     summary = context['performance_summary']
 
     output = f"""
 Historical Trading Performance for {context['symbol']}:
+"""
 
+    # Add portfolio metrics section if available
+    if 'portfolio_metrics' in context:
+        metrics = context['portfolio_metrics']
+        output += f"""
+Portfolio Status:
+- Starting Capital: ${metrics['starting_capital_usd']:.2f}
+- Current Value: ${metrics['current_usd']:.2f}
+- Total Gain/Loss: ${metrics['total_profit']:.2f} ({metrics['percentage_gain']:.2f}%)
+
+"""
+
+    output += f"""
 Performance Summary (All-Time):
 - Total Trades: {context['total_trades']}
 - Win Rate: {summary['win_rate']:.1f}% ({summary['profitable_trades']} wins, {summary['losing_trades']} losses)

@@ -35,7 +35,7 @@ from utils.matplotlib import plot_graph, plot_simple_snapshot
 # openai analysis
 from utils.openai_analysis import analyze_market_with_openai, save_analysis_to_file, load_analysis_from_file, should_refresh_analysis, delete_analysis_file
 # trading context for LLM learning
-from utils.trade_context import build_trading_context
+from utils.trade_context import build_trading_context, calculate_portfolio_metrics
 
 #
 # end imports
@@ -258,13 +258,18 @@ def iterate_assets(interval_seconds):
                     READY_TO_TRADE = False
                     ENABLE_CHART_SNAPSHOT = False
                     ENABLE_AI_ANALYSIS = False
-                    BUY_AMOUNT_USD = 0
+                    STARTING_CAPITAL_USD = 0
                     for asset in config['assets']:
                         if symbol == asset['symbol']:
                             READY_TO_TRADE = asset['ready_to_trade']
                             ENABLE_CHART_SNAPSHOT = asset['enable_chart_snapshot']
                             ENABLE_AI_ANALYSIS = asset['enable_ai_analysis']
-                            BUY_AMOUNT_USD = asset['buy_amount_usd']
+                            STARTING_CAPITAL_USD = asset['starting_capital_usd']
+
+                    # Display portfolio performance metrics
+                    if STARTING_CAPITAL_USD > 0:
+                        portfolio_metrics = calculate_portfolio_metrics(symbol, STARTING_CAPITAL_USD)
+                        print(f"Portfolio: Starting=${portfolio_metrics['starting_capital_usd']:.2f} | Current=${portfolio_metrics['current_usd']:.2f} | Gain={portfolio_metrics['percentage_gain']:.2f}% (${portfolio_metrics['total_profit']:.2f})")
 
                     # Get current price and append to data to account for the gap in incrementally stored data
                     current_price = get_asset_price(coinbase_client, symbol) # current_price = float(coin['price'])
@@ -364,7 +369,8 @@ def iterate_assets(interval_seconds):
                                 trading_context = build_trading_context(
                                     symbol,
                                     max_trades=max_historical_trades,
-                                    include_screenshots=include_screenshots
+                                    include_screenshots=include_screenshots,
+                                    starting_capital_usd=STARTING_CAPITAL_USD
                                 )
                                 if trading_context and trading_context.get('total_trades', 0) > 0:
                                     print(f"✓ Loaded {trading_context['trades_included']} historical trades for context")
@@ -456,23 +462,30 @@ def iterate_assets(interval_seconds):
                                     buy_event=True
                                 )
                                 if READY_TO_TRADE:
-                                    shares_to_buy = math.floor(BUY_AMOUNT_USD / current_price) # Calculate whole shares (rounded down)
-                                    print(f"Calculated shares to buy: {shares_to_buy} (${BUY_AMOUNT_USD} / ${current_price})")
-                                    if shares_to_buy > 0:
-                                        place_market_buy_order(coinbase_client, symbol, shares_to_buy)
-                                        # Store screenshot path for later use in transaction record
-                                        # This will be retrieved from the ledger when we sell
-                                        last_order = get_last_order_from_local_json_ledger(symbol)
-                                        if last_order:
-                                            last_order['buy_screenshot_path'] = buy_screenshot_path
-                                            # Re-save the ledger with the screenshot path
-                                            import json
-                                            file_name = f"{symbol}_orders.json"
-                                            with open(file_name, 'w') as file:
-                                                json.dump([last_order], file, indent=4)
+                                    # Get buy amount from LLM analysis - required
+                                    if analysis and 'buy_amount_usd' in analysis:
+                                        buy_amount = analysis.get('buy_amount_usd')
+                                        print(f"Using buy amount: ${buy_amount} (from LLM analysis)")
 
+                                        shares_to_buy = math.floor(buy_amount / current_price) # Calculate whole shares (rounded down)
+                                        print(f"Calculated shares to buy: {shares_to_buy} (${buy_amount} / ${current_price})")
+                                        if shares_to_buy > 0:
+                                            place_market_buy_order(coinbase_client, symbol, shares_to_buy)
+                                            # Store screenshot path for later use in transaction record
+                                            # This will be retrieved from the ledger when we sell
+                                            last_order = get_last_order_from_local_json_ledger(symbol)
+                                            if last_order:
+                                                last_order['buy_screenshot_path'] = buy_screenshot_path
+                                                # Re-save the ledger with the screenshot path
+                                                import json
+                                                file_name = f"{symbol}_orders.json"
+                                                with open(file_name, 'w') as file:
+                                                    json.dump([last_order], file, indent=4)
+
+                                        else:
+                                            print(f"STATUS: Buy amount ${buy_amount} is too small to buy whole shares at ${current_price}")
                                     else:
-                                        print(f"STATUS: Buy amount ${BUY_AMOUNT_USD} is too small to buy whole shares at ${current_price}")
+                                        print("STATUS: No buy_amount_usd in analysis - skipping trade")
                                 else:
                                     print('STATUS: Trading disabled')
                             else:

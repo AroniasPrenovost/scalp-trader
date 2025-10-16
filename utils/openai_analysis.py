@@ -88,7 +88,8 @@ Please analyze this data and respond with a JSON object (ONLY valid JSON, no mar
     "confidence_level": <"high", "medium", or "low">,
     "market_trend": <"bullish", "bearish", or "sideways">,
     "reasoning": <brief explanation of the analysis>,
-    "trade_recommendation": <"buy", "sell", "hold", or "no_trade">
+    "trade_recommendation": <"buy", "sell", "hold", or "no_trade">,
+    "buy_amount_usd": <recommended USD amount to spend on this trade>
 }}
 
 CRITICAL REQUIREMENTS:
@@ -96,6 +97,13 @@ CRITICAL REQUIREMENTS:
 2. Only recommend a "buy" if you can identify a realistic opportunity to achieve at least {min_profit_target_percentage}% NET profit after paying {total_fee_percentage}% in exchange fees and {tax_rate_percentage}% in taxes.
 3. The profit_target_percentage should reflect the realistic profit opportunity. If no opportunity exists that meets the {min_profit_target_percentage}% minimum, set it to {min_profit_target_percentage}% as the baseline and set trade_recommendation to "no_trade".
 4. Calculate the sell_price accordingly - the gross price movement must be larger than the net profit target to cover all costs.
+5. POSITION SIZING (REQUIRED): Use the Portfolio Status data to determine buy_amount_usd:
+   - ALWAYS leave at least 25% of current_usd value in reserve (maximum buy should be ~75% of current_usd)
+   - If portfolio is losing money (negative percentage_gain), be MORE conservative - consider 50% or less
+   - If portfolio is profitable and trade confidence is high, you can approach the 75% maximum
+   - If confidence is low or historical performance is poor, reduce position size to 25-50% of current_usd
+   - Scale position size based on confidence: high confidence = up to 75%, medium = 50%, low = 25%
+   - NEVER recommend more than 75% of the current_usd value
 
 Base your analysis on technical indicators, support/resistance levels, and price action."""
 
