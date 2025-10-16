@@ -264,8 +264,6 @@ def iterate_assets(interval_seconds):
                         print("Wallet Metrics:")
                         pprint(wallet_metrics)
 
-
-
                     # Check cooldown period after sell
                     if cooldown_hours_after_sell > 0:
                         hours_since_last_sell = get_hours_since_last_sell(symbol)
