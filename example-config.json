@@ -21,22 +21,22 @@
       {
         "title": "BTC: primary, most predictable",
         "symbol": "BTC-USD",
+        "coingecko_id": "bitcoin",
         "enabled": true,
         "ready_to_trade": false,
         "starting_capital_usd": 100,
         "enable_ai_analysis": false,
-        "enable_chart_snapshot": false,
-        "coingecko_id": "bitcoin"
+        "enable_chart_snapshot": false
       },
       {
         "title": "ETH: secondary, follows BTC",
         "symbol": "ETH-USD",
+        "coingecko_id": "ethereum",
         "enabled": true,
         "ready_to_trade": false,
         "starting_capital_usd": 100,
         "enable_ai_analysis": false,
-        "enable_chart_snapshot": false,
-        "coingecko_id": "ethereum"
+        "enable_chart_snapshot": false
       }
     ]
 }
