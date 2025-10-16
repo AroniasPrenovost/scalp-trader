@@ -1,5 +1,4 @@
 {
-  "starting_captial_usd": 750,
   "min_profit_target_percentage": 3.0,
   "no_trade_refresh_hours": 2.0,
   "llm_learning": {
