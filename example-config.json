@@ -1,18 +1,21 @@
 {
-  "min_profit_target_percentage": 3.0,
-  "no_trade_refresh_hours": 2.0,
+  "min_profit_target_percentage": 3.8,
+  "no_trade_refresh_hours": 5,
+  "cooldown_hours_after_sell": 6,
+  "low_confidence_wait_hours": 3,
+  "medium_confidence_wait_hours": 2,
   "llm_learning": {
     "enabled": true,
     "max_historical_trades": 5,
     "include_screenshots": true,
-    "prune_old_trades_after": 40
+    "prune_old_trades_after": 100
   },
   "coingecko": {
-    "enable_backfilling_historical_data": false
+    "enable_backfilling_historical_data": true
   },
   "data_retention": {
     "max_hours": 4380,
-    "interval_seconds": 900
+    "interval_seconds": 3600
   },
   "assets": [
       {
@@ -22,16 +25,18 @@
         "ready_to_trade": false,
         "starting_capital_usd": 100,
         "enable_ai_analysis": false,
-        "enable_chart_snapshot": false
+        "enable_chart_snapshot": false,
+        "coingecko_id": "bitcoin"
       },
       {
         "title": "ETH: secondary, follows BTC",
         "symbol": "ETH-USD",
-        "enabled": false,
+        "enabled": true,
         "ready_to_trade": false,
         "starting_capital_usd": 100,
         "enable_ai_analysis": false,
-        "enable_chart_snapshot": false
+        "enable_chart_snapshot": false,
+        "coingecko_id": "ethereum"
       }
     ]
 }
