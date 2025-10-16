@@ -155,6 +155,232 @@ def plot_simple_snapshot(
     print(f"Snapshot saved as {filename}")
 
 
+def plot_multi_timeframe_charts(
+    current_timestamp,
+    interval,
+    symbol,
+    price_data,
+    volume_data=None,
+    analysis=None
+):
+    """
+    Generate multiple charts at different timeframes for LLM analysis.
+    Creates 3 charts: 90-day, 7-day, and 1-day views.
+
+    Args:
+        current_timestamp: timestamp for filename
+        interval: data interval in minutes
+        symbol: trading pair symbol
+        price_data: full list of price values
+        volume_data: optional full list of volume values
+        analysis: optional AI analysis dictionary
+
+    Returns:
+        Dictionary with paths to generated charts:
+        {
+            'long_term': path to 90-day chart,
+            'medium_term': path to 7-day chart,
+            'short_term': path to 1-day chart
+        }
+    """
+    # Calculate data points for each timeframe based on interval
+    points_per_day = int((24 * 60) / interval)
+
+    timeframes = {
+        'short_term': {
+            'points': points_per_day,  # 1 day
+            'label': '24h',
+            'title_suffix': '24 Hour View'
+        },
+        'medium_term': {
+            'points': points_per_day * 7,  # 7 days
+            'label': '7d',
+            'title_suffix': '7 Day View'
+        },
+        'long_term': {
+            'points': points_per_day * 90,  # 90 days
+            'label': '90d',
+            'title_suffix': '90 Day View'
+        }
+    }
+
+    chart_paths = {}
+    timestamp_str = time.strftime("%Y%m%d%H%M%S", time.localtime(current_timestamp))
+
+    for timeframe_key, timeframe_config in timeframes.items():
+        # Slice data for this timeframe
+        data_points = timeframe_config['points']
+        sliced_prices = price_data[-data_points:] if len(price_data) >= data_points else price_data
+        sliced_volumes = volume_data[-data_points:] if volume_data and len(volume_data) >= data_points else volume_data
+
+        # Skip if we don't have enough data
+        if len(sliced_prices) < 10:
+            continue
+
+        # Calculate min/max for this timeframe
+        local_min = min(sliced_prices)
+        local_max = max(sliced_prices)
+        local_range_pct = calculate_trading_range_percentage(local_min, local_max)
+
+        # Generate chart for this timeframe
+        chart_path = _generate_single_timeframe_chart(
+            current_timestamp=current_timestamp,
+            interval=interval,
+            symbol=symbol,
+            price_data=sliced_prices,
+            min_price=local_min,
+            max_price=local_max,
+            trade_range_percentage=local_range_pct,
+            volume_data=sliced_volumes,
+            analysis=analysis,
+            timeframe_label=timeframe_config['label'],
+            timeframe_title=timeframe_config['title_suffix'],
+            timestamp_str=timestamp_str
+        )
+
+        chart_paths[timeframe_key] = chart_path
+
+    return chart_paths
+
+
+def _generate_single_timeframe_chart(
+    current_timestamp,
+    interval,
+    symbol,
+    price_data,
+    min_price,
+    max_price,
+    trade_range_percentage,
+    volume_data=None,
+    analysis=None,
+    timeframe_label='',
+    timeframe_title='',
+    timestamp_str=None
+):
+    """
+    Internal function to generate a single chart for a specific timeframe.
+    """
+    # Create figure with subplots
+    fig = plt.figure(figsize=(14, 10))
+
+    # Determine number of subplots
+    num_subplots = 1
+    if volume_data:
+        num_subplots += 1
+
+    has_rsi = len(price_data) >= 15
+    if has_rsi:
+        num_subplots += 1
+
+    # Create subplots with height ratios
+    if num_subplots == 3:
+        gs = fig.add_gridspec(3, 1, height_ratios=[3, 1, 1], hspace=0.3)
+    elif num_subplots == 2:
+        gs = fig.add_gridspec(2, 1, height_ratios=[3, 1], hspace=0.3)
+    else:
+        gs = fig.add_gridspec(1, 1)
+
+    # Main price chart
+    ax1 = fig.add_subplot(gs[0])
+    x_values = list(range(len(price_data)))
+    ax1.plot(x_values, price_data, marker=',', label='Price', c='black', linewidth=1.5, zorder=5)
+
+    # Calculate and plot moving averages
+    if len(price_data) >= 20:
+        ma20 = calculate_moving_average(price_data, 20)
+        ax1.plot(x_values, ma20, label='MA(20)', c='blue', linewidth=1, alpha=0.7, linestyle='--')
+
+    if len(price_data) >= 50:
+        ma50 = calculate_moving_average(price_data, 50)
+        ax1.plot(x_values, ma50, label='MA(50)', c='orange', linewidth=1, alpha=0.7, linestyle='--')
+
+    # Calculate and plot Bollinger Bands
+    if len(price_data) >= 20:
+        bb_mid, bb_upper, bb_lower = calculate_bollinger_bands(price_data, period=20)
+        ax1.plot(x_values, bb_upper, label='BB Upper', c='gray', linewidth=0.8, alpha=0.5, linestyle=':')
+        ax1.plot(x_values, bb_lower, label='BB Lower', c='gray', linewidth=0.8, alpha=0.5, linestyle=':')
+        ax1.fill_between(x_values, bb_upper, bb_lower, alpha=0.1, color='gray')
+
+    # Plot AI analysis levels if available
+    if analysis:
+        if analysis.get('major_support'):
+            ax1.axhline(y=analysis['major_support'], color='green', linewidth=1.5,
+                       linestyle='--', label=f"Major Support (${analysis['major_support']:.4f})", alpha=0.7)
+        if analysis.get('minor_support'):
+            ax1.axhline(y=analysis['minor_support'], color='lightgreen', linewidth=1,
+                       linestyle=':', label=f"Minor Support (${analysis['minor_support']:.4f})", alpha=0.6)
+        if analysis.get('major_resistance'):
+            ax1.axhline(y=analysis['major_resistance'], color='red', linewidth=1.5,
+                       linestyle='--', label=f"Major Resistance (${analysis['major_resistance']:.4f})", alpha=0.7)
+        if analysis.get('minor_resistance'):
+            ax1.axhline(y=analysis['minor_resistance'], color='lightcoral', linewidth=1,
+                       linestyle=':', label=f"Minor Resistance (${analysis['minor_resistance']:.4f})", alpha=0.6)
+        if analysis.get('buy_in_price'):
+            ax1.axhline(y=analysis['buy_in_price'], color='cyan', linewidth=1.8,
+                       linestyle='-', label=f"AI Buy Target (${analysis['buy_in_price']:.4f})", alpha=0.8)
+        if analysis.get('sell_price'):
+            ax1.axhline(y=analysis['sell_price'], color='purple', linewidth=1.8,
+                       linestyle='-', label=f"AI Sell Target (${analysis['sell_price']:.4f})", alpha=0.8)
+
+    # Configure main chart
+    price_range = max_price - min_price
+    buffer = price_range * 0.1
+    ax1.set_ylim(min_price - buffer, max_price + buffer)
+    ax1.xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
+    ax1.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.4f'))
+    ax1.set_ylabel('Price (USD)', fontsize=10, fontweight='bold')
+    ax1.grid(True, alpha=0.3)
+    ax1.legend(loc='upper left', fontsize='x-small', ncol=2)
+
+    # Title
+    title = f"{symbol} - {timeframe_title} - Range: {trade_range_percentage:.2f}%"
+    if analysis:
+        title += f" | Trend: {analysis.get('market_trend', 'N/A')}"
+    ax1.set_title(title, fontsize=12, fontweight='bold')
+
+    # RSI subplot
+    subplot_idx = 1
+    if has_rsi:
+        ax2 = fig.add_subplot(gs[subplot_idx])
+        rsi = calculate_rsi(price_data, period=14)
+        ax2.plot(x_values, rsi, label='RSI(14)', c='purple', linewidth=1.5)
+        ax2.axhline(y=70, color='red', linewidth=0.8, linestyle='--', alpha=0.5, label='Overbought (70)')
+        ax2.axhline(y=30, color='green', linewidth=0.8, linestyle='--', alpha=0.5, label='Oversold (30)')
+        ax2.fill_between(x_values, 70, 100, alpha=0.1, color='red')
+        ax2.fill_between(x_values, 0, 30, alpha=0.1, color='green')
+        ax2.set_ylim(0, 100)
+        ax2.set_ylabel('RSI', fontsize=10, fontweight='bold')
+        ax2.grid(True, alpha=0.3)
+        ax2.legend(loc='upper left', fontsize='x-small')
+        subplot_idx += 1
+
+    # Volume subplot
+    if volume_data:
+        ax3 = fig.add_subplot(gs[subplot_idx])
+        colors = ['green' if i == 0 or price_data[i] >= price_data[i-1] else 'red'
+                 for i in range(len(volume_data))]
+        ax3.bar(x_values, volume_data, color=colors, alpha=0.6, width=0.8)
+        ax3.set_ylabel('Volume (24h)', fontsize=10, fontweight='bold')
+        ax3.grid(True, alpha=0.3, axis='y')
+        ax3.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, p: f'{x/1e6:.1f}M' if x >= 1e6 else f'{x/1e3:.0f}K'))
+
+    # X-axis label on bottom subplot
+    if num_subplots > 1:
+        fig.get_axes()[-1].set_xlabel(f"Data Points (Interval: {interval} min)", fontsize=10, fontweight='bold')
+    else:
+        ax1.set_xlabel(f"Data Points (Interval: {interval} min)", fontsize=10, fontweight='bold')
+
+    # Save figure
+    if not timestamp_str:
+        timestamp_str = time.strftime("%Y%m%d%H%M%S", time.localtime(current_timestamp))
+    filename = os.path.join("./screenshots", f"{symbol}_chart_{timeframe_label}_{timestamp_str}.png")
+    plt.savefig(filename, dpi=300, bbox_inches='tight')
+    plt.close(fig)
+    plt.close('all')
+
+    return filename
+
+
 def plot_graph(
     current_timestamp,
     interval,

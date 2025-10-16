@@ -29,7 +29,7 @@ coinbase_client = get_coinbase_client()
 from utils.new_coinbase_listings import check_for_new_coinbase_listings
 
 # plotting data
-from utils.matplotlib import plot_graph, plot_simple_snapshot
+from utils.matplotlib import plot_graph, plot_simple_snapshot, plot_multi_timeframe_charts
 
 # LLM-related
 # openai analysis
@@ -357,10 +357,17 @@ def iterate_assets(interval_seconds):
                             print(f"Insufficient price data for analysis ({actual_coin_prices_list_length}/{EXPECTED_DATA_POINTS} points). Waiting for more data...")
                             analysis = None
                         else:
-                            graph_path = None
-                            # Generate graph path similar to plot_graph function
-                            timestamp_str = time.strftime("%Y%m%d%H%M%S", time.localtime())
-                            graph_path = f"screenshots/{symbol}_{timestamp_str}.png"
+                            # Generate multi-timeframe charts for LLM analysis
+                            print(f"Generating multi-timeframe charts for {symbol}...")
+                            chart_paths = plot_multi_timeframe_charts(
+                                current_timestamp=time.time(),
+                                interval=INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                                symbol=symbol,
+                                price_data=coin_prices_LIST,
+                                volume_data=coin_volume_24h_LIST,
+                                analysis=None  # No existing analysis yet
+                            )
+                            print(f"✓ Generated {len(chart_paths)} timeframe charts: {', '.join(chart_paths.keys())}")
 
                             # Build historical trading context for LLM learning
                             trading_context = None
@@ -389,7 +396,7 @@ def iterate_assets(interval_seconds):
                                 taker_fee_percentage=coinbase_spot_taker_fee,
                                 tax_rate_percentage=federal_tax_rate,
                                 min_profit_target_percentage=min_profit_target_percentage,
-                                graph_image_path=graph_path,
+                                chart_paths=chart_paths,
                                 trading_context=trading_context
                             )
                             if analysis:

@@ -5,7 +5,7 @@ import base64
 from openai import OpenAI
 from io import BytesIO
 
-def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_rate_percentage=0, min_profit_target_percentage=3.0, graph_image_path=None, trading_context=None):
+def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_rate_percentage=0, min_profit_target_percentage=3.0, chart_paths=None, trading_context=None, graph_image_path=None):
     """
     Analyzes market data using OpenAI's API to determine key support/resistance levels
     and trading recommendations.
@@ -22,8 +22,9 @@ def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_ra
         taker_fee_percentage: Exchange taker fee as a percentage (e.g., 0.6 for 0.6%)
         tax_rate_percentage: Federal tax rate as a percentage (e.g., 37 for 37%)
         min_profit_target_percentage: Minimum profit target percentage (e.g., 3.0 for 3%)
-        graph_image_path: Optional path to a graph image for visual analysis
+        chart_paths: Optional dictionary with paths to multi-timeframe charts {'short_term': path, 'medium_term': path, 'long_term': path}
         trading_context: Optional dictionary containing historical trading context from build_trading_context()
+        graph_image_path: DEPRECATED - use chart_paths instead. Optional path to a single graph image
 
     Returns:
         Dictionary with analysis results or None if API call fails
@@ -57,8 +58,27 @@ def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_ra
         historical_context_section = f"\n\n{format_context_for_llm(trading_context)}\n"
 
     # Build the prompt
+    timeframe_context = ""
+    if chart_paths:
+        timeframe_context = """
+
+IMPORTANT - MULTI-TIMEFRAME ANALYSIS:
+You are being provided with THREE charts showing different timeframes:
+1. SHORT-TERM (24 hours): Most important for entry/exit timing. Look for immediate support/resistance.
+2. MEDIUM-TERM (7 days): Shows recent trend and momentum. Confirms or contradicts short-term signals.
+3. LONG-TERM (90 days): Provides macro trend context. Identifies major support/resistance zones.
+
+Use multi-timeframe analysis to:
+- Confirm trend alignment across timeframes (bullish on all 3 = strong signal)
+- Identify pullbacks within larger trends (long-term up, short-term down = potential buy)
+- Spot divergences in RSI/indicators across timeframes
+- Determine if current levels represent value or risk
+
+Base your primary trading decision on the SHORT-TERM chart, but validate with MEDIUM and LONG-TERM context.
+"""
+
     prompt = f"""Analyze the following market data for {symbol} and provide a technical analysis with specific trading levels.
-{historical_context_section}
+{historical_context_section}{timeframe_context}
 
 Market Data:
 - Current Price: ${current_price}
@@ -124,13 +144,56 @@ Base your analysis on technical indicators, support/resistance levels, and price
             }
         ]
 
-        # If graph image is provided, include it in the analysis
-        if graph_image_path and os.path.exists(graph_image_path):
+        # Handle multi-timeframe charts or legacy single chart
+        has_charts = False
+
+        # Priority: use chart_paths (multi-timeframe) if available
+        if chart_paths and isinstance(chart_paths, dict):
+            try:
+                content_array = [
+                    {
+                        "type": "text",
+                        "text": prompt
+                    }
+                ]
+
+                # Add charts in order: short-term (high detail), medium-term (low), long-term (low)
+                # This prioritizes the most important timeframe while saving tokens on context
+                timeframe_order = ['short_term', 'medium_term', 'long_term']
+                detail_levels = {'short_term': 'high', 'medium_term': 'low', 'long_term': 'low'}
+
+                for timeframe in timeframe_order:
+                    if timeframe in chart_paths and chart_paths[timeframe] and os.path.exists(chart_paths[timeframe]):
+                        with open(chart_paths[timeframe], "rb") as image_file:
+                            base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+                            content_array.append({
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/png;base64,{base64_image}",
+                                    "detail": detail_levels[timeframe]
+                                }
+                            })
+                            print(f"  Added {timeframe} chart with {detail_levels[timeframe]} detail")
+
+                # Add historical trade screenshots if available
+                if trading_context:
+                    from utils.trade_context import get_trade_screenshots_for_vision
+                    historical_screenshots = get_trade_screenshots_for_vision(trading_context)
+                    if historical_screenshots:
+                        print(f"  Including {len(historical_screenshots)} historical trade screenshots")
+                        content_array.extend(historical_screenshots)
+
+                messages[1]["content"] = content_array
+                has_charts = True
+            except Exception as e:
+                print(f"Warning: Could not load multi-timeframe charts: {e}")
+
+        # Fallback to legacy single graph_image_path for backward compatibility
+        elif graph_image_path and os.path.exists(graph_image_path):
             try:
                 with open(graph_image_path, "rb") as image_file:
                     base64_image = base64.b64encode(image_file.read()).decode('utf-8')
 
-                # Build content array with text and current graph
                 content_array = [
                     {
                         "type": "text",
@@ -150,10 +213,11 @@ Base your analysis on technical indicators, support/resistance levels, and price
                     from utils.trade_context import get_trade_screenshots_for_vision
                     historical_screenshots = get_trade_screenshots_for_vision(trading_context)
                     if historical_screenshots:
-                        print(f"Including {len(historical_screenshots)} historical trade screenshots in analysis")
+                        print(f"  Including {len(historical_screenshots)} historical trade screenshots")
                         content_array.extend(historical_screenshots)
 
                 messages[1]["content"] = content_array
+                has_charts = True
             except Exception as e:
                 print(f"Warning: Could not load graph image: {e}")
 
