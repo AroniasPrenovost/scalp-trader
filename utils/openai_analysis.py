@@ -298,7 +298,7 @@ def delete_analysis_file(symbol):
         return False
 
 
-def should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours=1):
+def should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours=1, low_confidence_wait_hours=2, medium_confidence_wait_hours=1):
     """
     Determines if a new analysis should be performed.
 
@@ -306,6 +306,8 @@ def should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours=1):
         symbol: The trading pair symbol
         last_order_type: The type of the last order ('none', 'buy', 'sell', 'placeholder')
         no_trade_refresh_hours: Hours to wait before refreshing a 'no_trade' analysis (default: 1)
+        low_confidence_wait_hours: Hours to wait before refreshing a 'low' confidence analysis (default: 2)
+        medium_confidence_wait_hours: Hours to wait before refreshing a 'medium' confidence analysis (default: 1)
 
     Returns:
         Boolean indicating whether to refresh the analysis
@@ -341,6 +343,31 @@ def should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours=1):
             print(f"Analysis recommended no_trade {hours_since_analysis:.1f} hours ago. Will refresh in {no_trade_refresh_hours - hours_since_analysis:.1f} hours.")
             return False
 
+    # Check confidence level and apply wait times
+    confidence_level = existing_analysis.get('confidence_level', 'low')
+    analyzed_at = existing_analysis.get('analyzed_at', 0)
+    current_time = time.time()
+    hours_since_analysis = (current_time - analyzed_at) / 3600
+
+    # Low confidence: wait 2 hours before re-analyzing
+    if confidence_level == 'low':
+        if hours_since_analysis >= low_confidence_wait_hours:
+            print(f"Analysis is {hours_since_analysis:.1f} hours old with LOW confidence. Refreshing...")
+            return True
+        else:
+            print(f"Analysis has LOW confidence from {hours_since_analysis:.1f} hours ago. Will refresh in {low_confidence_wait_hours - hours_since_analysis:.1f} hours.")
+            return False
+
+    # Medium confidence: wait 1 hour before re-analyzing
+    elif confidence_level == 'medium':
+        if hours_since_analysis >= medium_confidence_wait_hours:
+            print(f"Analysis is {hours_since_analysis:.1f} hours old with MEDIUM confidence. Refreshing...")
+            return True
+        else:
+            print(f"Analysis has MEDIUM confidence from {hours_since_analysis:.1f} hours ago. Will refresh in {medium_confidence_wait_hours - hours_since_analysis:.1f} hours.")
+            return False
+
+    # High confidence: proceed immediately, no waiting
     # If we just sold, we should have deleted the analysis file, so we'd be caught
     # by the "not existing_analysis" check above
     # If analysis exists and we have 'none' or 'sell' status, keep using existing analysis

@@ -168,6 +168,8 @@ def iterate_assets(interval_seconds):
         min_profit_target_percentage = config.get('min_profit_target_percentage', 3.0)
         no_trade_refresh_hours = config.get('no_trade_refresh_hours', 1.0)
         cooldown_hours_after_sell = config.get('cooldown_hours_after_sell', 0)
+        low_confidence_wait_hours = config.get('low_confidence_wait_hours', 2.0)
+        medium_confidence_wait_hours = config.get('medium_confidence_wait_hours', 1.0)
 
         # LLM Learning configuration
         llm_learning_config = config.get('llm_learning', {})
@@ -338,7 +340,7 @@ def iterate_assets(interval_seconds):
                     analysis = load_analysis_from_file(symbol)
 
                     # Check if we need to generate new analysis
-                    should_refresh = should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours)
+                    should_refresh = should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours, low_confidence_wait_hours, medium_confidence_wait_hours)
 
                     if should_refresh and not ENABLE_AI_ANALYSIS:
                         print(f"AI analysis is disabled for {symbol} - skipping analysis generation")
@@ -435,8 +437,8 @@ def iterate_assets(interval_seconds):
                     elif last_order_type == 'none' or last_order_type == 'sell':
                         if TRADE_RECOMMENDATION == 'no_trade':
                             print(f"STATUS: AI recommends NO TRADE - market conditions do not support {min_profit_target_percentage}% profit target")
-                        elif CONFIDENCE_LEVEL not in ['medium', 'high']:
-                            print(f"STATUS: AI confidence level is '{CONFIDENCE_LEVEL}' - only trading with medium or high confidence")
+                        elif CONFIDENCE_LEVEL != 'high':
+                            print(f"STATUS: AI confidence level is '{CONFIDENCE_LEVEL}' - only trading with HIGH confidence")
                         else:
                             print(f"STATUS: Looking to BUY at ${BUY_AT_PRICE} (Confidence: {CONFIDENCE_LEVEL})")
                             if current_price <= BUY_AT_PRICE:
