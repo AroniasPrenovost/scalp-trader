@@ -245,7 +245,6 @@ def iterate_assets(interval_seconds):
                     symbol = coin['product_id']
                     print(f"[ {symbol} ]")
 
-
                     # set config.json data
                     READY_TO_TRADE = False
                     ENABLE_CHART_SNAPSHOT = False
