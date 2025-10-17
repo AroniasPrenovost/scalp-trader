@@ -214,10 +214,12 @@ def iterate_wallets(interval_seconds):
             # Store data for each enabled crypto
             for coin in coinbase_data_dictionary:
                 product_id = coin['product_id']
-                # Create entry with timestamp
+                # Create entry with only the 4 required properties
                 data_entry = {
                     'timestamp': time.time(),
-                    **coin  # Include all coin data (price, volume, etc.)
+                    'product_id': product_id,
+                    'price': coin.get('price'),
+                    'volume_24h': coin.get('volume_24h')
                 }
                 append_crypto_data_to_file(coinbase_data_directory, product_id, data_entry)
             print(f"Appended data for {len(coinbase_data_dictionary)} cryptos\n")
