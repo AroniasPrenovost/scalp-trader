@@ -280,7 +280,6 @@ def iterate_wallets(interval_seconds):
                     min_price = min(coin_prices_LIST)
                     max_price = max(coin_prices_LIST)
                     range_percentage_from_min = calculate_percentage_from_min(min_price, max_price)
-                    price_position_within_trade_range = calculate_current_price_position_within_trading_range(current_price, min_price, max_price)
 
                     coin_data = {
                         'current_price': current_price,

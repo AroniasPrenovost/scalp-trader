@@ -29,26 +29,6 @@ def calculate_percentage_from_min(min_price, max_price):
 #
 #
 #
-
-def calculate_current_price_position_within_trading_range(current_price, min, max):
-    """
-    Calculate the position of the current price within the trading range.
-
-    :param current_price: The current price of the asset
-    :param min: The min level price
-    :param max: The max level price
-    :return: The position of the current price within the trading range as a percentage
-    """
-    if max == min:
-        return 0.0  # Avoid division by zero
-
-    trading_range = max - min
-    position_within_range = ((current_price - min) / trading_range) * 100
-
-    return round(position_within_range, 2)
-
-#
-#
 # Used for visualizing on the chart
 #
 
