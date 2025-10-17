@@ -3,8 +3,7 @@
 CoinGecko Historical Data Backfill Script
 
 This script fetches historical price data from CoinGecko API and populates
-the coinbase-data JSON files with backfilled data based on the data_retention
-settings defined in config.json.
+the coinbase-data JSON files with backfilled data based on the data_retention settings defined in config.json.
 
 Only runs if enable_backfilling_historical_data is set to true in config.json.
 """

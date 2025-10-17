@@ -321,6 +321,90 @@ To find other IDs:
 
 Before the bot has accumulated enough price history naturally, you can backfill historical data from CoinGecko. This is useful for enabling technical analysis and AI decision-making from day one.
 
+### How the Backfilling Function Works
+
+The backfilling script (`backfill_historical_data.py`) performs the following operations:
+
+1. **Data Fetching**:
+   - Queries the CoinGecko API for historical market data (prices and volumes)
+   - Uses the `/market_chart/range` endpoint to fetch data within a specific time range
+   - Automatically chunks large requests into 90-day periods to ensure optimal granularity
+
+2. **Data Transformation**:
+   - Converts CoinGecko's data format to match Coinbase's data structure
+   - Calculates 24-hour percentage changes for both price and volume
+   - Generates data points with: `timestamp`, `product_id`, `price`, `price_percentage_change_24h`, `volume_24h`, `volume_percentage_change_24h`
+
+3. **Smart Merging**:
+   - Loads any existing data from `coinbase-data/{SYMBOL}.json`
+   - Merges new historical data with existing data using timestamp-based deduplication
+   - Sorts all data points chronologically by timestamp
+   - Only adds new data points that don't already exist (no overwrites)
+
+4. **Rate Limiting**:
+   - Respects CoinGecko API rate limits (30 calls/min for free tier)
+   - Adds 2-second delays between API requests to prevent throttling
+   - Displays progress for multi-chunk requests
+
+### Data Intervals and Granularity
+
+The data granularity you receive depends on the time period requested, following CoinGecko's automatic interval rules:
+
+| Time Period | Data Interval | Data Points |
+|-------------|---------------|-------------|
+| **1 day or less** | 5-minute intervals | ~288 per day |
+| **1-90 days** | Hourly intervals | ~24 per day |
+| **Above 90 days** | Daily intervals | ~1 per day |
+
+**Important**: The backfill script automatically **chunks requests into 90-day periods** to ensure you get **hourly granularity** instead of daily, even for longer time periods. For example:
+- Requesting 180 days (6 months) = 2 API requests of 90 days each
+- Requesting 365 days (1 year) = 5 API requests of ~73 days each
+- Result: ~4,320 hourly data points for 6 months, instead of just ~180 daily points
+
+### How Far Back Can You Backfill?
+
+The backfill time range is controlled by the `data_retention.max_hours` setting in `config.json`:
+
+```json
+{
+  "data_retention": {
+    "max_hours": 4380,        // 4,380 hours = ~6 months (182.5 days)
+    "interval_seconds": 3600  // Not used for backfilling (only for live data collection)
+  }
+}
+```
+
+**Limitations**:
+- **CoinGecko Free Tier**: Maximum 365 days (1 year) of historical data
+- **Bot Default**: 4,380 hours (~6 months / 182.5 days)
+- If you request more than 365 days, the script automatically limits to 365 days
+
+**Examples**:
+- `"max_hours": 720` → 30 days of data (~720 hourly data points)
+- `"max_hours": 2160` → 90 days of data (~2,160 hourly data points)
+- `"max_hours": 4380` → 182.5 days of data (~4,380 hourly data points)
+- `"max_hours": 8760` → Requested 365 days, limited to 365 days (~8,760 hourly data points)
+
+### Data Structure
+
+Each backfilled data point matches the Coinbase format and includes:
+
+```json
+{
+  "timestamp": 1697385600.0,           // Unix timestamp (seconds)
+  "product_id": "BTC-USD",             // Trading pair symbol
+  "price": "28453.21",                 // Current price in USD
+  "price_percentage_change_24h": "2.34",  // Percentage change from 24h ago
+  "volume_24h": "15234567890.12",      // 24-hour trading volume in USD
+  "volume_percentage_change_24h": "-1.23" // Percentage change in volume from 24h ago
+}
+```
+
+**Percentage Change Calculations**:
+- **24-hour lookback**: Compares current value with value from 96 data points ago (96 × 15-min intervals = 24 hours)
+- First 24 hours of data will have `"0"` for percentage changes (insufficient historical data)
+- Calculated for both price and volume metrics
+
 ### Setup
 
 1. Get a CoinGecko API key from https://www.coingecko.com/en/developers/dashboard
@@ -338,7 +422,7 @@ Before the bot has accumulated enough price history naturally, you can backfill 
      },
      "data_retention": {
        "max_hours": 4380,
-       "interval_seconds": 900
+       "interval_seconds": 3600
      }
    }
    ```
@@ -364,20 +448,57 @@ Run the backfill script to fetch historical data:
 python3 backfill_historical_data.py
 ```
 
-The script will:
-- Fetch 15-minute interval price data for the time period specified in `data_retention.max_hours`
-- Transform the data to match the Coinbase format
-- Merge with existing data (avoiding duplicates)
-- Save to `coinbase-data/{SYMBOL}.json` files
+The script will display progress information:
+```
+============================================================
+CoinGecko Historical Data Backfill
+============================================================
 
-### Notes
+✓ Backfilling is ENABLED
 
-- The backfill uses 15-minute intervals
-- Data is fetched based on the `max_hours` setting in your config (up to 6 months for free tier)
-- The script only runs when `enable_backfilling_historical_data` is set to `true`
-- Existing data is preserved - the script only adds missing historical data
-- CoinGecko free tier supports up to 6 months of historical data
-- CoinGecko API rate limits apply (30 calls/min for free tier) - the script includes delays between requests
+Found 2 enabled asset(s) to backfill:
+  - BTC-USD
+  - ETH-USD
+
+=== Backfilling data for BTC-USD ===
+  Requesting data from 2025-04-01 to 2025-10-16
+  Total period: 182 days
+  Splitting into 90-day chunks to get hourly granularity (instead of daily)
+  Will make 3 API requests
+  Chunk 1: 2025-04-01 to 2025-06-30 (90 days)
+  Fetching data from 2025-04-01 00:00:00+00:00 to 2025-06-30 23:59:59+00:00...
+  ✓ Fetched 2160 data points
+  ...
+  ✓ Added 4368 new data points, total: 4368
+✓ Saved 4368 data points to coinbase-data/BTC-USD.json
+  ✓ Backfill complete for BTC-USD
+```
+
+### Best Practices
+
+- **Run backfill before starting the bot** for the first time to populate historical data immediately
+- **Re-run periodically** if you've had the bot stopped for extended periods to fill gaps
+- **Don't worry about duplicates** - the merge function automatically deduplicates by timestamp
+- **Start with smaller time periods** (e.g., 30-90 days) when testing to reduce API calls
+- **Monitor API rate limits** - the script includes delays, but be mindful of CoinGecko's 30 calls/min limit on free tier
+
+### Troubleshooting
+
+**Script says backfilling is disabled:**
+- Check `config.json` and ensure `"enable_backfilling_historical_data": true`
+
+**CoinGecko API key errors:**
+- Verify your API key is correctly added to `.env`
+- Check that your API key is active at https://www.coingecko.com/en/developers/dashboard
+
+**Rate limit errors:**
+- The script includes 2-second delays between requests
+- If you still hit limits, the free tier allows 30 calls/min
+- Consider upgrading to a paid CoinGecko plan for higher limits
+
+**Missing coingecko_id:**
+- Each enabled asset needs a `coingecko_id` field in `config.json`
+- Find IDs at https://api.coingecko.com/api/v3/coins/list or on CoinGecko.com URLs
 
 ## How It Works
 
