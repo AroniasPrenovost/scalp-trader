@@ -117,6 +117,9 @@ Market Data:
 - Number of Data Points: {len(prices)}
 - Recent Price Trend: {prices[-20:] if len(prices) >= 20 else prices}
 - Current 24h Volume: {coin_data.get('current_volume_24h', 0)}
+- Average 24h Volume: {sum(volumes) / len(volumes) if volumes else 0}
+- Min/Max 24h Volume: {min(volumes) if volumes else 0} / {max(volumes) if volumes else 0}
+- Recent Volume Trend: {volumes[-20:] if len(volumes) >= 20 else volumes}
 
 VOLUME ANALYSIS REQUIREMENTS:
 - Assess if current volume is above or below recent average
