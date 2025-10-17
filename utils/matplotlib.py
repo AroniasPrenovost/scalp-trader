@@ -37,22 +37,28 @@ def create_time_labels(num_points, interval_minutes, current_timestamp):
         point_time = start_time + timedelta(minutes=i * interval_minutes)
 
         # Format label based on time span
-        if total_minutes < 1440:  # Less than 1 day - show time
-            label = point_time.strftime('%m/%d %H:%M')
-        elif total_minutes < 10080:  # Less than 1 week - show date and time
-            label = point_time.strftime('%m/%d %H:%M')
-        else:  # More than 1 week - show day of month
-            label = str(point_time.day)
+        if total_minutes < 1440:  # Less than 1 day - show time only
+            label = point_time.strftime('%H:%M')
+        elif total_minutes < 10080:  # Less than 1 week - show day of week and time
+            label = point_time.strftime('%a %H:%M')  # e.g., "Mon 14:30"
+        elif total_minutes < 43200:  # Less than 30 days - show day of week and date
+            label = point_time.strftime('%a %m/%d')  # e.g., "Mon 10/17"
+        else:  # More than 30 days - show month and day
+            label = point_time.strftime('%b %d')  # e.g., "Oct 17"
 
         labels.append(label)
 
     # Always include the last point, but check for duplicate labels
     if positions[-1] != num_points - 1:
         end_time = datetime.fromtimestamp(current_timestamp)
-        if total_minutes < 10080:
-            last_label = end_time.strftime('%m/%d %H:%M')
+        if total_minutes < 1440:
+            last_label = end_time.strftime('%H:%M')
+        elif total_minutes < 10080:
+            last_label = end_time.strftime('%a %H:%M')
+        elif total_minutes < 43200:
+            last_label = end_time.strftime('%a %m/%d')
         else:
-            last_label = str(end_time.day)
+            last_label = end_time.strftime('%b %d')
 
         # Only add if it's not a duplicate of the previous label
         if last_label != labels[-1]:
