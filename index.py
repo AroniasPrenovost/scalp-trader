@@ -277,6 +277,10 @@ def iterate_wallets(interval_seconds):
                     coin_prices_LIST = [float(price) for price in coin_prices_LIST if price is not None] # Convert to list of floats
                     coin_prices_LIST.append(current_price) # append most recent API call result to data to account for the gap in stored data locally
 
+                    # NOTE: coin_volume_24h represents Coinbase's rolling 24-hour volume at each data point.
+                    # This is useful for 24h charts but misleading for longer timeframes (7d, 90d) since
+                    # each historical point shows the 24h rolling volume at that moment, not the actual
+                    # volume during that specific interval. See matplotlib.py:199-203 for conditional usage.
                     coin_volume_24h_LIST = get_property_values_from_crypto_file(coinbase_data_directory, symbol, 'volume_24h', max_age_hours=DATA_RETENTION_HOURS)
                     coin_volume_24h_LIST = [float(volume_24h) for volume_24h in coin_volume_24h_LIST if volume_24h is not None]
                     current_volume_24h = float(coin['volume_24h']) # append most recent API call result
