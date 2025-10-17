@@ -137,8 +137,21 @@ def plot_simple_snapshot(
     ax1.set_title(f"{symbol} - Range: {trade_range_percentage}%", fontsize=12, fontweight='bold')
 
     # Save figure
+    # Convert interval to timeframe label
+    if interval >= 10080:  # 1 week or more
+        weeks = int(interval / 10080)
+        timeframe_label = "w" if weeks == 1 else f"{weeks}w"
+    elif interval >= 1440:  # 1 day or more
+        days = int(interval / 1440)
+        timeframe_label = "d" if days == 1 else f"{days}d"
+    elif interval >= 60:  # 1 hour or more
+        hours = int(interval / 60)
+        timeframe_label = f"{hours}h"
+    else:  # minutes
+        timeframe_label = f"{int(interval)}m"
+
     timestamp_str = time.strftime("%Y%m%d%H%M%S", time.localtime(current_timestamp))
-    filename = os.path.join("./screenshots", f"{symbol}_snapshot_{timestamp_str}.png")
+    filename = os.path.join("./screenshots", f"{symbol}_{timeframe_label}_snapshot_{timestamp_str}.png")
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     plt.close(fig)  # Close the specific figure
     plt.close('all')  # Ensure all figures are closed
@@ -475,7 +488,7 @@ def _generate_single_timeframe_chart(
     # Save figure
     if not timestamp_str:
         timestamp_str = time.strftime("%Y%m%d%H%M%S", time.localtime(current_timestamp))
-    filename = os.path.join("./screenshots", f"{symbol}_chart_{timeframe_label}_{timestamp_str}.png")
+    filename = os.path.join("./screenshots", f"{symbol}_{timeframe_label}_chart_{timestamp_str}.png")
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     plt.close(fig)
     plt.close('all')
@@ -636,8 +649,22 @@ def plot_graph(
     event_type = 'sell'
     if buy_event:
         event_type = 'buy'
+
+    # Convert interval to timeframe label
+    if interval >= 10080:  # 1 week or more
+        weeks = int(interval / 10080)
+        timeframe_label = "w" if weeks == 1 else f"{weeks}w"
+    elif interval >= 1440:  # 1 day or more
+        days = int(interval / 1440)
+        timeframe_label = "d" if days == 1 else f"{days}d"
+    elif interval >= 60:  # 1 hour or more
+        hours = int(interval / 60)
+        timeframe_label = f"{hours}h"
+    else:  # minutes
+        timeframe_label = f"{int(interval)}m"
+
     timestamp_str = time.strftime("%Y%m%d%H%M%S", time.localtime(current_timestamp))
-    filename = os.path.join("./screenshots", f"{symbol}_chart_{event_type}_{timestamp_str}.png")
+    filename = os.path.join("./screenshots", f"{symbol}_{timeframe_label}_chart_{event_type}_{timestamp_str}.png")
     print(f"Generating market snapshot: {filename}")
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     plt.close(fig)  # Close the specific figure
