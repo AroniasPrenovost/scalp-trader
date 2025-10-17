@@ -300,7 +300,7 @@ def iterate_wallets(interval_seconds):
                         'coin_prices_list': coin_prices_LIST,
                         'coin_volume_24h_LIST': coin_volume_24h_LIST,
                     }
-                    # print(coin_data)
+
                     if ENABLE_CHART_SNAPSHOT:
                         # Filter data to only show last 14 days (336 hours) for snapshot chart
                         snapshot_hours = 336  # 14 days
