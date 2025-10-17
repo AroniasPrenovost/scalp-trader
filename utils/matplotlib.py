@@ -170,8 +170,9 @@ def resample_price_data_to_timeframe(price_data, interval_minutes, target_timefr
     target_timeframe_minutes = target_timeframe_hours * 60
     points_per_candle = int(target_timeframe_minutes / interval_minutes)
 
-    # If target timeframe is smaller than our data interval, just return original data
-    if points_per_candle < 1:
+    # If target timeframe is smaller than or equal to our data interval, just return original data
+    # (no resampling needed when points_per_candle <= 1)
+    if points_per_candle <= 1:
         return {
             'close': price_data,
             'open': price_data,
@@ -235,22 +236,26 @@ def plot_multi_timeframe_charts(
         '1h': {
             'hours': 1,
             'label': '1h',
-            'title_suffix': '1 Hour Timeframe'
+            'title_suffix': '1 Hour Timeframe',
+            'lookback_hours': 336  # Show last 2 weeks (14 days)
         },
         '4h': {
             'hours': 4,
             'label': '4h',
-            'title_suffix': '4 Hour Timeframe'
+            'title_suffix': '4 Hour Timeframe',
+            'lookback_hours': 720  # Show last 30 days
         },
         '1d': {
             'hours': 24,
             'label': '1d',
-            'title_suffix': '1 Day Timeframe'
+            'title_suffix': '1 Day Timeframe',
+            'lookback_hours': 2160  # Show last 90 days (3 months)
         },
         '1w': {
             'hours': 168,  # 7 * 24
             'label': '1w',
-            'title_suffix': '1 Week Timeframe'
+            'title_suffix': '1 Week Timeframe',
+            'lookback_hours': None  # Show all available data
         }
     }
 
@@ -258,9 +263,19 @@ def plot_multi_timeframe_charts(
     timestamp_str = time.strftime("%Y%m%d%H%M%S", time.localtime(current_timestamp))
 
     for timeframe_key, timeframe_config in timeframes.items():
-        # Resample ALL price data into this timeframe
+        # Filter price data based on lookback window
+        lookback_hours = timeframe_config.get('lookback_hours')
+        if lookback_hours is not None:
+            # Calculate how many data points to keep based on lookback window
+            lookback_data_points = int((lookback_hours * 60) / interval)
+            filtered_price_data = price_data[-lookback_data_points:] if len(price_data) > lookback_data_points else price_data
+        else:
+            # Use all available data
+            filtered_price_data = price_data
+
+        # Resample the filtered price data into this timeframe
         resampled_data = resample_price_data_to_timeframe(
-            price_data,
+            filtered_price_data,
             interval,
             timeframe_config['hours']
         )
@@ -278,8 +293,15 @@ def plot_multi_timeframe_charts(
         resampled_volumes = None
         if timeframe_key in ['1h', '4h'] and volume_data:
             volume_data_clean = [float(v) if v is not None else 0.0 for v in volume_data]
+
+            # Apply the same lookback window filter to volume data
+            if lookback_hours is not None:
+                filtered_volume_data = volume_data_clean[-lookback_data_points:] if len(volume_data_clean) > lookback_data_points else volume_data_clean
+            else:
+                filtered_volume_data = volume_data_clean
+
             resampled_volume_data = resample_price_data_to_timeframe(
-                volume_data_clean,
+                filtered_volume_data,
                 interval,
                 timeframe_config['hours']
             )
@@ -290,7 +312,8 @@ def plot_multi_timeframe_charts(
         local_max = max(resampled_prices)
         local_range_pct = calculate_trading_range_percentage(local_min, local_max)
 
-        print(f"  Generating {timeframe_key} chart ({len(resampled_prices)} candles from {len(price_data)} data points)")
+        lookback_desc = f"{lookback_hours}h lookback" if lookback_hours else "all data"
+        print(f"  Generating {timeframe_key} chart ({len(resampled_prices)} candles from {len(filtered_price_data)} data points, {lookback_desc})")
 
         # Generate chart for this timeframe
         chart_path = _generate_single_timeframe_chart(
