@@ -1,5 +1,6 @@
 import os
 import time
+from datetime import datetime, timedelta
 import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend to prevent display windows
 import matplotlib.pyplot as plt
@@ -7,6 +8,54 @@ import matplotlib.ticker as ticker
 import numpy as np
 import pandas as pd
 from utils.price_helpers import calculate_percentage_from_min
+
+def create_time_labels(num_points, interval_minutes, current_timestamp):
+    """
+    Create time labels for x-axis based on data points and interval.
+
+    Args:
+        num_points: Number of data points
+        interval_minutes: Minutes between each data point
+        current_timestamp: Current timestamp (most recent data point)
+
+    Returns:
+        tuple: (positions, labels) for x-axis ticks
+    """
+    # Calculate total time span
+    total_minutes = (num_points - 1) * interval_minutes
+    start_time = datetime.fromtimestamp(current_timestamp) - timedelta(minutes=total_minutes)
+
+    # Determine appropriate number of labels (aim for 6-10 labels)
+    target_num_labels = 8
+    step = max(1, num_points // target_num_labels)
+
+    positions = []
+    labels = []
+
+    for i in range(0, num_points, step):
+        positions.append(i)
+        point_time = start_time + timedelta(minutes=i * interval_minutes)
+
+        # Format label based on time span
+        if total_minutes < 1440:  # Less than 1 day - show time
+            label = point_time.strftime('%m/%d %H:%M')
+        elif total_minutes < 10080:  # Less than 1 week - show date and time
+            label = point_time.strftime('%m/%d %H:%M')
+        else:  # More than 1 week - show day of month
+            label = str(point_time.day)
+
+        labels.append(label)
+
+    # Always include the last point
+    if positions[-1] != num_points - 1:
+        positions.append(num_points - 1)
+        end_time = datetime.fromtimestamp(current_timestamp)
+        if total_minutes < 10080:
+            labels.append(end_time.strftime('%m/%d %H:%M'))
+        else:
+            labels.append(str(end_time.day))
+
+    return positions, labels
 
 def calculate_moving_average(prices, period):
     """Calculate simple moving average"""
@@ -128,10 +177,15 @@ def plot_simple_snapshot(
     price_range = max_price - min_price
     buffer = price_range * 0.1
     ax1.set_ylim(min_price - buffer, max_price + buffer)
-    ax1.xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
+
+    # Set time-based x-axis labels
+    positions, labels = create_time_labels(len(price_data), interval, current_timestamp)
+    ax1.set_xticks(positions)
+    ax1.set_xticklabels(labels, rotation=45, ha='right')
+
     ax1.yaxis.set_major_formatter(ticker.FormatStrFormatter('$%.2f'))
     ax1.set_ylabel('Price (USD)', fontsize=10, fontweight='bold')
-    ax1.set_xlabel(f"Time (Data Points)", fontsize=10, fontweight='bold')
+    ax1.set_xlabel(f"Time", fontsize=10, fontweight='bold')
     ax1.grid(True, alpha=0.3)
     ax1.legend(loc='upper left', fontsize='small')
     ax1.set_title(f"{symbol} - Range: +{range_percentage_from_min}% from low", fontsize=12, fontweight='bold')
@@ -437,7 +491,12 @@ def _generate_single_timeframe_chart(
     price_range = max_price - min_price
     buffer = price_range * 0.1
     ax1.set_ylim(min_price - buffer, max_price + buffer)
-    ax1.xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
+
+    # Set time-based x-axis labels
+    positions, labels = create_time_labels(len(price_data), interval, current_timestamp)
+    ax1.set_xticks(positions)
+    ax1.set_xticklabels(labels, rotation=45, ha='right')
+
     ax1.yaxis.set_major_formatter(ticker.FormatStrFormatter('$%.2f'))
     ax1.set_ylabel('Price (USD)', fontsize=10, fontweight='bold')
     ax1.grid(True, alpha=0.3)
@@ -456,7 +515,7 @@ def _generate_single_timeframe_chart(
         rsi = calculate_rsi(price_data, period=14)
         # Filter out None values for plotting - matplotlib requires numeric values
         rsi_clean = [val if val is not None else np.nan for val in rsi]
-        ax2.plot(x_values, rsi_clean, label='RSI(14)', c='purple', linewidth=1)
+        ax2.plot(x_values, rsi_clean, label='RSI(14)', c='purple', linewidth=0.8)
         ax2.axhline(y=70, color='red', linewidth=1.2, linestyle='--', alpha=0.5, label='Overbought (70)')
         ax2.axhline(y=30, color='green', linewidth=1.2, linestyle='--', alpha=0.5, label='Oversold (30)')
         ax2.fill_between(x_values, 70, 100, alpha=0.1, color='red')
@@ -465,6 +524,9 @@ def _generate_single_timeframe_chart(
         ax2.set_ylabel('RSI', fontsize=10, fontweight='bold')
         ax2.grid(True, alpha=0.3)
         ax2.legend(loc='upper left', fontsize='x-small')
+        # Share x-axis with main chart
+        ax2.set_xticks(positions)
+        ax2.set_xticklabels(labels, rotation=45, ha='right')
         subplot_idx += 1
 
     # Volume subplot
@@ -478,12 +540,15 @@ def _generate_single_timeframe_chart(
         ax3.set_ylabel('Volume (24h)', fontsize=10, fontweight='bold')
         ax3.grid(True, alpha=0.3, axis='y')
         ax3.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, p: f'{x/1e6:.1f}M' if x >= 1e6 else f'{x/1e3:.0f}K'))
+        # Share x-axis with main chart
+        ax3.set_xticks(positions)
+        ax3.set_xticklabels(labels, rotation=45, ha='right')
 
     # X-axis label on bottom subplot
     if num_subplots > 1:
-        fig.get_axes()[-1].set_xlabel(f"Time (Data Points)", fontsize=10, fontweight='bold')
+        fig.get_axes()[-1].set_xlabel(f"Time", fontsize=10, fontweight='bold')
     else:
-        ax1.set_xlabel(f"Time (Data Points)", fontsize=10, fontweight='bold')
+        ax1.set_xlabel(f"Time", fontsize=10, fontweight='bold')
 
     # Save figure
     if not timestamp_str:
@@ -612,7 +677,12 @@ def plot_graph(
     price_range = max_price - min_price
     buffer = price_range * 0.1
     ax1.set_ylim(min_price - buffer, max_price + buffer)
-    ax1.xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
+
+    # Set time-based x-axis labels
+    positions, labels = create_time_labels(len(price_data), interval, current_timestamp)
+    ax1.set_xticks(positions)
+    ax1.set_xticklabels(labels, rotation=45, ha='right')
+
     ax1.yaxis.set_major_formatter(ticker.FormatStrFormatter('$%.2f'))
     ax1.set_ylabel('Price (USD)', fontsize=10, fontweight='bold')
     ax1.grid(True, alpha=0.3)
@@ -630,7 +700,7 @@ def plot_graph(
         rsi = calculate_rsi(price_data, period=14)
         # Filter out None values for plotting - matplotlib requires numeric values
         rsi_clean = [val if val is not None else np.nan for val in rsi]
-        ax2.plot(x_values, rsi_clean, label='RSI(14)', c='purple', linewidth=1)
+        ax2.plot(x_values, rsi_clean, label='RSI(14)', c='purple', linewidth=0.8)
         ax2.axhline(y=70, color='red', linewidth=1.2, linestyle='--', alpha=0.5, label='Overbought (70)')
         ax2.axhline(y=30, color='green', linewidth=1.2, linestyle='--', alpha=0.5, label='Oversold (30)')
         ax2.fill_between(x_values, 70, 100, alpha=0.1, color='red')
@@ -639,11 +709,14 @@ def plot_graph(
         ax2.set_ylabel('RSI', fontsize=10, fontweight='bold')
         ax2.grid(True, alpha=0.3)
         ax2.legend(loc='upper left', fontsize='x-small')
-        ax2.set_xlabel(f"Time (Data Points)", fontsize=10, fontweight='bold')
+        # Share x-axis with main chart
+        ax2.set_xticks(positions)
+        ax2.set_xticklabels(labels, rotation=45, ha='right')
+        ax2.set_xlabel(f"Time", fontsize=10, fontweight='bold')
 
     # X-axis label on bottom subplot
     if not has_rsi:
-        ax1.set_xlabel(f"Time (Data Points)", fontsize=10, fontweight='bold')
+        ax1.set_xlabel(f"Time", fontsize=10, fontweight='bold')
 
     # Save figure
     event_type = 'sell'
