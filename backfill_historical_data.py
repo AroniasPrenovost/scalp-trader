@@ -321,26 +321,26 @@ def main():
         print("COINGECKO_API_KEY=your_api_key_here")
         return
 
-    # Get enabled assets
-    assets = config.get('assets', [])
-    enabled_assets = [asset for asset in assets if asset.get('enabled', False)]
+    # Get enabled wallets
+    wallets = config.get('wallets', [])
+    enabled_wallets = [asset for asset in wallets if asset.get('enabled', False)]
 
-    if not enabled_assets:
-        print("\nNo enabled assets found in config.json")
+    if not enabled_wallets:
+        print("\nNo enabled wallets found in config.json")
         return
 
-    print(f"\nFound {len(enabled_assets)} enabled asset(s) to backfill:")
-    for asset in enabled_assets:
+    print(f"\nFound {len(enabled_wallets)} enabled asset(s) to backfill:")
+    for asset in enabled_wallets:
         print(f"  - {asset.get('symbol')}")
 
     # Backfill each enabled asset
-    for asset in enabled_assets:
+    for wallet in enabled_wallets:
         try:
-            backfill_asset_data(asset, config)
+            backfill_asset_data(wallet, config)
             # Add a small delay between API calls to avoid rate limiting (CoinGecko: 30 calls/min)
             time.sleep(2)
         except Exception as e:
-            print(f"\nERROR: Failed to backfill {asset.get('symbol')}: {e}")
+            print(f"\nERROR: Failed to backfill {wallet.get('symbol')}: {e}")
             continue
 
     print("\n" + "=" * 60)
