@@ -17,7 +17,7 @@ import glob # related to price change % logic
 # custom imports
 from utils.email import send_email_notification
 from utils.file_helpers import save_obj_dict_to_file, count_files_in_directory, append_crypto_data_to_file, get_property_values_from_crypto_file, cleanup_old_crypto_data
-from utils.price_helpers import calculate_percentage_from_min, calculate_current_price_position_within_trading_range, calculate_offset_price, calculate_price_change_percentage
+from utils.price_helpers import calculate_percentage_from_min, calculate_offset_price, calculate_price_change_percentage
 from utils.time_helpers import print_local_time
 
 # Coinbase-related
