@@ -185,16 +185,15 @@ def iterate_wallets(interval_seconds):
         coinbase_data_dictionary = convert_products_to_dicts(coinbase_data)
         # filter out all crypto records except for those defined in enabled_wallets
         coinbase_data_dictionary = [coin for coin in coinbase_data_dictionary if coin['product_id'] in enabled_wallets]
+
         # strip unnecessary fields
         fields_to_remove = [
-        'base_increment', 'quote_increment', 'quote_min_size', 'quote_max_size', 'base_min_size', 'base_max_size',
-        'alias_to',
-        'quote_name', 'base_name', 'watched', 'is_disabled', 'new', 'status', 'cancel_only',
-        'limit_only', 'post_only', 'trading_disabled', 'auction_mode', 'product_type', 'quote_currency_id',
-        'base_currency_id', 'fcm_trading_session_details', 'mid_market_price', 'alias',
-            'base_display_symbol', 'quote_display_symbol', 'view_only', 'price_increment',
-            'display_name', 'product_venue', 'approximate_quote_24h_volume', 'new_at', 'market_cap',
-            'base_cbrn', 'quote_cbrn', 'product_cbrn'
+            'base_increment', 'quote_increment', 'quote_min_size', 'quote_max_size', 'base_min_size', 'base_max_size',
+            'alias_to', 'quote_name', 'base_name', 'watched', 'is_disabled', 'new', 'status', 'cancel_only',
+            'limit_only', 'post_only', 'trading_disabled', 'auction_mode', 'product_type', 'quote_currency_id',
+            'base_currency_id', 'fcm_trading_session_details', 'mid_market_price', 'alias','base_display_symbol',
+            'quote_display_symbol', 'view_only', 'price_increment', 'display_name', 'product_venue',
+            'approximate_quote_24h_volume', 'new_at', 'market_cap', 'base_cbrn', 'quote_cbrn', 'product_cbrn'
         ]
         for coin in coinbase_data_dictionary:
             for field in fields_to_remove:
