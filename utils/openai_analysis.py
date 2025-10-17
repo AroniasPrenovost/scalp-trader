@@ -61,19 +61,41 @@ def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_ra
     if chart_paths:
         timeframe_context = """
 
-IMPORTANT - MULTI-TIMEFRAME ANALYSIS:
+IMPORTANT - MULTI-TIMEFRAME ANALYSIS FRAMEWORK:
 You are being provided with THREE charts showing different timeframes:
-1. SHORT-TERM (24 hours): Most important for entry/exit timing. Look for immediate support/resistance.
-2. MEDIUM-TERM (7 days): Shows recent trend and momentum. Confirms or contradicts short-term signals.
-3. LONG-TERM (90 days): Provides macro trend context. Identifies major support/resistance zones.
 
-Use multi-timeframe analysis to:
-- Confirm trend alignment across timeframes (bullish on all 3 = strong signal)
-- Identify pullbacks within larger trends (long-term up, short-term down = potential buy)
-- Spot divergences in RSI/indicators across timeframes
-- Determine if current levels represent value or risk
+SHORT-TERM (24 hours) - Primary Execution Chart:
+- Identify precise entry zone (not just single price point)
+- Note intraday support/resistance levels
+- Check if price is at key Fibonacci retracement levels (23.6%, 38.2%, 50%, 61.8%, 78.6%)
+- Assess whether current price offers favorable risk/reward
+- Look for candlestick patterns (doji, hammer, engulfing) at key levels
+- Check RSI for oversold (<30) or overbought (>70) conditions
+- Verify MACD signal line crosses and histogram direction
 
-Base your primary trading decision on the SHORT-TERM chart, but validate with MEDIUM and LONG-TERM context.
+MEDIUM-TERM (7 days) - Trend Confirmation:
+- Confirm trend direction (higher highs/higher lows = uptrend, lower highs/lower lows = downtrend)
+- Check if we're in a pullback within uptrend or a breakout scenario
+- Verify RSI isn't showing bearish divergence (price makes higher high, RSI makes lower high)
+- Ensure volume supports the move (increasing volume on uptrends, decreasing on pullbacks)
+- Identify swing highs/lows for position context
+
+LONG-TERM (90 days) - Macro Risk Assessment:
+- Are we near 90-day highs/lows? (extreme = potential mean reversion risk)
+- Identify major resistance zones that could cap upside potential
+- Check if long-term trend aligns with intended trade direction
+- Determine if symbol is in accumulation phase, distribution phase, or trending
+- Note long-term volume trends and patterns
+
+MULTI-TIMEFRAME DECISION LOGIC:
+✓ All 3 timeframes bullish + volume confirmation = HIGH confidence long candidate
+✓ Long-term uptrend + medium-term uptrend + short-term pullback to support = HIGH confidence entry
+✓ Long-term uptrend + short-term pullback to key Fibonacci level = MEDIUM/HIGH confidence entry
+✗ Timeframe conflict (e.g., short bullish but medium/long bearish) = NO TRADE (wait for alignment)
+✗ Price approaching major long-term resistance = NO TRADE or significantly reduce confidence
+✗ Long-term downtrend + short-term bounce = Counter-trend risk, NO TRADE unless exceptional setup
+
+Base your primary trading decision on the SHORT-TERM chart, but REQUIRE validation from MEDIUM and LONG-TERM context.
 """
 
     prompt = f"""Analyze the following market data for {symbol} and provide a technical analysis with specific trading levels.
@@ -86,6 +108,13 @@ Market Data:
 - Number of Data Points: {len(prices)}
 - Recent Price Trend: {prices[-20:] if len(prices) >= 20 else prices}
 - Current 24h Volume: {coin_data.get('current_volume_24h', 0)}
+
+VOLUME ANALYSIS REQUIREMENTS:
+- Assess if current volume is above or below recent average
+- Breakouts/breakdowns on LOW volume = likely fakeout (reduce confidence significantly)
+- Support bounces with VOLUME SPIKE = strong reversal signal (increase confidence)
+- Sustained moves with increasing volume = healthy trend continuation
+- Include "volume_confirmation" field: true if volume supports the trade setup, false otherwise
 
 Trading Costs (IMPORTANT - Factor these into your recommendations):
 - Exchange Taker Fee: {taker_fee_percentage}% per trade ({total_fee_percentage}% total for buy + sell)
@@ -103,29 +132,89 @@ Please analyze this data and respond with a JSON object (ONLY valid JSON, no mar
     "sell_price": <recommended sell price>,
     "profit_target_percentage": <recommended NET profit percentage AFTER all fees and taxes>,
     "stop_loss": <recommended stop loss price>,
+    "risk_reward_ratio": <calculated as (sell_price - buy_in_price) / (buy_in_price - stop_loss)>,
     "confidence_level": <"high", "medium", or "low">,
     "market_trend": <"bullish", "bearish", or "sideways">,
-    "reasoning": <brief explanation of the analysis>,
+    "volume_confirmation": <true if volume supports trade setup, false otherwise>,
+    "trade_invalidation_price": <price level where trade thesis is completely invalidated>,
+    "reasoning": <brief factual explanation, max 200 characters>,
     "trade_recommendation": <"buy", "sell", "hold", or "no_trade">,
     "buy_amount_usd": <recommended USD amount to spend on this trade>
 }}
 
+JSON SCHEMA VALIDATION REQUIREMENTS:
+- All price fields: Must be numeric, max 8 decimal places
+- profit_target_percentage: Must be >= {min_profit_target_percentage}
+- risk_reward_ratio: Must be >= 2.0 for any "buy" recommendation (MANDATORY)
+- confidence_level: ENUM only ["high", "medium", "low"]
+- trade_recommendation: ENUM only ["buy", "sell", "hold", "no_trade"]
+- volume_confirmation: Boolean (true/false)
+- reasoning: Max 200 characters, factual only (no subjective language like "could", "might", "possibly")
+- If confidence_level = "medium" OR "low" → trade_recommendation MUST be "no_trade"
+- If trade_recommendation = "buy" → risk_reward_ratio MUST be >= 2.0
+- sell_price must be > buy_in_price (no shorting allowed)
+- stop_loss must be < buy_in_price
+- trade_invalidation_price: Typically below stop_loss, the price where thesis breaks down completely
+
 CRITICAL REQUIREMENTS:
-1. If market conditions do NOT support a profitable trade with at least {min_profit_target_percentage}% NET profit (after all fees and taxes), set trade_recommendation to "no_trade" and set profit_target_percentage to {min_profit_target_percentage}%.
-2. Only recommend a "buy" if you can identify a realistic opportunity to achieve at least {min_profit_target_percentage}% NET profit after paying {total_fee_percentage}% in exchange fees and {tax_rate_percentage}% in taxes.
-3. The profit_target_percentage should reflect the realistic profit opportunity. If no opportunity exists that meets the {min_profit_target_percentage}% minimum, set it to {min_profit_target_percentage}% as the baseline and set trade_recommendation to "no_trade".
-4. Calculate the sell_price accordingly - the gross price movement must be larger than the net profit target to cover all costs.
-5. POSITION SIZING (REQUIRED): Use the Portfolio Status data to determine buy_amount_usd:
+1. RISK/REWARD RATIO: All "buy" recommendations MUST have risk_reward_ratio >= 2.0
+   - Calculate: (sell_price - buy_in_price) / (buy_in_price - stop_loss)
+   - If ratio < 2.0, you MUST set trade_recommendation to "no_trade"
+   - Example: Buy $1.00, Sell $1.06, Stop $0.97 = (0.06/0.03) = 2.0 ratio ✓
+
+2. PROFIT THRESHOLD: If market conditions do NOT support at least {min_profit_target_percentage}% NET profit (after all fees and taxes), set trade_recommendation to "no_trade" and set profit_target_percentage to {min_profit_target_percentage}%.
+
+3. COST CALCULATION TRANSPARENCY: Show your work in reasoning field:
+   - Example: "Buy $0.50, sell $0.52 = 4% gross, 2.8% net after costs"
+   - Gross price movement must exceed net profit target to cover {total_fee_percentage}% fees + {tax_rate_percentage}% tax
+
+4. POSITION SIZING (REQUIRED): Use the Portfolio Status data to determine buy_amount_usd:
    - NEVER commit more than 75% of current_usd value to a single trade - ALWAYS keep at least 25% in reserve
    - Portfolio metrics are provided for LEARNING CONTEXT only - to help you understand what worked/didn't work in past trades
    - DO NOT let portfolio performance (profit/loss) influence your position sizing - maintain the SAME disciplined approach whether up or down
    - Position sizing based SOLELY on THIS trade's quality and confidence:
-     * HIGH confidence: 50-75% of current_usd (only for exceptional setups with clear technical edge)
+     * HIGH confidence: 50-75% of current_usd (only for exceptional setups meeting ALL criteria below)
      * MEDIUM confidence: DO NOT TRADE - wait for higher quality opportunities
      * LOW confidence: DO NOT TRADE - recommend "no_trade" instead
    - Prioritize QUALITY over QUANTITY - focus on high-likelihood trades with strong technical confirmation
    - Learn from historical trades (entry/exit timing, market conditions, what worked) but DO NOT increase risk due to past success
    - Maintain strict risk discipline regardless of win streaks or losing streaks
+
+5. TRADE INVALIDATION: Set trade_invalidation_price to a level where if breached, the entire trade thesis is wrong
+   - Typically below stop_loss by a small margin
+   - Example: If support is $0.95, stop is $0.94, invalidation might be $0.93
+
+CONFIDENCE LEVEL CRITERIA (OBJECTIVE RUBRIC):
+
+HIGH confidence requires ALL of the following:
+✓ All 3 timeframes (24h, 7d, 90d) aligned in same direction
+✓ Price at key technical level (major support/resistance, Fibonacci level)
+✓ Volume confirms the setup (above average on bullish setups, spike at support)
+✓ Risk/reward ratio >= 3.0 (preferably 3.5+)
+✓ No major resistance within profit target range on any timeframe
+✓ RSI supports direction (not overbought on longs, not oversold on shorts)
+✓ Historical data shows similar setups succeeded (if historical context available)
+✓ Multiple technical confirmations (e.g., MACD cross + support bounce + volume)
+
+MEDIUM confidence (DO NOT TRADE - per requirement #4):
+- Some but not all HIGH confidence criteria met
+- Timeframe alignment weak or contradictory
+- Risk/reward ratio 2.0-2.5 range
+- Volume neutral or unclear
+→ Set trade_recommendation to "no_trade"
+
+LOW confidence (DO NOT TRADE - per requirement #4):
+- Conflicting signals across timeframes
+- Poor risk/reward ratio (< 2.0)
+- Low volume, no technical confirmation
+- Price in no-man's land (not at key levels)
+→ Set trade_recommendation to "no_trade"
+
+RECENCY BIAS WARNING:
+- Historical performance reflects PAST market conditions which may differ from current regime
+- Weight current technical setup (70%) MORE than historical patterns (30%)
+- If current setup contradicts historical patterns, explain the divergence in reasoning
+- DO NOT increase position size due to past success - maintain same disciplined approach
 
 Base your analysis on technical indicators, support/resistance levels, and price action."""
 
@@ -134,7 +223,17 @@ Base your analysis on technical indicators, support/resistance levels, and price
         messages = [
             {
                 "role": "system",
-                "content": "You are an expert cryptocurrency technical analyst. Provide precise numerical analysis based on the data provided. Always respond with valid JSON only, no markdown formatting."
+                "content": f"""You are an expert cryptocurrency technical analyst with 10+ years of experience in swing trading and scalping. Your analysis must be:
+
+1. QUANTITATIVE: Use specific price levels, percentages, and ratios - no vague language
+2. RISK-AWARE: Every trade must have defined stop loss and minimum 2:1 reward/risk ratio
+3. DISCIPLINED: Reject marginal setups - only trade HIGH conviction opportunities that meet ALL criteria
+4. ADAPTIVE: Learn from historical performance but prioritize current technical setup (70% current / 30% historical)
+5. COST-CONSCIOUS: Account for {total_fee_percentage}% fees + {tax_rate_percentage}% tax in ALL profit calculations
+6. CONSERVATIVE: When in doubt, recommend "no_trade" - protecting capital is the priority
+
+Your reputation depends on accuracy and risk management. Be conservative, precise, and systematic.
+Output ONLY valid JSON with no markdown formatting or explanatory text outside the JSON structure."""
             },
             {
                 "role": "user",

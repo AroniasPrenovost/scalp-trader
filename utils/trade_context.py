@@ -297,11 +297,40 @@ Recent Trade History (Last {context['trades_included']} trades):
 """
 
     output += """
-INSTRUCTIONS: Use this historical data to:
-1. Learn from past winning and losing trades
-2. Identify patterns in successful entry/exit points
-3. Adjust your strategy based on what has worked for this specific symbol
-4. Consider the typical hold times and profit targets that have been successful
+HISTORICAL LEARNING DIRECTIVES:
+
+1. WINNING TRADE PATTERN ANALYSIS - Identify:
+   - What price levels triggered entries? (support bounces? breakouts? Fibonacci levels?)
+   - What timeframe confluence existed at entry? (all aligned bullish?)
+   - What was the typical profit target % that succeeded vs. failed?
+   - How long did profitable trades typically take? (hours/days - adjust timing expectations)
+   - What technical indicators were present? (RSI levels, volume patterns, MACD state)
+
+2. LOSING TRADE ANALYSIS - Avoid repeating:
+   - What conditions led to losses? (false breakouts? counter-trend trades? late entries?)
+   - Were stop losses too tight (noise stopped out) or too wide (big losses)?
+   - Did losses cluster during specific market conditions? (high volatility, low volume, trend reversals)
+   - Were there warning signs ignored? (divergences, volume weakness, resistance overhead)
+
+3. SYMBOL-SPECIFIC BEHAVIORAL PATTERNS:
+   - Does this symbol respond better to technical levels or momentum trading?
+   - What's the optimal hold time based on past successful trades?
+   - Are there recurring price levels that act as magnets or rejection zones?
+   - What volatility range is typical? (helps set realistic profit targets and stop losses)
+   - Does this symbol fake out often? (if yes, require stronger confirmation)
+
+4. POSITION SIZING CALIBRATION BASED ON TRACK RECORD:
+   - Current win rate is {summary['win_rate']:.1f}% - adjust confidence thresholds accordingly
+   - If win rate <60%: Require EXCEPTIONAL technical setup for HIGH confidence rating
+   - If win rate 60-75%: Maintain current strict criteria
+   - If win rate >75%: Maintain discipline - DO NOT increase position size due to past success
+   - Average profit per trade is {summary['average_profit_percentage']:.2f}% - ensure new trades target similar or better
+
+5. ADAPTATION PRIORITY:
+   - Weight: 70% current technical setup + 30% historical patterns
+   - If current setup contradicts historical patterns, prioritize current technicals
+   - Market regimes change - past performance doesn't guarantee future results
+   - Use history to inform, not dictate decisions
 """
 
     return output
