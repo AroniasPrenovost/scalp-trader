@@ -307,14 +307,22 @@ def iterate_wallets(interval_seconds):
                     }
                     # print(coin_data)
                     if ENABLE_CHART_SNAPSHOT:
+                        # Filter data to only show last 14 days (336 hours) for snapshot chart
+                        snapshot_hours = 336  # 14 days
+                        snapshot_data_points = int((snapshot_hours * 60) / INTERVAL_SAVE_DATA_EVERY_X_MINUTES)
+                        snapshot_prices = coin_prices_LIST[-snapshot_data_points:] if len(coin_prices_LIST) > snapshot_data_points else coin_prices_LIST
+                        snapshot_min_price = min(snapshot_prices)
+                        snapshot_max_price = max(snapshot_prices)
+                        snapshot_trade_range = calculate_trading_range_percentage(snapshot_min_price, snapshot_max_price)
+
                         plot_simple_snapshot(
                             time.time(),
                             INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
                             symbol,
-                            coin_prices_LIST,
-                            min_price,
-                            max_price,
-                            trade_range_percentage
+                            snapshot_prices,
+                            snapshot_min_price,
+                            snapshot_max_price,
+                            snapshot_trade_range
                         )
 
                     #
