@@ -154,7 +154,7 @@ def plot_multi_timeframe_charts(
 ):
     """
     Generate multiple charts at different timeframes for LLM analysis.
-    Creates 3 charts: 90-day, 7-day, and 1-day views.
+    Creates 4 charts: 1-hour, 4-hour, 1-day, and 1-week views.
 
     Args:
         current_timestamp: timestamp for filename
@@ -167,29 +167,36 @@ def plot_multi_timeframe_charts(
     Returns:
         Dictionary with paths to generated charts:
         {
-            'long_term': path to 90-day chart,
-            'medium_term': path to 7-day chart,
-            'short_term': path to 1-day chart
+            '1h': path to 1-hour chart,
+            '4h': path to 4-hour chart,
+            '1d': path to 1-day chart,
+            '1w': path to 1-week chart
         }
     """
     # Calculate data points for each timeframe based on interval
-    points_per_day = int((24 * 60) / interval)
+    points_per_hour = int(60 / interval)
+    points_per_day = points_per_hour * 24
 
     timeframes = {
-        'short_term': {
+        '1h': {
+            'points': points_per_hour,  # 1 hour
+            'label': '1h',
+            'title_suffix': '1 Hour View'
+        },
+        '4h': {
+            'points': points_per_hour * 4,  # 4 hours
+            'label': '4h',
+            'title_suffix': '4 Hour View'
+        },
+        '1d': {
             'points': points_per_day,  # 1 day
-            'label': '24h',
-            'title_suffix': '24 Hour View'
+            'label': '1d',
+            'title_suffix': '1 Day View'
         },
-        'medium_term': {
-            'points': points_per_day * 7,  # 7 days
-            'label': '7d',
-            'title_suffix': '7 Day View'
-        },
-        'long_term': {
-            'points': points_per_day * 90,  # 90 days
-            'label': '90d',
-            'title_suffix': '90 Day View'
+        '1w': {
+            'points': points_per_day * 7,  # 1 week
+            'label': '1w',
+            'title_suffix': '1 Week View'
         }
     }
 
@@ -204,10 +211,10 @@ def plot_multi_timeframe_charts(
         # Ensure all prices are floats (in case strings slipped through)
         sliced_prices = [float(p) if p is not None else 0.0 for p in sliced_prices]
 
-        # Only include volume for 24h chart (since it's rolling 24h volume from Coinbase)
-        # For longer timeframes, rolling 24h volume is misleading
+        # Only include volume for 1h and 4h charts (since it's rolling 24h volume from Coinbase)
+        # For longer timeframes (1d, 1w), rolling 24h volume is misleading
         sliced_volumes = None
-        if timeframe_key == 'short_term' and volume_data:
+        if timeframe_key in ['1h', '4h'] and volume_data:
             sliced_volumes = volume_data[-data_points:] if len(volume_data) >= data_points else volume_data
             # Ensure all volumes are floats
             sliced_volumes = [float(v) if v is not None else 0.0 for v in sliced_volumes]

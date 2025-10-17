@@ -62,40 +62,49 @@ def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_ra
         timeframe_context = """
 
 IMPORTANT - MULTI-TIMEFRAME ANALYSIS FRAMEWORK:
-You are being provided with THREE charts showing different timeframes:
+You are being provided with FOUR charts showing different timeframes:
 
-SHORT-TERM (24 hours) - Primary Execution Chart:
+1H CHART (1 hour) - Micro Execution Timing:
+- Identify precise entry zone and immediate micro support/resistance
+- Look for recent momentum shifts and very short-term patterns
+- Check RSI for immediate oversold (<30) or overbought (>70) conditions
+- Note if price is bouncing off key technical levels in the last hour
+- Assess immediate price action quality (clean moves vs choppy)
+
+4H CHART (4 hours) - Primary Execution Chart:
 - Identify precise entry zone (not just single price point)
-- Note intraday support/resistance levels
+- Note intraday support/resistance levels forming over last 4 hours
 - Check if price is at key Fibonacci retracement levels (23.6%, 38.2%, 50%, 61.8%, 78.6%)
 - Assess whether current price offers favorable risk/reward
 - Look for candlestick patterns (doji, hammer, engulfing) at key levels
-- Check RSI for oversold (<30) or overbought (>70) conditions
-- Verify MACD signal line crosses and histogram direction
+- Verify volume patterns support the directional bias
+- This is your PRIMARY execution timeframe
 
-MEDIUM-TERM (7 days) - Trend Confirmation:
+1D CHART (1 day / 24 hours) - Trend Confirmation:
 - Confirm trend direction (higher highs/higher lows = uptrend, lower highs/lower lows = downtrend)
 - Check if we're in a pullback within uptrend or a breakout scenario
 - Verify RSI isn't showing bearish divergence (price makes higher high, RSI makes lower high)
 - Ensure volume supports the move (increasing volume on uptrends, decreasing on pullbacks)
 - Identify swing highs/lows for position context
+- Confirm daily trend aligns with 4H setup
 
-LONG-TERM (90 days) - Macro Risk Assessment:
-- Are we near 90-day highs/lows? (extreme = potential mean reversion risk)
+1W CHART (1 week / 7 days) - Macro Context:
+- Are we near weekly highs/lows? (extreme = potential mean reversion risk)
 - Identify major resistance zones that could cap upside potential
-- Check if long-term trend aligns with intended trade direction
+- Check if weekly trend aligns with intended trade direction
 - Determine if symbol is in accumulation phase, distribution phase, or trending
-- Note long-term volume trends and patterns
+- Note weekly support/resistance levels that could impact trade
+- Assess overall market structure and position in larger cycle
 
 MULTI-TIMEFRAME DECISION LOGIC:
-✓ All 3 timeframes bullish + volume confirmation = HIGH confidence long candidate
-✓ Long-term uptrend + medium-term uptrend + short-term pullback to support = HIGH confidence entry
-✓ Long-term uptrend + short-term pullback to key Fibonacci level = MEDIUM/HIGH confidence entry
-✗ Timeframe conflict (e.g., short bullish but medium/long bearish) = NO TRADE (wait for alignment)
-✗ Price approaching major long-term resistance = NO TRADE or significantly reduce confidence
-✗ Long-term downtrend + short-term bounce = Counter-trend risk, NO TRADE unless exceptional setup
+✓ All 4 timeframes bullish + volume confirmation = HIGH confidence long candidate
+✓ Weekly uptrend + daily uptrend + 4H pullback to support + 1H showing reversal = HIGH confidence entry
+✓ Weekly uptrend + 4H pullback to key Fibonacci level + 1H momentum shift = HIGH confidence entry
+✗ Timeframe conflict (e.g., 4H/1H bullish but 1D/1W bearish) = NO TRADE (wait for alignment)
+✗ Price approaching major weekly resistance = NO TRADE or significantly reduce confidence
+✗ Weekly downtrend + 4H bounce = Counter-trend risk, NO TRADE unless exceptional setup
 
-Base your primary trading decision on the SHORT-TERM chart, but REQUIRE validation from MEDIUM and LONG-TERM context.
+Base your primary trading decision on the 4H chart, but REQUIRE validation from 1D and 1W context. Use 1H for fine-tuning entry timing.
 """
 
     prompt = f"""Analyze the following market data for {symbol} and provide a technical analysis with specific trading levels.
@@ -254,10 +263,10 @@ Output ONLY valid JSON with no markdown formatting or explanatory text outside t
                     }
                 ]
 
-                # Add charts in order: short-term (high detail), medium-term (low), long-term (low)
-                # This prioritizes the most important timeframe while saving tokens on context
-                timeframe_order = ['short_term', 'medium_term', 'long_term']
-                detail_levels = {'short_term': 'high', 'medium_term': 'low', 'long_term': 'low'}
+                # Add charts in order: 4h (high detail - primary execution), 1h (high - timing), 1d (low), 1w (low)
+                # This prioritizes the most important timeframes while saving tokens on context
+                timeframe_order = ['4h', '1h', '1d', '1w']
+                detail_levels = {'4h': 'high', '1h': 'high', '1d': 'low', '1w': 'low'}
 
                 for timeframe in timeframe_order:
                     if timeframe in chart_paths and chart_paths[timeframe] and os.path.exists(chart_paths[timeframe]):
