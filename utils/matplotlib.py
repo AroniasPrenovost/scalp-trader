@@ -488,7 +488,7 @@ def _generate_single_timeframe_chart(
     # Save figure
     if not timestamp_str:
         timestamp_str = time.strftime("%Y%m%d%H%M%S", time.localtime(current_timestamp))
-    filename = os.path.join("./screenshots", f"{symbol}_{timeframe_label}_chart_{timestamp_str}.png")
+    filename = os.path.join("./screenshots", f"{symbol}_{timeframe_label}_{timestamp_str}.png")
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     plt.close(fig)
     plt.close('all')
@@ -664,7 +664,7 @@ def plot_graph(
         timeframe_label = f"{int(interval)}m"
 
     timestamp_str = time.strftime("%Y%m%d%H%M%S", time.localtime(current_timestamp))
-    filename = os.path.join("./screenshots", f"{symbol}_{timeframe_label}_chart_{event_type}_{timestamp_str}.png")
+    filename = os.path.join("./screenshots", f"{symbol}_{timeframe_label}_{event_type}_{timestamp_str}.png")
     print(f"Generating market snapshot: {filename}")
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     plt.close(fig)  # Close the specific figure
