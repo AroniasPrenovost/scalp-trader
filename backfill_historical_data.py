@@ -180,16 +180,16 @@ def merge_data(existing_data, new_data):
     print(f"  ✓ Added {added_count} new data points, total: {len(merged_data)}")
     return merged_data
 
-def backfill_asset_data(asset, config):
+def backfill_wallet_data(wallet, config):
     """
-    Backfill historical data for a single asset
+    Backfill historical data for a single wallet
 
     Args:
-        asset: Asset configuration dictionary
+        wallet: Wallet configuration dictionary
         config: Full configuration object
     """
-    symbol = asset.get('symbol')
-    coingecko_id = asset.get('coingecko_id')
+    symbol = wallet.get('symbol')
+    coingecko_id = wallet.get('coingecko_id')
 
     if not coingecko_id:
         print(f"  WARNING: No coingecko_id found for {symbol}, skipping")
@@ -323,20 +323,20 @@ def main():
 
     # Get enabled wallets
     wallets = config.get('wallets', [])
-    enabled_wallets = [asset for asset in wallets if asset.get('enabled', False)]
+    enabled_wallets = [wallet for wallet in wallets if wallet.get('enabled', False)]
 
     if not enabled_wallets:
         print("\nNo enabled wallets found in config.json")
         return
 
-    print(f"\nFound {len(enabled_wallets)} enabled asset(s) to backfill:")
-    for asset in enabled_wallets:
-        print(f"  - {asset.get('symbol')}")
+    print(f"\nFound {len(enabled_wallets)} enabled wallet(s) to backfill:")
+    for wallet in enabled_wallets:
+        print(f"  - {wallet.get('symbol')}")
 
-    # Backfill each enabled asset
+    # Backfill each enabled wallet
     for wallet in enabled_wallets:
         try:
-            backfill_asset_data(wallet, config)
+            backfill_wallet_data(wallet, config)
             # Add a small delay between API calls to avoid rate limiting (CoinGecko: 30 calls/min)
             time.sleep(2)
         except Exception as e:
