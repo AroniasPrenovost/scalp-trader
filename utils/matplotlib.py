@@ -46,14 +46,18 @@ def create_time_labels(num_points, interval_minutes, current_timestamp):
 
         labels.append(label)
 
-    # Always include the last point
+    # Always include the last point, but check for duplicate labels
     if positions[-1] != num_points - 1:
-        positions.append(num_points - 1)
         end_time = datetime.fromtimestamp(current_timestamp)
         if total_minutes < 10080:
-            labels.append(end_time.strftime('%m/%d %H:%M'))
+            last_label = end_time.strftime('%m/%d %H:%M')
         else:
-            labels.append(str(end_time.day))
+            last_label = str(end_time.day)
+
+        # Only add if it's not a duplicate of the previous label
+        if last_label != labels[-1]:
+            positions.append(num_points - 1)
+            labels.append(last_label)
 
     return positions, labels
 
