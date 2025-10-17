@@ -165,13 +165,13 @@ def plot_simple_snapshot(
 
     # Plot price line
     x_values = list(range(len(price_data)))
-    ax1.plot(x_values, price_data, marker=',', label='Price', c='black', linewidth=1.5)
+    ax1.plot(x_values, price_data, marker=',', label='Price', c='#000000', linewidth=1.2)
 
     # Plot min/max lines
-    ax1.axhline(y=min_price, color='green', linewidth=1, linestyle='--',
-                label=f"Min (${min_price:.4f})", alpha=0.6)
-    ax1.axhline(y=max_price, color='red', linewidth=1, linestyle='--',
-                label=f"Max (${max_price:.4f})", alpha=0.6)
+    ax1.axhline(y=min_price, color='#27AE60', linewidth=1, linestyle='--',
+                label=f"Min (${min_price:.4f})", alpha=0.7)
+    ax1.axhline(y=max_price, color='#C0392B', linewidth=1, linestyle='--',
+                label=f"Max (${max_price:.4f})", alpha=0.7)
 
     # Configure main chart
     price_range = max_price - min_price
@@ -443,18 +443,18 @@ def _generate_single_timeframe_chart(
     # Main price chart
     ax1 = fig.add_subplot(gs[0])
     x_values = list(range(len(price_data)))
-    ax1.plot(x_values, price_data, marker=',', label='Price', c='black', linewidth=1.5, zorder=5)
+    ax1.plot(x_values, price_data, marker=',', label='Price', c='#000000', linewidth=1.2, zorder=5)
 
     # Calculate and plot moving averages
     if len(price_data) >= 20:
         ma20 = calculate_moving_average(price_data, 20)
         ma20_clean = [val if val is not None else np.nan for val in ma20]
-        ax1.plot(x_values, ma20_clean, label='MA(20)', c='blue', linewidth=1.2, alpha=0.7, linestyle='--')
+        ax1.plot(x_values, ma20_clean, label='MA(20)', c='#2E86DE', linewidth=1.2, alpha=0.8, linestyle='--')
 
     if len(price_data) >= 50:
         ma50 = calculate_moving_average(price_data, 50)
         ma50_clean = [val if val is not None else np.nan for val in ma50]
-        ax1.plot(x_values, ma50_clean, label='MA(50)', c='orange', linewidth=1.2, alpha=0.7, linestyle='--')
+        ax1.plot(x_values, ma50_clean, label='MA(50)', c='#EE5A6F', linewidth=1.2, alpha=0.8, linestyle='--')
 
     # Calculate and plot Bollinger Bands
     if len(price_data) >= 20:
@@ -462,30 +462,30 @@ def _generate_single_timeframe_chart(
         # Filter out None values for plotting - matplotlib requires numeric values
         bb_upper_clean = [val if val is not None else np.nan for val in bb_upper]
         bb_lower_clean = [val if val is not None else np.nan for val in bb_lower]
-        ax1.plot(x_values, bb_upper_clean, label='BB Upper', c='gray', linewidth=1, alpha=0.5, linestyle=':')
-        ax1.plot(x_values, bb_lower_clean, label='BB Lower', c='gray', linewidth=1, alpha=0.5, linestyle=':')
-        ax1.fill_between(x_values, bb_upper_clean, bb_lower_clean, alpha=0.1, color='gray')
+        ax1.plot(x_values, bb_upper_clean, label='BB Upper', c='#95A5A6', linewidth=1, alpha=0.6, linestyle=':')
+        ax1.plot(x_values, bb_lower_clean, label='BB Lower', c='#95A5A6', linewidth=1, alpha=0.6, linestyle=':')
+        ax1.fill_between(x_values, bb_upper_clean, bb_lower_clean, alpha=0.08, color='#95A5A6')
 
     # Plot AI analysis levels if available
     if analysis:
         if analysis.get('major_support'):
-            ax1.axhline(y=analysis['major_support'], color='green', linewidth=1.5,
-                       linestyle='--', label=f"Major Support (${analysis['major_support']:.4f})", alpha=0.7)
+            ax1.axhline(y=analysis['major_support'], color='#27AE60', linewidth=1.5,
+                       linestyle='--', label=f"Major Support (${analysis['major_support']:.4f})", alpha=0.85)
         if analysis.get('minor_support'):
-            ax1.axhline(y=analysis['minor_support'], color='lightgreen', linewidth=1,
-                       linestyle=':', label=f"Minor Support (${analysis['minor_support']:.4f})", alpha=0.6)
+            ax1.axhline(y=analysis['minor_support'], color='#58D68D', linewidth=1,
+                       linestyle=':', label=f"Minor Support (${analysis['minor_support']:.4f})", alpha=0.7)
         if analysis.get('major_resistance'):
-            ax1.axhline(y=analysis['major_resistance'], color='red', linewidth=1.5,
-                       linestyle='--', label=f"Major Resistance (${analysis['major_resistance']:.4f})", alpha=0.7)
+            ax1.axhline(y=analysis['major_resistance'], color='#C0392B', linewidth=1.5,
+                       linestyle='--', label=f"Major Resistance (${analysis['major_resistance']:.4f})", alpha=0.85)
         if analysis.get('minor_resistance'):
-            ax1.axhline(y=analysis['minor_resistance'], color='lightcoral', linewidth=1,
-                       linestyle=':', label=f"Minor Resistance (${analysis['minor_resistance']:.4f})", alpha=0.6)
+            ax1.axhline(y=analysis['minor_resistance'], color='#EC7063', linewidth=1,
+                       linestyle=':', label=f"Minor Resistance (${analysis['minor_resistance']:.4f})", alpha=0.7)
         if analysis.get('buy_in_price'):
-            ax1.axhline(y=analysis['buy_in_price'], color='cyan', linewidth=1.8,
-                       linestyle='-', label=f"AI Buy Target (${analysis['buy_in_price']:.4f})", alpha=0.8)
+            ax1.axhline(y=analysis['buy_in_price'], color='#17A589', linewidth=1.8,
+                       linestyle='-', label=f"AI Buy Target (${analysis['buy_in_price']:.4f})", alpha=0.9)
         if analysis.get('sell_price'):
-            ax1.axhline(y=analysis['sell_price'], color='purple', linewidth=1.8,
-                       linestyle='-', label=f"AI Sell Target (${analysis['sell_price']:.4f})", alpha=0.8)
+            ax1.axhline(y=analysis['sell_price'], color='#8E44AD', linewidth=1.8,
+                       linestyle='-', label=f"AI Sell Target (${analysis['sell_price']:.4f})", alpha=0.9)
 
     # Configure main chart
     price_range = max_price - min_price
@@ -515,11 +515,11 @@ def _generate_single_timeframe_chart(
         rsi = calculate_rsi(price_data, period=14)
         # Filter out None values for plotting - matplotlib requires numeric values
         rsi_clean = [val if val is not None else np.nan for val in rsi]
-        ax2.plot(x_values, rsi_clean, label='RSI(14)', c='purple', linewidth=0.8)
-        ax2.axhline(y=70, color='red', linewidth=1.2, linestyle='--', alpha=0.5, label='Overbought (70)')
-        ax2.axhline(y=30, color='green', linewidth=1.2, linestyle='--', alpha=0.5, label='Oversold (30)')
-        ax2.fill_between(x_values, 70, 100, alpha=0.1, color='red')
-        ax2.fill_between(x_values, 0, 30, alpha=0.1, color='green')
+        ax2.plot(x_values, rsi_clean, label='RSI(14)', c='#8E44AD', linewidth=1)
+        ax2.axhline(y=70, color='#C0392B', linewidth=1.2, linestyle='--', alpha=0.6, label='Overbought (70)')
+        ax2.axhline(y=30, color='#27AE60', linewidth=1.2, linestyle='--', alpha=0.6, label='Oversold (30)')
+        ax2.fill_between(x_values, 70, 100, alpha=0.12, color='#C0392B')
+        ax2.fill_between(x_values, 0, 30, alpha=0.12, color='#27AE60')
         ax2.set_ylim(0, 100)
         ax2.set_ylabel('RSI', fontsize=10, fontweight='bold')
         ax2.grid(True, alpha=0.3)
@@ -534,9 +534,9 @@ def _generate_single_timeframe_chart(
         ax3 = fig.add_subplot(gs[subplot_idx])
         # Ensure volume_data contains only numeric values
         volume_data_clean = [float(val) if val is not None else 0.0 for val in volume_data]
-        colors = ['green' if i == 0 or price_data[i] >= price_data[i-1] else 'red'
+        colors = ['#27AE60' if i == 0 or price_data[i] >= price_data[i-1] else '#C0392B'
                  for i in range(len(volume_data_clean))]
-        ax3.bar(x_values, volume_data_clean, color=colors, alpha=0.6, width=0.8)
+        ax3.bar(x_values, volume_data_clean, color=colors, alpha=0.7, width=0.8)
         ax3.set_ylabel('Volume (24h)', fontsize=10, fontweight='bold')
         ax3.grid(True, alpha=0.3, axis='y')
         ax3.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, p: f'{x/1e6:.1f}M' if x >= 1e6 else f'{x/1e3:.0f}K'))
@@ -619,18 +619,18 @@ def plot_graph(
 
     # Plot price line
     x_values = list(range(len(price_data)))
-    ax1.plot(x_values, price_data, marker=',', label='Price', c='black', linewidth=1.5, zorder=5)
+    ax1.plot(x_values, price_data, marker=',', label='Price', c='#000000', linewidth=1.2, zorder=5)
 
     # Calculate and plot moving averages
     if len(price_data) >= 20:
         ma20 = calculate_moving_average(price_data, 20)
         ma20_clean = [val if val is not None else np.nan for val in ma20]
-        ax1.plot(x_values, ma20_clean, label='MA(20)', c='blue', linewidth=1.2, alpha=0.7, linestyle='--')
+        ax1.plot(x_values, ma20_clean, label='MA(20)', c='#2E86DE', linewidth=1.2, alpha=0.8, linestyle='--')
 
     if len(price_data) >= 50:
         ma50 = calculate_moving_average(price_data, 50)
         ma50_clean = [val if val is not None else np.nan for val in ma50]
-        ax1.plot(x_values, ma50_clean, label='MA(50)', c='orange', linewidth=1.2, alpha=0.7, linestyle='--')
+        ax1.plot(x_values, ma50_clean, label='MA(50)', c='#EE5A6F', linewidth=1.2, alpha=0.8, linestyle='--')
 
     # Calculate and plot Bollinger Bands
     if len(price_data) >= 20:
@@ -638,39 +638,39 @@ def plot_graph(
         # Filter out None values for plotting - matplotlib requires numeric values
         bb_upper_clean = [val if val is not None else np.nan for val in bb_upper]
         bb_lower_clean = [val if val is not None else np.nan for val in bb_lower]
-        ax1.plot(x_values, bb_upper_clean, label='BB Upper', c='gray', linewidth=1, alpha=0.5, linestyle=':')
-        ax1.plot(x_values, bb_lower_clean, label='BB Lower', c='gray', linewidth=1, alpha=0.5, linestyle=':')
-        ax1.fill_between(x_values, bb_upper_clean, bb_lower_clean, alpha=0.1, color='gray')
+        ax1.plot(x_values, bb_upper_clean, label='BB Upper', c='#95A5A6', linewidth=1, alpha=0.6, linestyle=':')
+        ax1.plot(x_values, bb_lower_clean, label='BB Lower', c='#95A5A6', linewidth=1, alpha=0.6, linestyle=':')
+        ax1.fill_between(x_values, bb_upper_clean, bb_lower_clean, alpha=0.08, color='#95A5A6')
 
     # Plot AI analysis levels if available
     if analysis:
         # Support levels
         if analysis.get('major_support'):
-            ax1.axhline(y=analysis['major_support'], color='green', linewidth=1.5,
-                       linestyle='--', label=f"Major Support (${analysis['major_support']:.4f})", alpha=0.7)
+            ax1.axhline(y=analysis['major_support'], color='#27AE60', linewidth=1.5,
+                       linestyle='--', label=f"Major Support (${analysis['major_support']:.4f})", alpha=0.85)
         if analysis.get('minor_support'):
-            ax1.axhline(y=analysis['minor_support'], color='lightgreen', linewidth=1,
-                       linestyle=':', label=f"Minor Support (${analysis['minor_support']:.4f})", alpha=0.6)
+            ax1.axhline(y=analysis['minor_support'], color='#58D68D', linewidth=1,
+                       linestyle=':', label=f"Minor Support (${analysis['minor_support']:.4f})", alpha=0.7)
 
         # Resistance levels
         if analysis.get('major_resistance'):
-            ax1.axhline(y=analysis['major_resistance'], color='red', linewidth=1.5,
-                       linestyle='--', label=f"Major Resistance (${analysis['major_resistance']:.4f})", alpha=0.7)
+            ax1.axhline(y=analysis['major_resistance'], color='#C0392B', linewidth=1.5,
+                       linestyle='--', label=f"Major Resistance (${analysis['major_resistance']:.4f})", alpha=0.85)
         if analysis.get('minor_resistance'):
-            ax1.axhline(y=analysis['minor_resistance'], color='lightcoral', linewidth=1,
-                       linestyle=':', label=f"Minor Resistance (${analysis['minor_resistance']:.4f})", alpha=0.6)
+            ax1.axhline(y=analysis['minor_resistance'], color='#EC7063', linewidth=1,
+                       linestyle=':', label=f"Minor Resistance (${analysis['minor_resistance']:.4f})", alpha=0.7)
 
         # Buy/Sell targets
         if analysis.get('buy_in_price'):
-            ax1.axhline(y=analysis['buy_in_price'], color='cyan', linewidth=1.8,
-                       linestyle='-', label=f"AI Buy Target (${analysis['buy_in_price']:.4f})", alpha=0.8)
+            ax1.axhline(y=analysis['buy_in_price'], color='#17A589', linewidth=1.8,
+                       linestyle='-', label=f"AI Buy Target (${analysis['buy_in_price']:.4f})", alpha=0.9)
         if analysis.get('sell_price'):
-            ax1.axhline(y=analysis['sell_price'], color='purple', linewidth=1.8,
-                       linestyle='-', label=f"AI Sell Target (${analysis['sell_price']:.4f})", alpha=0.8)
+            ax1.axhline(y=analysis['sell_price'], color='#8E44AD', linewidth=1.8,
+                       linestyle='-', label=f"AI Sell Target (${analysis['sell_price']:.4f})", alpha=0.9)
 
     # Plot entry price if in position
     if entry_price > 0:
-        ax1.axhline(y=entry_price, color='magenta', linewidth=2,
+        ax1.axhline(y=entry_price, color='#D35400', linewidth=2,
                    linestyle='-', label=f"Entry Price (${entry_price:.4f})", zorder=10)
 
     # Configure main chart
