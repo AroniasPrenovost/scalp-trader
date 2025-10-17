@@ -105,6 +105,11 @@ def plot_simple_snapshot(
         volume_data: DEPRECATED - ignored (use plot_multi_timeframe_charts for 24h volume)
     """
 
+    # Ensure all data is numeric
+    price_data = [float(p) if p is not None else 0.0 for p in price_data]
+    min_price = float(min_price)
+    max_price = float(max_price)
+
     # Create figure with single subplot (no volume)
     fig, ax1 = plt.subplots(figsize=(14, 6))
 
@@ -196,17 +201,22 @@ def plot_multi_timeframe_charts(
         data_points = timeframe_config['points']
         sliced_prices = price_data[-data_points:] if len(price_data) >= data_points else price_data
 
+        # Ensure all prices are floats (in case strings slipped through)
+        sliced_prices = [float(p) if p is not None else 0.0 for p in sliced_prices]
+
         # Only include volume for 24h chart (since it's rolling 24h volume from Coinbase)
         # For longer timeframes, rolling 24h volume is misleading
         sliced_volumes = None
         if timeframe_key == 'short_term' and volume_data:
             sliced_volumes = volume_data[-data_points:] if len(volume_data) >= data_points else volume_data
+            # Ensure all volumes are floats
+            sliced_volumes = [float(v) if v is not None else 0.0 for v in sliced_volumes]
 
         # Skip if we don't have enough data
         if len(sliced_prices) < 10:
             continue
 
-        # Calculate min/max for this timeframe
+        # Calculate min/max for this timeframe (guaranteed to be floats now)
         local_min = min(sliced_prices)
         local_max = max(sliced_prices)
         local_range_pct = calculate_trading_range_percentage(local_min, local_max)
@@ -277,18 +287,23 @@ def _generate_single_timeframe_chart(
     # Calculate and plot moving averages
     if len(price_data) >= 20:
         ma20 = calculate_moving_average(price_data, 20)
-        ax1.plot(x_values, ma20, label='MA(20)', c='blue', linewidth=1, alpha=0.7, linestyle='--')
+        ma20_clean = [val if val is not None else np.nan for val in ma20]
+        ax1.plot(x_values, ma20_clean, label='MA(20)', c='blue', linewidth=1, alpha=0.7, linestyle='--')
 
     if len(price_data) >= 50:
         ma50 = calculate_moving_average(price_data, 50)
-        ax1.plot(x_values, ma50, label='MA(50)', c='orange', linewidth=1, alpha=0.7, linestyle='--')
+        ma50_clean = [val if val is not None else np.nan for val in ma50]
+        ax1.plot(x_values, ma50_clean, label='MA(50)', c='orange', linewidth=1, alpha=0.7, linestyle='--')
 
     # Calculate and plot Bollinger Bands
     if len(price_data) >= 20:
         bb_mid, bb_upper, bb_lower = calculate_bollinger_bands(price_data, period=20)
-        ax1.plot(x_values, bb_upper, label='BB Upper', c='gray', linewidth=0.8, alpha=0.5, linestyle=':')
-        ax1.plot(x_values, bb_lower, label='BB Lower', c='gray', linewidth=0.8, alpha=0.5, linestyle=':')
-        ax1.fill_between(x_values, bb_upper, bb_lower, alpha=0.1, color='gray')
+        # Filter out None values for plotting - matplotlib requires numeric values
+        bb_upper_clean = [val if val is not None else np.nan for val in bb_upper]
+        bb_lower_clean = [val if val is not None else np.nan for val in bb_lower]
+        ax1.plot(x_values, bb_upper_clean, label='BB Upper', c='gray', linewidth=0.8, alpha=0.5, linestyle=':')
+        ax1.plot(x_values, bb_lower_clean, label='BB Lower', c='gray', linewidth=0.8, alpha=0.5, linestyle=':')
+        ax1.fill_between(x_values, bb_upper_clean, bb_lower_clean, alpha=0.1, color='gray')
 
     # Plot AI analysis levels if available
     if analysis:
@@ -322,7 +337,7 @@ def _generate_single_timeframe_chart(
     ax1.legend(loc='upper left', fontsize='x-small', ncol=2)
 
     # Title
-    title = f"{symbol} - {timeframe_title} - Range: {trade_range_percentage:.2f}%"
+    title = f"{symbol} - {timeframe_title} - Range: {trade_range_percentage}%"
     if analysis:
         title += f" | Trend: {analysis.get('market_trend', 'N/A')}"
     ax1.set_title(title, fontsize=12, fontweight='bold')
@@ -332,7 +347,9 @@ def _generate_single_timeframe_chart(
     if has_rsi:
         ax2 = fig.add_subplot(gs[subplot_idx])
         rsi = calculate_rsi(price_data, period=14)
-        ax2.plot(x_values, rsi, label='RSI(14)', c='purple', linewidth=1.5)
+        # Filter out None values for plotting - matplotlib requires numeric values
+        rsi_clean = [val if val is not None else np.nan for val in rsi]
+        ax2.plot(x_values, rsi_clean, label='RSI(14)', c='purple', linewidth=1.5)
         ax2.axhline(y=70, color='red', linewidth=0.8, linestyle='--', alpha=0.5, label='Overbought (70)')
         ax2.axhline(y=30, color='green', linewidth=0.8, linestyle='--', alpha=0.5, label='Oversold (30)')
         ax2.fill_between(x_values, 70, 100, alpha=0.1, color='red')
@@ -346,9 +363,11 @@ def _generate_single_timeframe_chart(
     # Volume subplot
     if volume_data:
         ax3 = fig.add_subplot(gs[subplot_idx])
+        # Ensure volume_data contains only numeric values
+        volume_data_clean = [float(val) if val is not None else 0.0 for val in volume_data]
         colors = ['green' if i == 0 or price_data[i] >= price_data[i-1] else 'red'
-                 for i in range(len(volume_data))]
-        ax3.bar(x_values, volume_data, color=colors, alpha=0.6, width=0.8)
+                 for i in range(len(volume_data_clean))]
+        ax3.bar(x_values, volume_data_clean, color=colors, alpha=0.6, width=0.8)
         ax3.set_ylabel('Volume (24h)', fontsize=10, fontweight='bold')
         ax3.grid(True, alpha=0.3, axis='y')
         ax3.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, p: f'{x/1e6:.1f}M' if x >= 1e6 else f'{x/1e3:.0f}K'))
@@ -400,6 +419,12 @@ def plot_graph(
         analysis: optional AI analysis dictionary with support/resistance/buy/sell levels
     """
 
+    # Ensure all data is numeric
+    price_data = [float(p) if p is not None else 0.0 for p in price_data]
+    min_price = float(min_price)
+    max_price = float(max_price)
+    entry_price = float(entry_price)
+
     # Create figure with subplots (main chart + RSI only, NO volume due to 24h rolling data issue)
     fig = plt.figure(figsize=(14, 10))
 
@@ -427,18 +452,23 @@ def plot_graph(
     # Calculate and plot moving averages
     if len(price_data) >= 20:
         ma20 = calculate_moving_average(price_data, 20)
-        ax1.plot(x_values, ma20, label='MA(20)', c='blue', linewidth=1, alpha=0.7, linestyle='--')
+        ma20_clean = [val if val is not None else np.nan for val in ma20]
+        ax1.plot(x_values, ma20_clean, label='MA(20)', c='blue', linewidth=1, alpha=0.7, linestyle='--')
 
     if len(price_data) >= 50:
         ma50 = calculate_moving_average(price_data, 50)
-        ax1.plot(x_values, ma50, label='MA(50)', c='orange', linewidth=1, alpha=0.7, linestyle='--')
+        ma50_clean = [val if val is not None else np.nan for val in ma50]
+        ax1.plot(x_values, ma50_clean, label='MA(50)', c='orange', linewidth=1, alpha=0.7, linestyle='--')
 
     # Calculate and plot Bollinger Bands
     if len(price_data) >= 20:
         bb_mid, bb_upper, bb_lower = calculate_bollinger_bands(price_data, period=20)
-        ax1.plot(x_values, bb_upper, label='BB Upper', c='gray', linewidth=0.8, alpha=0.5, linestyle=':')
-        ax1.plot(x_values, bb_lower, label='BB Lower', c='gray', linewidth=0.8, alpha=0.5, linestyle=':')
-        ax1.fill_between(x_values, bb_upper, bb_lower, alpha=0.1, color='gray')
+        # Filter out None values for plotting - matplotlib requires numeric values
+        bb_upper_clean = [val if val is not None else np.nan for val in bb_upper]
+        bb_lower_clean = [val if val is not None else np.nan for val in bb_lower]
+        ax1.plot(x_values, bb_upper_clean, label='BB Upper', c='gray', linewidth=0.8, alpha=0.5, linestyle=':')
+        ax1.plot(x_values, bb_lower_clean, label='BB Lower', c='gray', linewidth=0.8, alpha=0.5, linestyle=':')
+        ax1.fill_between(x_values, bb_upper_clean, bb_lower_clean, alpha=0.1, color='gray')
 
     # Plot AI analysis levels if available
     if analysis:
@@ -491,7 +521,9 @@ def plot_graph(
     if has_rsi:
         ax2 = fig.add_subplot(gs[1])
         rsi = calculate_rsi(price_data, period=14)
-        ax2.plot(x_values, rsi, label='RSI(14)', c='purple', linewidth=1.5)
+        # Filter out None values for plotting - matplotlib requires numeric values
+        rsi_clean = [val if val is not None else np.nan for val in rsi]
+        ax2.plot(x_values, rsi_clean, label='RSI(14)', c='purple', linewidth=1.5)
         ax2.axhline(y=70, color='red', linewidth=0.8, linestyle='--', alpha=0.5, label='Overbought (70)')
         ax2.axhline(y=30, color='green', linewidth=0.8, linestyle='--', alpha=0.5, label='Oversold (30)')
         ax2.fill_between(x_values, 70, 100, alpha=0.1, color='red')
