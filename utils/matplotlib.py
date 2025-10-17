@@ -5,6 +5,7 @@ matplotlib.use('Agg')  # Use non-interactive backend to prevent display windows
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
+import pandas as pd
 from utils.price_helpers import calculate_trading_range_percentage
 
 def calculate_moving_average(prices, period):
@@ -144,6 +145,55 @@ def plot_simple_snapshot(
     print(f"Snapshot saved as {filename}")
 
 
+def resample_price_data_to_timeframe(price_data, interval_minutes, target_timeframe_hours):
+    """
+    Resample price data from one interval to a different timeframe using OHLC aggregation.
+
+    Args:
+        price_data: List of price values at regular intervals
+        interval_minutes: The interval in minutes between each price data point
+        target_timeframe_hours: Target timeframe in hours (e.g., 1 for 1h, 4 for 4h, 24 for 1d, 168 for 1w)
+
+    Returns:
+        Dictionary with resampled data:
+        {
+            'close': list of closing prices (for line charts and indicators),
+            'open': list of opening prices,
+            'high': list of high prices,
+            'low': list of low prices
+        }
+    """
+    if not price_data or len(price_data) == 0:
+        return {'close': [], 'open': [], 'high': [], 'low': []}
+
+    # Calculate how many data points to group together
+    target_timeframe_minutes = target_timeframe_hours * 60
+    points_per_candle = int(target_timeframe_minutes / interval_minutes)
+
+    # If target timeframe is smaller than our data interval, just return original data
+    if points_per_candle < 1:
+        return {
+            'close': price_data,
+            'open': price_data,
+            'high': price_data,
+            'low': price_data
+        }
+
+    # Resample into OHLC candles
+    resampled = {'close': [], 'open': [], 'high': [], 'low': []}
+
+    for i in range(0, len(price_data), points_per_candle):
+        candle_data = price_data[i:i + points_per_candle]
+
+        if len(candle_data) > 0:
+            resampled['open'].append(candle_data[0])
+            resampled['high'].append(max(candle_data))
+            resampled['low'].append(min(candle_data))
+            resampled['close'].append(candle_data[-1])
+
+    return resampled
+
+
 def plot_multi_timeframe_charts(
     current_timestamp,
     interval,
@@ -153,14 +203,14 @@ def plot_multi_timeframe_charts(
     analysis=None
 ):
     """
-    Generate multiple charts at different timeframes for LLM analysis.
-    Creates 4 charts: 1-hour, 4-hour, 1-day, and 1-week views.
+    Generate multiple charts at different timeframes for LLM analysis by resampling data.
+    Creates 4 charts: 1-hour, 4-hour, 1-day, and 1-week views using ALL available data.
 
     Args:
         current_timestamp: timestamp for filename
-        interval: data interval in minutes
+        interval: data interval in minutes (e.g., 60 for hourly data)
         symbol: trading pair symbol
-        price_data: full list of price values
+        price_data: full list of price values (all available historical data)
         volume_data: optional full list of volume values
         analysis: optional AI analysis dictionary
 
@@ -173,30 +223,34 @@ def plot_multi_timeframe_charts(
             '1w': path to 1-week chart
         }
     """
-    # Calculate data points for each timeframe based on interval
-    points_per_hour = int(60 / interval)
-    points_per_day = points_per_hour * 24
+    # Ensure all data is numeric
+    price_data = [float(p) if p is not None else 0.0 for p in price_data]
+
+    # Skip if we don't have enough data
+    if len(price_data) < 10:
+        print(f"  Skipping all charts: insufficient data ({len(price_data)} points, need at least 10)")
+        return {}
 
     timeframes = {
         '1h': {
-            'points': points_per_hour,  # 1 hour
+            'hours': 1,
             'label': '1h',
-            'title_suffix': '1 Hour View'
+            'title_suffix': '1 Hour Timeframe'
         },
         '4h': {
-            'points': points_per_hour * 4,  # 4 hours
+            'hours': 4,
             'label': '4h',
-            'title_suffix': '4 Hour View'
+            'title_suffix': '4 Hour Timeframe'
         },
         '1d': {
-            'points': points_per_day,  # 1 day
+            'hours': 24,
             'label': '1d',
-            'title_suffix': '1 Day View'
+            'title_suffix': '1 Day Timeframe'
         },
         '1w': {
-            'points': points_per_day * 7,  # 1 week
+            'hours': 168,  # 7 * 24
             'label': '1w',
-            'title_suffix': '1 Week View'
+            'title_suffix': '1 Week Timeframe'
         }
     }
 
@@ -204,40 +258,50 @@ def plot_multi_timeframe_charts(
     timestamp_str = time.strftime("%Y%m%d%H%M%S", time.localtime(current_timestamp))
 
     for timeframe_key, timeframe_config in timeframes.items():
-        # Slice data for this timeframe
-        data_points = timeframe_config['points']
-        sliced_prices = price_data[-data_points:] if len(price_data) >= data_points else price_data
+        # Resample ALL price data into this timeframe
+        resampled_data = resample_price_data_to_timeframe(
+            price_data,
+            interval,
+            timeframe_config['hours']
+        )
 
-        # Ensure all prices are floats (in case strings slipped through)
-        sliced_prices = [float(p) if p is not None else 0.0 for p in sliced_prices]
+        # Use close prices for the chart (this is what technical indicators need)
+        resampled_prices = resampled_data['close']
+
+        # Skip if resampling resulted in too few candles
+        if len(resampled_prices) < 3:
+            print(f"  Skipping {timeframe_key} chart: insufficient data after resampling ({len(resampled_prices)} candles, need at least 3)")
+            continue
 
         # Only include volume for 1h and 4h charts (since it's rolling 24h volume from Coinbase)
         # For longer timeframes (1d, 1w), rolling 24h volume is misleading
-        sliced_volumes = None
+        resampled_volumes = None
         if timeframe_key in ['1h', '4h'] and volume_data:
-            sliced_volumes = volume_data[-data_points:] if len(volume_data) >= data_points else volume_data
-            # Ensure all volumes are floats
-            sliced_volumes = [float(v) if v is not None else 0.0 for v in sliced_volumes]
+            volume_data_clean = [float(v) if v is not None else 0.0 for v in volume_data]
+            resampled_volume_data = resample_price_data_to_timeframe(
+                volume_data_clean,
+                interval,
+                timeframe_config['hours']
+            )
+            resampled_volumes = resampled_volume_data['close']  # Use closing volume for each period
 
-        # Skip if we don't have enough data
-        if len(sliced_prices) < 10:
-            continue
-
-        # Calculate min/max for this timeframe (guaranteed to be floats now)
-        local_min = min(sliced_prices)
-        local_max = max(sliced_prices)
+        # Calculate min/max for this resampled timeframe
+        local_min = min(resampled_prices)
+        local_max = max(resampled_prices)
         local_range_pct = calculate_trading_range_percentage(local_min, local_max)
+
+        print(f"  Generating {timeframe_key} chart ({len(resampled_prices)} candles from {len(price_data)} data points)")
 
         # Generate chart for this timeframe
         chart_path = _generate_single_timeframe_chart(
             current_timestamp=current_timestamp,
-            interval=interval,
+            interval=timeframe_config['hours'] * 60,  # Convert hours to minutes for the chart
             symbol=symbol,
-            price_data=sliced_prices,
+            price_data=resampled_prices,
             min_price=local_min,
             max_price=local_max,
             trade_range_percentage=local_range_pct,
-            volume_data=sliced_volumes,
+            volume_data=resampled_volumes,
             analysis=analysis,
             timeframe_label=timeframe_config['label'],
             timeframe_title=timeframe_config['title_suffix'],
