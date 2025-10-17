@@ -5,7 +5,7 @@ import base64
 from openai import OpenAI
 from io import BytesIO
 
-def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_rate_percentage=0, min_profit_target_percentage=3.0, chart_paths=None, trading_context=None, graph_image_path=None):
+def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_rate_percentage=0, min_profit_target_percentage=3.0, chart_paths=None, trading_context=None, graph_image_path=None, range_percentage_from_min=None):
     """
     Analyzes market data using OpenAI's API to determine key support/resistance levels
     and trading recommendations.
@@ -25,6 +25,7 @@ def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_ra
         chart_paths: Optional dictionary with paths to multi-timeframe charts {'short_term': path, 'medium_term': path, 'long_term': path}
         trading_context: Optional dictionary containing historical trading context from build_trading_context()
         graph_image_path: DEPRECATED - use chart_paths instead. Optional path to a single graph image
+        range_percentage_from_min: Optional volatility metric showing price range from min to max (e.g., 50 = 50% range)
 
     Returns:
         Dictionary with analysis results or None if API call fails
@@ -107,8 +108,30 @@ MULTI-TIMEFRAME DECISION LOGIC:
 Base your primary trading decision on the 4H chart, but REQUIRE validation from 1D and 1W context. Use 1H for fine-tuning entry timing.
 """
 
+    # Build volatility context
+    volatility_context = ""
+    if range_percentage_from_min is not None:
+        volatility_context = f"""
+
+VOLATILITY ANALYSIS (CRITICAL):
+- Price Range (Low to High): {range_percentage_from_min:.2f}%
+- This metric shows the total percentage change from minimum to maximum price in the data window
+- INTERPRETATION:
+  * < 5%: Very Low Volatility - tight range, potential breakout setup or dead market
+  * 5-15%: Low Volatility - normal consolidation, suitable for range trading
+  * 15-30%: Moderate Volatility - healthy trending market, ideal for swing trades
+  * 30-50%: High Volatility - strong trending or volatile, larger profit potential but higher risk
+  * > 50%: Extreme Volatility - caution advised, ensure stop losses are appropriate for the range
+
+VOLATILITY TRADING RULES:
+1. If range < 10% AND profit target >= 5%: Reduce confidence (target exceeds typical range movement)
+2. If range > 30%: Widen stop losses proportionally to avoid getting stopped out by normal volatility
+3. If range > 50%: Only trade with HIGH conviction setups, risk of whipsaw is elevated
+4. Profit targets should be realistic relative to observed volatility (don't target 10% profit on 8% range asset)
+5. Position sizing: Higher volatility = smaller position size to manage risk"""
+
     prompt = f"""Analyze the following market data for {symbol} and provide a technical analysis with specific trading levels.
-{historical_context_section}{timeframe_context}
+{historical_context_section}{timeframe_context}{volatility_context}
 
 Market Data:
 - Current Price: ${current_price}

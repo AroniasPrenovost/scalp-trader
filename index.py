@@ -170,6 +170,12 @@ def iterate_wallets(interval_seconds):
         low_confidence_wait_hours = config.get('low_confidence_wait_hours', 2.0)
         medium_confidence_wait_hours = config.get('medium_confidence_wait_hours', 1.0)
 
+        # Volatility filter configuration
+        volatility_config = config.get('volatility_filters', {})
+        enable_volatility_checks = volatility_config.get('enable_volatility_checks', True)
+        min_range_percentage = volatility_config.get('min_range_percentage', 5)
+        max_range_percentage = volatility_config.get('max_range_percentage', 100)
+
         # LLM Learning configuration
         llm_learning_config = config.get('llm_learning', {})
         llm_learning_enabled = llm_learning_config.get('enabled', True)
@@ -261,23 +267,47 @@ def iterate_wallets(interval_seconds):
                     current_price = get_asset_price(coinbase_client, symbol) # current_price = float(coin['price'])
 
                     # NEW RETRIEVAL: Read from individual crypto file (only data from last X hours)
+                    # Note: get_property_values_from_crypto_file already converts prices to float
                     coin_prices_LIST = get_property_values_from_crypto_file(coinbase_data_directory, symbol, 'price', max_age_hours=DATA_RETENTION_HOURS)
-                    coin_prices_LIST = [float(price) for price in coin_prices_LIST if price is not None] # Convert to list of floats
 
                     # NOTE: coin_volume_24h represents Coinbase's rolling 24-hour volume at each data point.
                     # This is useful for 24h charts but misleading for longer timeframes (7d, 90d) since
                     # each historical point shows the 24h rolling volume at that moment, not the actual
                     # volume during that specific interval. See matplotlib.py:199-203 for conditional usage.
+                    # Note: get_property_values_from_crypto_file already converts volumes to float
                     coin_volume_24h_LIST = get_property_values_from_crypto_file(coinbase_data_directory, symbol, 'volume_24h', max_age_hours=DATA_RETENTION_HOURS)
-                    coin_volume_24h_LIST = [float(volume_24h) for volume_24h in coin_volume_24h_LIST if volume_24h is not None]
                     current_volume_24h = float(coin['volume_24h'])
 
                     # Periodically cleanup old data from crypto files (runs once per iteration, for each coin)
                     cleanup_old_crypto_data(coinbase_data_directory, symbol, DATA_RETENTION_HOURS)
 
+                    # Validate price data before using min/max
+                    if not coin_prices_LIST or len(coin_prices_LIST) == 0:
+                        print(f"No price data available for {symbol} - skipping this iteration")
+                        print()
+                        continue
+
+                    # Ensure all values are floats (safety check)
+                    coin_prices_LIST = [float(p) for p in coin_prices_LIST]
+
                     min_price = min(coin_prices_LIST)
                     max_price = max(coin_prices_LIST)
                     range_percentage_from_min = calculate_percentage_from_min(min_price, max_price)
+
+                    # Volatility check - skip trading if outside acceptable range
+                    if enable_volatility_checks:
+                        if range_percentage_from_min < min_range_percentage:
+                            print(f"STATUS: Volatility too low ({range_percentage_from_min:.2f}% < {min_range_percentage}%) - skipping trade analysis")
+                            print(f"Market is too flat for profitable trading (not enough price movement)")
+                            print()
+                            continue
+                        elif range_percentage_from_min > max_range_percentage:
+                            print(f"STATUS: Volatility too high ({range_percentage_from_min:.2f}% > {max_range_percentage}%) - skipping trade analysis")
+                            print(f"Market is too volatile (excessive risk of whipsaw)")
+                            print()
+                            continue
+                        else:
+                            print(f"Volatility: {range_percentage_from_min:.2f}% (within acceptable range {min_range_percentage}-{max_range_percentage}%)")
 
                     coin_data = {
                         'current_price': current_price,
@@ -373,7 +403,8 @@ def iterate_wallets(interval_seconds):
                                 tax_rate_percentage=federal_tax_rate,
                                 min_profit_target_percentage=min_profit_target_percentage,
                                 chart_paths=chart_paths,
-                                trading_context=trading_context
+                                trading_context=trading_context,
+                                range_percentage_from_min=range_percentage_from_min
                             )
                             if analysis:
                                 save_analysis_to_file(symbol, analysis)

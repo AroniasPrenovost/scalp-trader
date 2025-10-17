@@ -159,8 +159,26 @@ def plot_simple_snapshot(
         volume_data: DEPRECATED - ignored (use plot_multi_timeframe_charts for 24h volume)
     """
 
-    # Ensure all data is numeric
-    price_data = [float(p) if p is not None else 0.0 for p in price_data]
+    # Ensure all data is numeric - handle string conversions and filter invalid data
+    clean_price_data = []
+    for p in price_data:
+        try:
+            if p is None:
+                continue
+            if isinstance(p, str):
+                p = p.strip()
+                if p == '':
+                    continue
+            clean_price_data.append(float(p))
+        except (ValueError, TypeError):
+            print(f"Warning: Skipping invalid price value in snapshot: {p}")
+            continue
+    price_data = clean_price_data
+
+    if not price_data:
+        print("Error: No valid price data for snapshot")
+        return
+
     min_price = float(min_price)
     max_price = float(max_price)
 
@@ -192,7 +210,7 @@ def plot_simple_snapshot(
     ax1.set_xlabel(f"Time", fontsize=10, fontweight='bold')
     ax1.grid(True, alpha=0.3)
     ax1.legend(loc='upper left', fontsize='small')
-    ax1.set_title(f"{symbol} - Range: +{range_percentage_from_min}% from low", fontsize=12, fontweight='bold')
+    ax1.set_title(f"{symbol} - Range: {range_percentage_from_min:.2f}% (low to high)", fontsize=12, fontweight='bold')
 
     # Save figure
     # Convert interval to timeframe label
@@ -234,6 +252,24 @@ def resample_price_data_to_timeframe(price_data, interval_minutes, target_timefr
             'low': list of low prices
         }
     """
+    if not price_data or len(price_data) == 0:
+        return {'close': [], 'open': [], 'high': [], 'low': []}
+
+    # Ensure all price data is numeric (convert strings to float, filter invalid data)
+    clean_price_data = []
+    for p in price_data:
+        try:
+            if isinstance(p, str):
+                p = p.strip()
+                if p == '':
+                    continue
+            clean_price_data.append(float(p))
+        except (ValueError, TypeError):
+            print(f"Warning: Skipping invalid price value in resample: {p}")
+            continue
+
+    # Use cleaned data
+    price_data = clean_price_data
     if not price_data or len(price_data) == 0:
         return {'close': [], 'open': [], 'high': [], 'low': []}
 
@@ -295,8 +331,21 @@ def plot_multi_timeframe_charts(
             '1w': path to 1-week chart
         }
     """
-    # Ensure all data is numeric
-    price_data = [float(p) if p is not None else 0.0 for p in price_data]
+    # Ensure all data is numeric - handle string conversions and filter invalid data
+    clean_price_data = []
+    for p in price_data:
+        try:
+            if p is None:
+                continue
+            if isinstance(p, str):
+                p = p.strip()
+                if p == '':
+                    continue
+            clean_price_data.append(float(p))
+        except (ValueError, TypeError):
+            print(f"Warning: Skipping invalid price value in multi-timeframe chart: {p}")
+            continue
+    price_data = clean_price_data
 
     # Skip if we don't have enough data
     if len(price_data) < 10:
@@ -507,7 +556,7 @@ def _generate_single_timeframe_chart(
     ax1.legend(loc='upper left', fontsize='x-small', ncol=2)
 
     # Title
-    title = f"{symbol} - {timeframe_title} - Range: +{range_percentage_from_min}% from low"
+    title = f"{symbol} - {timeframe_title} - Range: {range_percentage_from_min:.2f}% (low to high)"
     if analysis:
         title += f" | Trend: {analysis.get('market_trend', 'N/A')}"
     ax1.set_title(title, fontsize=12, fontweight='bold')
@@ -595,8 +644,26 @@ def plot_graph(
         analysis: optional AI analysis dictionary with support/resistance/buy/sell levels
     """
 
-    # Ensure all data is numeric
-    price_data = [float(p) if p is not None else 0.0 for p in price_data]
+    # Ensure all data is numeric - handle string conversions and filter invalid data
+    clean_price_data = []
+    for p in price_data:
+        try:
+            if p is None:
+                continue
+            if isinstance(p, str):
+                p = p.strip()
+                if p == '':
+                    continue
+            clean_price_data.append(float(p))
+        except (ValueError, TypeError):
+            print(f"Warning: Skipping invalid price value in plot_graph: {p}")
+            continue
+    price_data = clean_price_data
+
+    if not price_data:
+        print("Error: No valid price data for plot_graph")
+        return None
+
     min_price = float(min_price)
     max_price = float(max_price)
     entry_price = float(entry_price)
@@ -693,7 +760,7 @@ def plot_graph(
     ax1.legend(loc='upper left', fontsize='x-small', ncol=2)
 
     # Title with AI analysis info
-    title = f"{symbol} - Range: +{range_percentage_from_min}% from low"
+    title = f"{symbol} - Range: {range_percentage_from_min:.2f}% (low to high)"
     if analysis:
         title += f" | Trend: {analysis.get('market_trend', 'N/A')} | Confidence: {analysis.get('confidence_level', 'N/A')}"
     ax1.set_title(title, fontsize=12, fontweight='bold')

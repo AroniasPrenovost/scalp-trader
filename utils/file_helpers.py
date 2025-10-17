@@ -344,10 +344,36 @@ def get_property_values_from_crypto_file(directory, product_id, property_name, m
     :param product_id: The product_id (e.g., 'BTC-USD')
     :param property_name: The property to extract from each entry
     :param max_age_hours: Optional filter to only return entries younger than X hours
-    :return: List of property values
+    :return: List of property values (numeric properties are converted to float)
     """
     entries = get_crypto_data_from_file(directory, product_id, max_age_hours)
-    return [entry.get(property_name) for entry in entries if property_name in entry]
+    values = []
+
+    for entry in entries:
+        if property_name in entry:
+            value = entry.get(property_name)
+
+            # Convert numeric string values to float for price/volume properties
+            if property_name in ['price', 'volume_24h']:
+                # Skip None values
+                if value is None:
+                    continue
+                try:
+                    # Handle empty strings and convert to float
+                    if isinstance(value, str):
+                        value = value.strip()
+                        if value == '':
+                            continue  # Skip empty strings
+                    # Always convert to float for price/volume properties
+                    values.append(float(value))
+                except (ValueError, TypeError) as e:
+                    # Skip values that can't be converted to float
+                    print(f"Warning: Skipping invalid {property_name} value: {value} (type: {type(value).__name__}, error: {e})")
+                    continue
+            else:
+                values.append(value)
+
+    return values
 
 
 def cleanup_old_crypto_data(directory, product_id, max_age_hours):
