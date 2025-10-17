@@ -295,13 +295,8 @@ def iterate_wallets(interval_seconds):
                     price_position_within_trade_range = calculate_current_price_position_within_trading_range(current_price, min_price, max_price)
 
                     coin_data = {
-                        'symbol': symbol,
-                        'timestamp': time.time(),
-                        'time_interval_minutes': INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
-                        #
                         'current_price': current_price,
                         'current_volume_24h': current_volume_24h,
-                        #
                         'coin_prices_list': coin_prices_LIST,
                         'coin_volume_24h_LIST': coin_volume_24h_LIST,
                     }
