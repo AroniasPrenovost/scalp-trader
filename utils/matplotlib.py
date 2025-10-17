@@ -91,7 +91,7 @@ def plot_simple_snapshot(
 ):
 
     """
-    Simple snapshot plot with just price and optional volume data.
+    Simple snapshot plot with just price (no volume due to 24h rolling data issue).
     For use before trading logic when entry_price and analysis are not yet available.
 
     Args:
@@ -102,15 +102,11 @@ def plot_simple_snapshot(
         min_price: minimum price in range
         max_price: maximum price in range
         trade_range_percentage: trading range percentage
-        volume_data: optional list of volume values
+        volume_data: DEPRECATED - ignored (use plot_multi_timeframe_charts for 24h volume)
     """
 
-    # Create figure with subplots
-    if volume_data:
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 8), height_ratios=[3, 1])
-        fig.subplots_adjust(hspace=0.3)
-    else:
-        fig, ax1 = plt.subplots(figsize=(14, 6))
+    # Create figure with single subplot (no volume)
+    fig, ax1 = plt.subplots(figsize=(14, 6))
 
     # Plot price line
     x_values = list(range(len(price_data)))
@@ -129,22 +125,10 @@ def plot_simple_snapshot(
     ax1.xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
     ax1.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.4f'))
     ax1.set_ylabel('Price (USD)', fontsize=10, fontweight='bold')
+    ax1.set_xlabel(f"Data Points (Interval: {interval} min)", fontsize=10, fontweight='bold')
     ax1.grid(True, alpha=0.3)
     ax1.legend(loc='upper left', fontsize='small')
     ax1.set_title(f"{symbol} - Range: {trade_range_percentage}%", fontsize=12, fontweight='bold')
-
-    if not volume_data:
-        ax1.set_xlabel(f"Data Points (Interval: {interval} min)", fontsize=10, fontweight='bold')
-
-    # Volume subplot (if data provided)
-    if volume_data:
-        colors = ['green' if i == 0 or price_data[i] >= price_data[i-1] else 'red'
-                 for i in range(len(volume_data))]
-        ax2.bar(x_values, volume_data, color=colors, alpha=0.6, width=0.8)
-        ax2.set_ylabel('Volume (24h)', fontsize=10, fontweight='bold')
-        ax2.set_xlabel(f"Data Points (Interval: {interval} min)", fontsize=10, fontweight='bold')
-        ax2.grid(True, alpha=0.3, axis='y')
-        ax2.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, p: f'{x/1e6:.1f}M' if x >= 1e6 else f'{x/1e3:.0f}K'))
 
     # Save figure
     timestamp_str = time.strftime("%Y%m%d%H%M%S", time.localtime(current_timestamp))
@@ -211,7 +195,12 @@ def plot_multi_timeframe_charts(
         # Slice data for this timeframe
         data_points = timeframe_config['points']
         sliced_prices = price_data[-data_points:] if len(price_data) >= data_points else price_data
-        sliced_volumes = volume_data[-data_points:] if volume_data and len(volume_data) >= data_points else volume_data
+
+        # Only include volume for 24h chart (since it's rolling 24h volume from Coinbase)
+        # For longer timeframes, rolling 24h volume is misleading
+        sliced_volumes = None
+        if timeframe_key == 'short_term' and volume_data:
+            sliced_volumes = volume_data[-data_points:] if len(volume_data) >= data_points else volume_data
 
         # Skip if we don't have enough data
         if len(sliced_prices) < 10:
@@ -396,6 +385,7 @@ def plot_graph(
 ):
     """
     Enhanced plot with technical indicators and AI analysis
+    NOTE: volume_data parameter is deprecated and ignored (rolling 24h volume is misleading on long timeframes)
 
     Args:
         current_timestamp: timestamp for filename
@@ -406,17 +396,15 @@ def plot_graph(
         max_price: maximum price in range
         trade_range_percentage: trading range percentage
         entry_price: entry price if in position
-        volume_data: optional list of volume values
+        volume_data: DEPRECATED - ignored (use plot_multi_timeframe_charts for 24h volume)
         analysis: optional AI analysis dictionary with support/resistance/buy/sell levels
     """
 
-    # Create figure with subplots (main chart + RSI + volume)
+    # Create figure with subplots (main chart + RSI only, NO volume due to 24h rolling data issue)
     fig = plt.figure(figsize=(14, 10))
 
     # Determine number of subplots based on available data
     num_subplots = 1
-    if volume_data:
-        num_subplots += 1
 
     # Calculate if we have enough data for RSI
     has_rsi = len(price_data) >= 15
@@ -424,9 +412,7 @@ def plot_graph(
         num_subplots += 1
 
     # Create subplots with height ratios
-    if num_subplots == 3:
-        gs = fig.add_gridspec(3, 1, height_ratios=[3, 1, 1], hspace=0.3)
-    elif num_subplots == 2:
+    if num_subplots == 2:
         gs = fig.add_gridspec(2, 1, height_ratios=[3, 1], hspace=0.3)
     else:
         gs = fig.add_gridspec(1, 1)
@@ -502,9 +488,8 @@ def plot_graph(
     ax1.set_title(title, fontsize=12, fontweight='bold')
 
     # RSI subplot
-    subplot_idx = 1
     if has_rsi:
-        ax2 = fig.add_subplot(gs[subplot_idx])
+        ax2 = fig.add_subplot(gs[1])
         rsi = calculate_rsi(price_data, period=14)
         ax2.plot(x_values, rsi, label='RSI(14)', c='purple', linewidth=1.5)
         ax2.axhline(y=70, color='red', linewidth=0.8, linestyle='--', alpha=0.5, label='Overbought (70)')
@@ -515,22 +500,10 @@ def plot_graph(
         ax2.set_ylabel('RSI', fontsize=10, fontweight='bold')
         ax2.grid(True, alpha=0.3)
         ax2.legend(loc='upper left', fontsize='x-small')
-        subplot_idx += 1
-
-    # Volume subplot
-    if volume_data:
-        ax3 = fig.add_subplot(gs[subplot_idx])
-        colors = ['green' if i == 0 or price_data[i] >= price_data[i-1] else 'red'
-                 for i in range(len(volume_data))]
-        ax3.bar(x_values, volume_data, color=colors, alpha=0.6, width=0.8)
-        ax3.set_ylabel('Volume (24h)', fontsize=10, fontweight='bold')
-        ax3.grid(True, alpha=0.3, axis='y')
-        ax3.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, p: f'{x/1e6:.1f}M' if x >= 1e6 else f'{x/1e3:.0f}K'))
+        ax2.set_xlabel(f"Data Points (Interval: {interval} min)", fontsize=10, fontweight='bold')
 
     # X-axis label on bottom subplot
-    if num_subplots > 1:
-        fig.get_axes()[-1].set_xlabel(f"Data Points (Interval: {interval} min)", fontsize=10, fontweight='bold')
-    else:
+    if not has_rsi:
         ax1.set_xlabel(f"Data Points (Interval: {interval} min)", fontsize=10, fontweight='bold')
 
     # Save figure

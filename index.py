@@ -323,8 +323,7 @@ def iterate_wallets(interval_seconds):
                             coin_prices_LIST,
                             min_price,
                             max_price,
-                            trade_range_percentage,
-                            volume_data=coin_volume_24h_LIST
+                            trade_range_percentage
                         )
 
                     #
@@ -465,7 +464,6 @@ def iterate_wallets(interval_seconds):
                                     max_price,
                                     trade_range_percentage,
                                     entry_price,
-                                    volume_data=coin_volume_24h_LIST,
                                     analysis=analysis,
                                     buy_event=True
                                 )
@@ -545,7 +543,6 @@ def iterate_wallets(interval_seconds):
                                 max_price,
                                 trade_range_percentage,
                                 entry_price,
-                                volume_data=coin_volume_24h_LIST,
                                 analysis=analysis,
                                 buy_event=False
                             )
@@ -584,7 +581,6 @@ def iterate_wallets(interval_seconds):
                                 max_price,
                                 trade_range_percentage,
                                 entry_price,
-                                volume_data=coin_volume_24h_LIST,
                                 analysis=analysis,
                                 buy_event=False
                             )
