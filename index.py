@@ -282,16 +282,6 @@ def iterate_wallets(interval_seconds):
                     current_volume_24h = float(coin['volume_24h']) # append most recent API call result
                     coin_volume_24h_LIST.append(current_volume_24h)
 
-                    coin_price_percentage_change_24h_LIST = get_property_values_from_crypto_file(coinbase_data_directory, symbol, 'price_percentage_change_24h', max_age_hours=DATA_RETENTION_HOURS)
-                    coin_price_percentage_change_24h_LIST = [float(price_percentage_change_24h) for price_percentage_change_24h in coin_price_percentage_change_24h_LIST if price_percentage_change_24h is not None]
-                    current_price_percentage_change_24h = float(coin['price_percentage_change_24h'])
-                    coin_price_percentage_change_24h_LIST.append(current_price_percentage_change_24h)
-
-                    coin_volume_percentage_change_24h_LIST = get_property_values_from_crypto_file(coinbase_data_directory, symbol, 'volume_percentage_change_24h', max_age_hours=DATA_RETENTION_HOURS)
-                    coin_volume_percentage_change_24h_LIST = [float(volume_percentage_change_24h) for volume_percentage_change_24h in coin_volume_percentage_change_24h_LIST if volume_percentage_change_24h is not None]
-                    current_volume_percentage_change_24h = float(coin['volume_percentage_change_24h'])
-                    coin_volume_percentage_change_24h_LIST.append(current_volume_percentage_change_24h)
-
                     # Periodically cleanup old data from crypto files (runs once per iteration, for each coin)
                     cleanup_old_crypto_data(coinbase_data_directory, symbol, DATA_RETENTION_HOURS)
 
@@ -307,12 +297,9 @@ def iterate_wallets(interval_seconds):
                         #
                         'current_price': current_price,
                         'current_volume_24h': current_volume_24h,
-                        'current_volume_percentage_change_24h': current_volume_percentage_change_24h,
                         #
                         'coin_prices_list': coin_prices_LIST,
                         'coin_volume_24h_LIST': coin_volume_24h_LIST,
-                        'coin_price_percentage_change_24h_LIST': coin_price_percentage_change_24h_LIST,
-                        'coin_volume_percentage_change_24h_LIST': coin_volume_percentage_change_24h_LIST,
                     }
                     # print(coin_data)
                     if ENABLE_CHART_SNAPSHOT:

@@ -41,7 +41,6 @@ def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_ra
     current_price = coin_data.get('current_price', 0)
     prices = coin_data.get('coin_prices_list', [])
     volumes = coin_data.get('coin_volume_24h_LIST', [])
-    price_changes = coin_data.get('coin_price_percentage_change_24h_LIST', [])
 
     min_price = min(prices) if prices else 0
     max_price = max(prices) if prices else 0
@@ -87,7 +86,6 @@ Market Data:
 - Number of Data Points: {len(prices)}
 - Recent Price Trend: {prices[-20:] if len(prices) >= 20 else prices}
 - Current 24h Volume: {coin_data.get('current_volume_24h', 0)}
-- 24h Price Change: {coin_data.get('coin_price_percentage_change_24h_LIST', [])[-1] if coin_data.get('coin_price_percentage_change_24h_LIST') else 0}%
 
 Trading Costs (IMPORTANT - Factor these into your recommendations):
 - Exchange Taker Fee: {taker_fee_percentage}% per trade ({total_fee_percentage}% total for buy + sell)

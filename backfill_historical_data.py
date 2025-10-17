@@ -135,29 +135,11 @@ def transform_coingecko_to_coinbase_format(coingecko_data, product_id):
         # Get volume for this timestamp
         volume_24h = volume_dict.get(int(timestamp_ms), 0)
 
-        # Calculate percentage changes
-        # For price: compare with price 24 hours ago (96 data points at 15-min intervals)
-        price_percentage_change_24h = "0"
-        if i >= 96:
-            price_24h_ago = prices[i - 96][1]
-            if price_24h_ago != 0:
-                price_percentage_change_24h = str(((price - price_24h_ago) / price_24h_ago) * 100)
-
-        # For volume: compare with volume 24 hours ago
-        volume_percentage_change_24h = "0"
-        if i >= 96:
-            timestamp_24h_ago = prices[i - 96][0]
-            volume_24h_ago = volume_dict.get(int(timestamp_24h_ago), 0)
-            if volume_24h_ago != 0:
-                volume_percentage_change_24h = str(((volume_24h - volume_24h_ago) / volume_24h_ago) * 100)
-
         data_point = {
             'timestamp': unix_timestamp,
             'product_id': product_id,
             'price': str(price),
-            'price_percentage_change_24h': price_percentage_change_24h,
-            'volume_24h': str(volume_24h),
-            'volume_percentage_change_24h': volume_percentage_change_24h
+            'volume_24h': str(volume_24h)
         }
 
         transformed_data.append(data_point)
