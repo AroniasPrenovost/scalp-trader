@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
 import pandas as pd
-from utils.price_helpers import calculate_trading_range_percentage
+from utils.price_helpers import calculate_percentage_from_min
 
 def calculate_moving_average(prices, period):
     """Calculate simple moving average"""
@@ -87,7 +87,7 @@ def plot_simple_snapshot(
     price_data,
     min_price,
     max_price,
-    trade_range_percentage,
+    range_percentage_from_min,
     volume_data=None
 ):
 
@@ -102,7 +102,7 @@ def plot_simple_snapshot(
         price_data: list of price values
         min_price: minimum price in range
         max_price: maximum price in range
-        trade_range_percentage: trading range percentage
+        range_percentage_from_min: percentage change from min to max price
         volume_data: DEPRECATED - ignored (use plot_multi_timeframe_charts for 24h volume)
     """
 
@@ -134,7 +134,7 @@ def plot_simple_snapshot(
     ax1.set_xlabel(f"Data Points (Interval: {interval} min)", fontsize=10, fontweight='bold')
     ax1.grid(True, alpha=0.3)
     ax1.legend(loc='upper left', fontsize='small')
-    ax1.set_title(f"{symbol} - Range: {trade_range_percentage}%", fontsize=12, fontweight='bold')
+    ax1.set_title(f"{symbol} - Range: +{range_percentage_from_min}% from low", fontsize=12, fontweight='bold')
 
     # Save figure
     # Convert interval to timeframe label
@@ -323,7 +323,7 @@ def plot_multi_timeframe_charts(
         # Calculate min/max for this resampled timeframe
         local_min = min(resampled_prices)
         local_max = max(resampled_prices)
-        local_range_pct = calculate_trading_range_percentage(local_min, local_max)
+        local_range_pct = calculate_percentage_from_min(local_min, local_max)
 
         lookback_desc = f"{lookback_hours}h lookback" if lookback_hours else "all data"
         print(f"  Generating {timeframe_key} chart ({len(resampled_prices)} candles from {len(filtered_price_data)} data points, {lookback_desc})")
@@ -336,7 +336,7 @@ def plot_multi_timeframe_charts(
             price_data=resampled_prices,
             min_price=local_min,
             max_price=local_max,
-            trade_range_percentage=local_range_pct,
+            range_percentage_from_min=local_range_pct,
             volume_data=resampled_volumes,
             analysis=analysis,
             timeframe_label=timeframe_config['label'],
@@ -356,7 +356,7 @@ def _generate_single_timeframe_chart(
     price_data,
     min_price,
     max_price,
-    trade_range_percentage,
+    range_percentage_from_min,
     volume_data=None,
     analysis=None,
     timeframe_label='',
@@ -444,7 +444,7 @@ def _generate_single_timeframe_chart(
     ax1.legend(loc='upper left', fontsize='x-small', ncol=2)
 
     # Title
-    title = f"{symbol} - {timeframe_title} - Range: {trade_range_percentage}%"
+    title = f"{symbol} - {timeframe_title} - Range: +{range_percentage_from_min}% from low"
     if analysis:
         title += f" | Trend: {analysis.get('market_trend', 'N/A')}"
     ax1.set_title(title, fontsize=12, fontweight='bold')
@@ -503,7 +503,7 @@ def plot_graph(
     price_data,
     min_price,
     max_price,
-    trade_range_percentage,
+    range_percentage_from_min,
     entry_price,
     volume_data=None,
     analysis=None,
@@ -520,7 +520,7 @@ def plot_graph(
         price_data: list of price values
         min_price: minimum price in range
         max_price: maximum price in range
-        trade_range_percentage: trading range percentage
+        range_percentage_from_min: percentage change from min to max price
         entry_price: entry price if in position
         volume_data: DEPRECATED - ignored (use plot_multi_timeframe_charts for 24h volume)
         analysis: optional AI analysis dictionary with support/resistance/buy/sell levels
@@ -619,7 +619,7 @@ def plot_graph(
     ax1.legend(loc='upper left', fontsize='x-small', ncol=2)
 
     # Title with AI analysis info
-    title = f"{symbol} - Range: {trade_range_percentage}%"
+    title = f"{symbol} - Range: +{range_percentage_from_min}% from low"
     if analysis:
         title += f" | Trend: {analysis.get('market_trend', 'N/A')} | Confidence: {analysis.get('confidence_level', 'N/A')}"
     ax1.set_title(title, fontsize=12, fontweight='bold')

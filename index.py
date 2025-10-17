@@ -17,7 +17,7 @@ import glob # related to price change % logic
 # custom imports
 from utils.email import send_email_notification
 from utils.file_helpers import save_obj_dict_to_file, count_files_in_directory, append_crypto_data_to_file, get_property_values_from_crypto_file, cleanup_old_crypto_data
-from utils.price_helpers import calculate_trading_range_percentage, calculate_current_price_position_within_trading_range, calculate_offset_price, calculate_price_change_percentage
+from utils.price_helpers import calculate_percentage_from_min, calculate_current_price_position_within_trading_range, calculate_offset_price, calculate_price_change_percentage
 from utils.time_helpers import print_local_time
 
 # Coinbase-related
@@ -279,7 +279,7 @@ def iterate_wallets(interval_seconds):
 
                     min_price = min(coin_prices_LIST)
                     max_price = max(coin_prices_LIST)
-                    trade_range_percentage = calculate_trading_range_percentage(min_price, max_price)
+                    range_percentage_from_min = calculate_percentage_from_min(min_price, max_price)
                     price_position_within_trade_range = calculate_current_price_position_within_trading_range(current_price, min_price, max_price)
 
                     coin_data = {
@@ -296,7 +296,7 @@ def iterate_wallets(interval_seconds):
                         snapshot_prices = coin_prices_LIST[-snapshot_data_points:] if len(coin_prices_LIST) > snapshot_data_points else coin_prices_LIST
                         snapshot_min_price = min(snapshot_prices)
                         snapshot_max_price = max(snapshot_prices)
-                        snapshot_trade_range = calculate_trading_range_percentage(snapshot_min_price, snapshot_max_price)
+                        snapshot_range_percentage = calculate_percentage_from_min(snapshot_min_price, snapshot_max_price)
 
                         plot_simple_snapshot(
                             time.time(),
@@ -305,7 +305,7 @@ def iterate_wallets(interval_seconds):
                             snapshot_prices,
                             snapshot_min_price,
                             snapshot_max_price,
-                            snapshot_trade_range
+                            snapshot_range_percentage
                         )
 
                     #
@@ -444,7 +444,7 @@ def iterate_wallets(interval_seconds):
                                     coin_prices_LIST,
                                     min_price,
                                     max_price,
-                                    trade_range_percentage,
+                                    range_percentage_from_min,
                                     entry_price,
                                     analysis=analysis,
                                     buy_event=True
@@ -523,7 +523,7 @@ def iterate_wallets(interval_seconds):
                                 coin_prices_LIST,
                                 min_price,
                                 max_price,
-                                trade_range_percentage,
+                                range_percentage_from_min,
                                 entry_price,
                                 analysis=analysis,
                                 buy_event=False
@@ -561,7 +561,7 @@ def iterate_wallets(interval_seconds):
                                 coin_prices_LIST,
                                 min_price,
                                 max_price,
-                                trade_range_percentage,
+                                range_percentage_from_min,
                                 entry_price,
                                 analysis=analysis,
                                 buy_event=False
