@@ -236,6 +236,11 @@ def plot_simple_snapshot(
     x_values = list(range(len(price_data)))
     ax1.plot(x_values, price_data, marker=',', label='Price', c='#000000', linewidth=0.8, zorder=5)
 
+    # Reduce left/right margins with small padding (half of default)
+    if len(price_data) > 0:
+        padding = len(price_data) * 0.01
+        ax1.set_xlim(-padding, len(price_data) - 1 + padding)
+
     # Calculate and plot moving averages
     if len(price_data) >= 20:
         ma20 = calculate_moving_average(price_data, 20)
@@ -311,6 +316,8 @@ def plot_simple_snapshot(
         ax2.fill_between(x_values, 70, 100, alpha=0.2, color='#C62828')
         ax2.fill_between(x_values, 0, 30, alpha=0.2, color='#2E7D32')
         ax2.set_ylim(0, 100)
+        padding = len(price_data) * 0.01
+        ax2.set_xlim(-padding, len(price_data) - 1 + padding)
         ax2.set_ylabel('RSI', fontsize=10, fontweight='bold')
         ax2.grid(True, alpha=0.5, linewidth=0.8)
         ax2.legend(loc='upper left', fontsize='x-small')
@@ -671,6 +678,10 @@ def _generate_single_timeframe_chart(
     x_values = list(range(len(price_data)))
     ax1.plot(x_values, price_data, marker=',', label='Price', c='#000000', linewidth=0.8, zorder=5)
 
+    # Reduce left/right margins with small padding (half of default)
+    padding = len(price_data) * 0.01
+    ax1.set_xlim(-padding, len(price_data) - 1 + padding)
+
     # Calculate and plot moving averages
     if len(price_data) >= 20:
         ma20 = calculate_moving_average(price_data, 20)
@@ -749,6 +760,8 @@ def _generate_single_timeframe_chart(
         ax2.fill_between(x_values, 70, 100, alpha=0.2, color='#C62828')
         ax2.fill_between(x_values, 0, 30, alpha=0.2, color='#2E7D32')
         ax2.set_ylim(0, 100)
+        padding = len(price_data) * 0.01
+        ax2.set_xlim(-padding, len(price_data) - 1 + padding)
         ax2.set_ylabel('RSI', fontsize=10, fontweight='bold')
         ax2.grid(True, alpha=0.5, linewidth=0.8)
         ax2.legend(loc='upper left', fontsize='x-small')
@@ -772,6 +785,8 @@ def _generate_single_timeframe_chart(
                 colors.append('#C62828')  # Red for volume decrease
 
         ax3.bar(x_values, volume_data_clean, color=colors, alpha=0.85, width=0.8, edgecolor='none')
+        padding = len(price_data) * 0.01
+        ax3.set_xlim(-padding, len(price_data) - 1 + padding)
         ax3.set_ylabel('Volume', fontsize=10, fontweight='bold')
         ax3.grid(True, alpha=0.5, linewidth=0.8, axis='y')
 
@@ -980,6 +995,8 @@ def plot_graph(
         ax2.fill_between(x_values, 70, 100, alpha=0.2, color='#C62828')
         ax2.fill_between(x_values, 0, 30, alpha=0.2, color='#2E7D32')
         ax2.set_ylim(0, 100)
+        padding = len(price_data) * 0.01
+        ax2.set_xlim(-padding, len(price_data) - 1 + padding)
         ax2.set_ylabel('RSI', fontsize=10, fontweight='bold')
         ax2.grid(True, alpha=0.5, linewidth=0.8)
         ax2.legend(loc='upper left', fontsize='x-small')
