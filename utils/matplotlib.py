@@ -133,11 +133,12 @@ def plot_simple_snapshot(
     min_price,
     max_price,
     range_percentage_from_min,
-    volume_data=None
+    volume_data=None,
+    analysis=None
 ):
 
     """
-    Simple snapshot plot with just price (no volume due to 24h rolling data issue).
+    Enhanced snapshot plot with technical indicators and optional AI analysis.
     For use before trading logic when entry_price and analysis are not yet available.
 
     Args:
@@ -148,7 +149,8 @@ def plot_simple_snapshot(
         min_price: minimum price in range
         max_price: maximum price in range
         range_percentage_from_min: percentage change from min to max price
-        volume_data: DEPRECATED - ignored (use plot_multi_timeframe_charts for 24h volume)
+        volume_data: optional volume data for volume subplot
+        analysis: optional AI analysis dictionary with support/resistance/buy/sell levels
     """
 
     # Ensure all data is numeric - handle string conversions and filter invalid data
@@ -171,21 +173,76 @@ def plot_simple_snapshot(
         print("Error: No valid price data for snapshot")
         return
 
-    min_price = float(min_price)
-    max_price = float(max_price)
+    # Note: Lookback window filtering is handled by the caller (index.py)
+    # Do not apply additional filtering here to avoid double-filtering
 
-    # Create figure with single subplot (no volume)
-    fig, ax1 = plt.subplots(figsize=(14, 6))
+    # Recalculate min/max for the data
+    min_price = float(min(price_data))
+    max_price = float(max(price_data))
+    range_percentage_from_min = calculate_percentage_from_min(min_price, max_price)
+
+    # Create figure with subplots
+    fig = plt.figure(figsize=(14, 10))
+
+    # Determine number of subplots
+    num_subplots = 1
+    has_rsi = len(price_data) >= 15
+    if has_rsi:
+        num_subplots += 1
+
+    # Create subplots with height ratios
+    if num_subplots == 2:
+        gs = fig.add_gridspec(2, 1, height_ratios=[3, 1], hspace=0.3)
+    else:
+        gs = fig.add_gridspec(1, 1)
+
+    # Main price chart
+    ax1 = fig.add_subplot(gs[0])
 
     # Plot price line
     x_values = list(range(len(price_data)))
-    ax1.plot(x_values, price_data, marker=',', label='Price', c='#000000', linewidth=1.2)
+    ax1.plot(x_values, price_data, marker=',', label='Price', c='#000000', linewidth=1.2, zorder=5)
 
-    # Plot min/max lines
-    ax1.axhline(y=min_price, color='#27AE60', linewidth=1, linestyle='--',
-                label=f"Min (${min_price:.4f})", alpha=0.7)
-    ax1.axhline(y=max_price, color='#C0392B', linewidth=1, linestyle='--',
-                label=f"Max (${max_price:.4f})", alpha=0.7)
+    # Calculate and plot moving averages
+    if len(price_data) >= 20:
+        ma20 = calculate_moving_average(price_data, 20)
+        ma20_clean = [val if val is not None else np.nan for val in ma20]
+        ax1.plot(x_values, ma20_clean, label='MA(20)', c='#2E86DE', linewidth=1.2, alpha=0.8, linestyle='--')
+
+    if len(price_data) >= 50:
+        ma50 = calculate_moving_average(price_data, 50)
+        ma50_clean = [val if val is not None else np.nan for val in ma50]
+        ax1.plot(x_values, ma50_clean, label='MA(50)', c='#EE5A6F', linewidth=1.2, alpha=0.8, linestyle='--')
+
+    # Calculate and plot Bollinger Bands
+    if len(price_data) >= 20:
+        bb_mid, bb_upper, bb_lower = calculate_bollinger_bands(price_data, period=20)
+        bb_upper_clean = [val if val is not None else np.nan for val in bb_upper]
+        bb_lower_clean = [val if val is not None else np.nan for val in bb_lower]
+        ax1.plot(x_values, bb_upper_clean, label='BB Upper', c='#95A5A6', linewidth=1, alpha=0.6, linestyle=':')
+        ax1.plot(x_values, bb_lower_clean, label='BB Lower', c='#95A5A6', linewidth=1, alpha=0.6, linestyle=':')
+        ax1.fill_between(x_values, bb_upper_clean, bb_lower_clean, alpha=0.08, color='#95A5A6')
+
+    # Plot AI analysis levels if available
+    if analysis:
+        if analysis.get('major_support'):
+            ax1.axhline(y=analysis['major_support'], color='#27AE60', linewidth=1.5,
+                       linestyle='--', label=f"Major Support (${analysis['major_support']:.4f})", alpha=0.85)
+        if analysis.get('minor_support'):
+            ax1.axhline(y=analysis['minor_support'], color='#58D68D', linewidth=1,
+                       linestyle=':', label=f"Minor Support (${analysis['minor_support']:.4f})", alpha=0.7)
+        if analysis.get('major_resistance'):
+            ax1.axhline(y=analysis['major_resistance'], color='#C0392B', linewidth=1.5,
+                       linestyle='--', label=f"Major Resistance (${analysis['major_resistance']:.4f})", alpha=0.85)
+        if analysis.get('minor_resistance'):
+            ax1.axhline(y=analysis['minor_resistance'], color='#EC7063', linewidth=1,
+                       linestyle=':', label=f"Minor Resistance (${analysis['minor_resistance']:.4f})", alpha=0.7)
+        if analysis.get('buy_in_price'):
+            ax1.axhline(y=analysis['buy_in_price'], color='#17A589', linewidth=1.8,
+                       linestyle='-', label=f"AI Buy Target (${analysis['buy_in_price']:.4f})", alpha=0.9)
+        if analysis.get('sell_price'):
+            ax1.axhline(y=analysis['sell_price'], color='#8E44AD', linewidth=1.8,
+                       linestyle='-', label=f"AI Sell Target (${analysis['sell_price']:.4f})", alpha=0.9)
 
     # Configure main chart
     price_range = max_price - min_price
@@ -199,10 +256,36 @@ def plot_simple_snapshot(
 
     ax1.yaxis.set_major_formatter(ticker.FormatStrFormatter('$%.2f'))
     ax1.set_ylabel('Price (USD)', fontsize=10, fontweight='bold')
-    ax1.set_xlabel(f"Time", fontsize=10, fontweight='bold')
     ax1.grid(True, alpha=0.3)
-    ax1.legend(loc='upper left', fontsize='small')
-    ax1.set_title(f"{symbol} - Range: {range_percentage_from_min:.2f}% (low to high)", fontsize=12, fontweight='bold')
+    ax1.legend(loc='upper left', fontsize='x-small', ncol=2)
+
+    # Title with AI analysis info
+    title = f"{symbol} - Range: {range_percentage_from_min:.2f}% (low to high)"
+    if analysis:
+        title += f" | Trend: {analysis.get('market_trend', 'N/A')} | Confidence: {analysis.get('confidence_level', 'N/A')}"
+    ax1.set_title(title, fontsize=12, fontweight='bold')
+
+    # RSI subplot
+    if has_rsi:
+        ax2 = fig.add_subplot(gs[1])
+        rsi = calculate_rsi(price_data, period=14)
+        rsi_clean = [val if val is not None else np.nan for val in rsi]
+        ax2.plot(x_values, rsi_clean, label='RSI(14)', c='purple', linewidth=0.8)
+        ax2.axhline(y=70, color='red', linewidth=1.2, linestyle='--', alpha=0.5, label='Overbought (70)')
+        ax2.axhline(y=30, color='green', linewidth=1.2, linestyle='--', alpha=0.5, label='Oversold (30)')
+        ax2.fill_between(x_values, 70, 100, alpha=0.1, color='red')
+        ax2.fill_between(x_values, 0, 30, alpha=0.1, color='green')
+        ax2.set_ylim(0, 100)
+        ax2.set_ylabel('RSI', fontsize=10, fontweight='bold')
+        ax2.grid(True, alpha=0.3)
+        ax2.legend(loc='upper left', fontsize='x-small')
+        ax2.set_xticks(positions)
+        ax2.set_xticklabels(labels, rotation=45, ha='right')
+        ax2.set_xlabel(f"Time", fontsize=10, fontweight='bold')
+
+    # X-axis label on bottom subplot
+    if not has_rsi:
+        ax1.set_xlabel(f"Time", fontsize=10, fontweight='bold')
 
     # Save figure
     # Convert interval to timeframe label
@@ -349,25 +432,25 @@ def plot_multi_timeframe_charts(
             'hours': 1,
             'label': '1h',
             'title_suffix': '1 Hour Timeframe',
-            'lookback_hours': 336  # Show last 2 weeks (14 days)
+            'lookback_hours': 2160  # Show last 3 months (90 days)
         },
         '4h': {
             'hours': 4,
             'label': '4h',
             'title_suffix': '4 Hour Timeframe',
-            'lookback_hours': 720  # Show last 30 days
+            'lookback_hours': 2160  # Show last 3 months (90 days)
         },
         '1d': {
             'hours': 24,
             'label': '1d',
             'title_suffix': '1 Day Timeframe',
-            'lookback_hours': 2160  # Show last 90 days (3 months)
+            'lookback_hours': 2160  # Show last 3 months (90 days)
         },
         '1w': {
             'hours': 168,  # 7 * 24
             'label': '1w',
             'title_suffix': '1 Week Timeframe',
-            'lookback_hours': None  # Show all available data
+            'lookback_hours': 2160  # Show last 3 months (90 days)
         }
     }
 
@@ -656,8 +739,13 @@ def plot_graph(
         print("Error: No valid price data for plot_graph")
         return None
 
-    min_price = float(min_price)
-    max_price = float(max_price)
+    # Note: Lookback window filtering is handled by the caller (index.py)
+    # Do not apply additional filtering here to avoid double-filtering
+
+    # Recalculate min/max for the data
+    min_price = float(min(price_data))
+    max_price = float(max(price_data))
+    range_percentage_from_min = calculate_percentage_from_min(min_price, max_price)
     entry_price = float(entry_price)
 
     # Create figure with subplots (main chart + RSI only, NO volume due to 24h rolling data issue)

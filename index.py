@@ -317,13 +317,16 @@ def iterate_wallets(interval_seconds):
                     }
 
                     if ENABLE_CHART_SNAPSHOT:
-                        # Filter data to only show last 14 days (336 hours) for snapshot chart
-                        snapshot_hours = 336  # 14 days
+                        # Filter data to show last 3 months (2160 hours) for snapshot chart
+                        snapshot_hours = 2160  # 90 days
                         snapshot_data_points = int((snapshot_hours * 60) / INTERVAL_SAVE_DATA_EVERY_X_MINUTES)
                         snapshot_prices = coin_prices_LIST[-snapshot_data_points:] if len(coin_prices_LIST) > snapshot_data_points else coin_prices_LIST
                         snapshot_min_price = min(snapshot_prices)
                         snapshot_max_price = max(snapshot_prices)
                         snapshot_range_percentage = calculate_percentage_from_min(snapshot_min_price, snapshot_max_price)
+
+                        # Load analysis for snapshot if available (analysis will be loaded later in the code flow)
+                        snapshot_analysis = load_analysis_from_file(symbol)
 
                         plot_simple_snapshot(
                             time.time(),
@@ -332,7 +335,8 @@ def iterate_wallets(interval_seconds):
                             snapshot_prices,
                             snapshot_min_price,
                             snapshot_max_price,
-                            snapshot_range_percentage
+                            snapshot_range_percentage,
+                            analysis=snapshot_analysis
                         )
 
                     #
@@ -465,14 +469,22 @@ def iterate_wallets(interval_seconds):
                         else:
                             print(f"STATUS: Looking to BUY at ${BUY_AT_PRICE} (Confidence: {CONFIDENCE_LEVEL})")
                             if current_price <= BUY_AT_PRICE:
+                                # Filter data to match snapshot chart (3 months = 2160 hours)
+                                buy_chart_hours = 2160  # 90 days
+                                buy_chart_data_points = int((buy_chart_hours * 60) / INTERVAL_SAVE_DATA_EVERY_X_MINUTES)
+                                buy_chart_prices = coin_prices_LIST[-buy_chart_data_points:] if len(coin_prices_LIST) > buy_chart_data_points else coin_prices_LIST
+                                buy_chart_min = min(buy_chart_prices)
+                                buy_chart_max = max(buy_chart_prices)
+                                buy_chart_range_pct = calculate_percentage_from_min(buy_chart_min, buy_chart_max)
+
                                 buy_screenshot_path = plot_graph(
                                     time.time(),
                                     INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
                                     symbol,
-                                    coin_prices_LIST,
-                                    min_price,
-                                    max_price,
-                                    range_percentage_from_min,
+                                    buy_chart_prices,
+                                    buy_chart_min,
+                                    buy_chart_max,
+                                    buy_chart_range_pct,
                                     entry_price,
                                     analysis=analysis,
                                     buy_event=True
@@ -544,14 +556,22 @@ def iterate_wallets(interval_seconds):
                         # Check for stop loss trigger
                         if STOP_LOSS_PRICE and current_price <= STOP_LOSS_PRICE:
                             print('~ STOP LOSS TRIGGERED - Selling to limit losses ~')
+                            # Filter data to match snapshot chart (3 months = 2160 hours)
+                            sell_chart_hours = 2160  # 90 days
+                            sell_chart_data_points = int((sell_chart_hours * 60) / INTERVAL_SAVE_DATA_EVERY_X_MINUTES)
+                            sell_chart_prices = coin_prices_LIST[-sell_chart_data_points:] if len(coin_prices_LIST) > sell_chart_data_points else coin_prices_LIST
+                            sell_chart_min = min(sell_chart_prices)
+                            sell_chart_max = max(sell_chart_prices)
+                            sell_chart_range_pct = calculate_percentage_from_min(sell_chart_min, sell_chart_max)
+
                             plot_graph(
                                 time.time(),
                                 INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
                                 symbol,
-                                coin_prices_LIST,
-                                min_price,
-                                max_price,
-                                range_percentage_from_min,
+                                sell_chart_prices,
+                                sell_chart_min,
+                                sell_chart_max,
+                                sell_chart_range_pct,
                                 entry_price,
                                 analysis=analysis,
                                 buy_event=False
@@ -582,14 +602,22 @@ def iterate_wallets(interval_seconds):
                         # Check for profit target
                         elif potential_profit_percentage >= effective_profit_target:
                             print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
+                            # Filter data to match snapshot chart (3 months = 2160 hours)
+                            sell_chart_hours = 2160  # 90 days
+                            sell_chart_data_points = int((sell_chart_hours * 60) / INTERVAL_SAVE_DATA_EVERY_X_MINUTES)
+                            sell_chart_prices = coin_prices_LIST[-sell_chart_data_points:] if len(coin_prices_LIST) > sell_chart_data_points else coin_prices_LIST
+                            sell_chart_min = min(sell_chart_prices)
+                            sell_chart_max = max(sell_chart_prices)
+                            sell_chart_range_pct = calculate_percentage_from_min(sell_chart_min, sell_chart_max)
+
                             plot_graph(
                                 time.time(),
                                 INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
                                 symbol,
-                                coin_prices_LIST,
-                                min_price,
-                                max_price,
-                                range_percentage_from_min,
+                                sell_chart_prices,
+                                sell_chart_min,
+                                sell_chart_max,
+                                sell_chart_range_pct,
                                 entry_price,
                                 analysis=analysis,
                                 buy_event=False
