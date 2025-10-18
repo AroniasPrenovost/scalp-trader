@@ -4,11 +4,16 @@
   "cooldown_hours_after_sell": 6,
   "low_confidence_wait_hours": 3,
   "medium_confidence_wait_hours": 2,
+  "volatility_filters": {
+    "min_range_percentage": 5,
+    "max_range_percentage": 100,
+    "enable_volatility_checks": true
+  },
   "llm_learning": {
     "enabled": true,
-    "max_historical_trades": 5,
-    "include_screenshots": true,
-    "prune_old_trades_after": 100
+    "max_historical_trades": 10,
+    "include_screenshots": false,
+    "prune_old_trades_after": 1000
   },
   "coingecko": {
     "enable_backfilling_historical_data": true

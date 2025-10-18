@@ -273,8 +273,8 @@ def plot_simple_snapshot(
         rsi = calculate_rsi(price_data, period=14)
         rsi_clean = [val if val is not None else np.nan for val in rsi]
         ax2.plot(x_values, rsi_clean, label='RSI(14)', c='#6A1B9A', linewidth=1.8)
-        ax2.axhline(y=70, color='#C62828', linewidth=2.0, linestyle='--', alpha=0.8, label='Overbought (70)')
-        ax2.axhline(y=30, color='#2E7D32', linewidth=2.0, linestyle='--', alpha=0.8, label='Oversold (30)')
+        ax2.axhline(y=70, color='#C62828', linewidth=2.0, linestyle='--', alpha=0.8, label='Overbought (>=70)')
+        ax2.axhline(y=30, color='#2E7D32', linewidth=2.0, linestyle='--', alpha=0.8, label='Oversold (<=30)')
         ax2.fill_between(x_values, 70, 100, alpha=0.2, color='#C62828')
         ax2.fill_between(x_values, 0, 30, alpha=0.2, color='#2E7D32')
         ax2.set_ylim(0, 100)
@@ -290,21 +290,21 @@ def plot_simple_snapshot(
         ax1.set_xlabel(f"Time", fontsize=10, fontweight='bold')
 
     # Save figure
-    # Convert interval to timeframe label
+    # Convert interval to candle interval label
     if interval >= 10080:  # 1 week or more
         weeks = int(interval / 10080)
-        timeframe_label = "w" if weeks == 1 else f"{weeks}w"
+        candle_label = "1w" if weeks == 1 else f"{weeks}w"
     elif interval >= 1440:  # 1 day or more
         days = int(interval / 1440)
-        timeframe_label = "d" if days == 1 else f"{days}d"
+        candle_label = "1d" if days == 1 else f"{days}d"
     elif interval >= 60:  # 1 hour or more
         hours = int(interval / 60)
-        timeframe_label = f"{hours}h"
+        candle_label = "1h" if hours == 1 else f"{hours}h"
     else:  # minutes
-        timeframe_label = f"{int(interval)}m"
+        candle_label = f"{int(interval)}m"
 
     timestamp_str = time.strftime("%Y%m%d%H%M%S", time.localtime(current_timestamp))
-    filename = os.path.join("./screenshots", f"{symbol}_{timeframe_label}_snapshot_{timestamp_str}.png")
+    filename = os.path.join("./screenshots", f"{symbol}_{candle_label}-candles_snapshot_{timestamp_str}.png")
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     plt.close(fig)  # Close the specific figure
     plt.close('all')  # Ensure all figures are closed
@@ -703,8 +703,8 @@ def _generate_single_timeframe_chart(
         # Filter out None values for plotting - matplotlib requires numeric values
         rsi_clean = [val if val is not None else np.nan for val in rsi]
         ax2.plot(x_values, rsi_clean, label='RSI(14)', c='#6A1B9A', linewidth=1.8)
-        ax2.axhline(y=70, color='#C62828', linewidth=2.0, linestyle='--', alpha=0.8, label='Overbought (70)')
-        ax2.axhline(y=30, color='#2E7D32', linewidth=2.0, linestyle='--', alpha=0.8, label='Oversold (30)')
+        ax2.axhline(y=70, color='#C62828', linewidth=2.0, linestyle='--', alpha=0.8, label='Overbought (>=70)')
+        ax2.axhline(y=30, color='#2E7D32', linewidth=2.0, linestyle='--', alpha=0.8, label='Oversold (<=30)')
         ax2.fill_between(x_values, 70, 100, alpha=0.2, color='#C62828')
         ax2.fill_between(x_values, 0, 30, alpha=0.2, color='#2E7D32')
         ax2.set_ylim(0, 100)
@@ -748,7 +748,18 @@ def _generate_single_timeframe_chart(
     # Save figure
     if not timestamp_str:
         timestamp_str = time.strftime("%Y%m%d%H%M%S", time.localtime(current_timestamp))
-    filename = os.path.join("./screenshots", f"{symbol}_{timeframe_label}_{timestamp_str}.png")
+
+    # Calculate candle interval label from interval (in minutes)
+    if interval >= 1440:  # 1 day or more
+        days = int(interval / 1440)
+        candle_label = "1d" if days == 1 else f"{days}d"
+    elif interval >= 60:  # 1 hour or more
+        hours = int(interval / 60)
+        candle_label = "1h" if hours == 1 else f"{hours}h"
+    else:  # minutes
+        candle_label = f"{int(interval)}m"
+
+    filename = os.path.join("./screenshots", f"{symbol}_{timeframe_label}-window_{candle_label}-candles_{timestamp_str}.png")
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     plt.close(fig)
     plt.close('all')
@@ -921,8 +932,8 @@ def plot_graph(
         # Filter out None values for plotting - matplotlib requires numeric values
         rsi_clean = [val if val is not None else np.nan for val in rsi]
         ax2.plot(x_values, rsi_clean, label='RSI(14)', c='#6A1B9A', linewidth=1.8)
-        ax2.axhline(y=70, color='#C62828', linewidth=2.0, linestyle='--', alpha=0.8, label='Overbought (70)')
-        ax2.axhline(y=30, color='#2E7D32', linewidth=2.0, linestyle='--', alpha=0.8, label='Oversold (30)')
+        ax2.axhline(y=70, color='#C62828', linewidth=2.0, linestyle='--', alpha=0.8, label='Overbought (>=70)')
+        ax2.axhline(y=30, color='#2E7D32', linewidth=2.0, linestyle='--', alpha=0.8, label='Oversold (<=30)')
         ax2.fill_between(x_values, 70, 100, alpha=0.2, color='#C62828')
         ax2.fill_between(x_values, 0, 30, alpha=0.2, color='#2E7D32')
         ax2.set_ylim(0, 100)
@@ -943,21 +954,21 @@ def plot_graph(
     if buy_event:
         event_type = 'buy'
 
-    # Convert interval to timeframe label
+    # Convert interval to candle interval label
     if interval >= 10080:  # 1 week or more
         weeks = int(interval / 10080)
-        timeframe_label = "w" if weeks == 1 else f"{weeks}w"
+        candle_label = "1w" if weeks == 1 else f"{weeks}w"
     elif interval >= 1440:  # 1 day or more
         days = int(interval / 1440)
-        timeframe_label = "d" if days == 1 else f"{days}d"
+        candle_label = "1d" if days == 1 else f"{days}d"
     elif interval >= 60:  # 1 hour or more
         hours = int(interval / 60)
-        timeframe_label = f"{hours}h"
+        candle_label = "1h" if hours == 1 else f"{hours}h"
     else:  # minutes
-        timeframe_label = f"{int(interval)}m"
+        candle_label = f"{int(interval)}m"
 
     timestamp_str = time.strftime("%Y%m%d%H%M%S", time.localtime(current_timestamp))
-    filename = os.path.join("./screenshots", f"{symbol}_{timeframe_label}_{event_type}_{timestamp_str}.png")
+    filename = os.path.join("./screenshots", f"{symbol}_{candle_label}-candles_{event_type}_{timestamp_str}.png")
     print(f"Generating market snapshot: {filename}")
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     plt.close(fig)  # Close the specific figure

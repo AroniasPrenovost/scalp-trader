@@ -317,27 +317,23 @@ def iterate_wallets(interval_seconds):
                     }
 
                     if ENABLE_CHART_SNAPSHOT:
-                        # Filter data to show last 3 months (2160 hours) for snapshot chart
-                        snapshot_hours = 2160  # 90 days
-                        snapshot_data_points = int((snapshot_hours * 60) / INTERVAL_SAVE_DATA_EVERY_X_MINUTES)
-                        snapshot_prices = coin_prices_LIST[-snapshot_data_points:] if len(coin_prices_LIST) > snapshot_data_points else coin_prices_LIST
-                        snapshot_min_price = min(snapshot_prices)
-                        snapshot_max_price = max(snapshot_prices)
-                        snapshot_range_percentage = calculate_percentage_from_min(snapshot_min_price, snapshot_max_price)
-
                         # Load analysis for snapshot if available (analysis will be loaded later in the code flow)
                         snapshot_analysis = load_analysis_from_file(symbol)
 
-                        plot_simple_snapshot(
-                            time.time(),
-                            INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
-                            symbol,
-                            snapshot_prices,
-                            snapshot_min_price,
-                            snapshot_max_price,
-                            snapshot_range_percentage,
+                        # Generate all 4 timeframe charts for comprehensive market view
+                        print(f"Generating snapshot charts for {symbol}...")
+                        chart_paths = plot_multi_timeframe_charts(
+                            current_timestamp=time.time(),
+                            interval=INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                            symbol=symbol,
+                            price_data=coin_prices_LIST,
+                            volume_data=coin_volume_24h_LIST,
                             analysis=snapshot_analysis
                         )
+                        if chart_paths:
+                            print(f"✓ Generated {len(chart_paths)} snapshot charts: {', '.join(chart_paths.keys())}")
+                        else:
+                            print(f"Warning: No snapshot charts generated (insufficient data)")
 
                     #
                     #
