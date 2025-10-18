@@ -82,7 +82,6 @@ chart_paths = plot_multi_timeframe_charts(
     symbol=symbol,
     price_data=coin_prices_LIST,
     volume_data=coin_volume_24h_LIST,
-    volume_change_data=coin_volume_change_LIST,
     analysis=None
 )
 

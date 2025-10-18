@@ -311,6 +311,56 @@ def plot_simple_snapshot(
     print(f"Snapshot saved as {filename}")
 
 
+def resample_volume_data_to_timeframe(volume_data, interval_minutes, target_timeframe_hours):
+    """
+    Resample volume data by SUMMING volumes across each timeframe period.
+
+    Args:
+        volume_data: List of volume values at regular intervals
+        interval_minutes: The interval in minutes between each volume data point
+        target_timeframe_hours: Target timeframe in hours (e.g., 1 for 1h, 4 for 4h, 24 for 1d)
+
+    Returns:
+        List of summed volumes for each resampled period
+    """
+    if not volume_data or len(volume_data) == 0:
+        return []
+
+    # Ensure all volume data is numeric
+    clean_volume_data = []
+    for v in volume_data:
+        try:
+            if isinstance(v, str):
+                v = v.strip()
+                if v == '':
+                    continue
+            clean_volume_data.append(float(v))
+        except (ValueError, TypeError):
+            print(f"Warning: Skipping invalid volume value in resample: {v}")
+            continue
+
+    volume_data = clean_volume_data
+    if not volume_data or len(volume_data) == 0:
+        return []
+
+    # Calculate how many data points to group together
+    target_timeframe_minutes = target_timeframe_hours * 60
+    points_per_period = int(target_timeframe_minutes / interval_minutes)
+
+    # If no resampling needed, return original data
+    if points_per_period <= 1:
+        return volume_data
+
+    # Sum volumes for each period
+    resampled = []
+    for i in range(0, len(volume_data), points_per_period):
+        period_data = volume_data[i:i + points_per_period]
+        if len(period_data) > 0:
+            resampled.append(sum(period_data))
+
+    return resampled
+
+
 def resample_price_data_to_timeframe(price_data, interval_minutes, target_timeframe_hours):
     """
     Resample price data from one interval to a different timeframe using OHLC aggregation.
@@ -385,29 +435,27 @@ def plot_multi_timeframe_charts(
     symbol,
     price_data,
     volume_data=None,
-    volume_change_data=None,
     analysis=None
 ):
     """
     Generate multiple charts at different timeframes for LLM analysis by resampling data.
-    Creates 4 charts: 1-hour, 4-hour, 1-day, and 1-week views using ALL available data.
+    Creates 4 charts: 24h, 7d, 30d, and 6mo views using ALL available data.
 
     Args:
         current_timestamp: timestamp for filename
-        interval: data interval in minutes (e.g., 60 for hourly data)
+        interval: data interval in minutes (e.g., 5 for 5-minute data)
         symbol: trading pair symbol
         price_data: full list of price values (all available historical data)
-        volume_data: optional full list of volume values
-        volume_change_data: optional full list of volume change percentage values
+        volume_data: optional full list of volume values (will be summed when resampled)
         analysis: optional AI analysis dictionary
 
     Returns:
         Dictionary with paths to generated charts:
         {
-            '1h': path to 1-hour chart,
-            '4h': path to 4-hour chart,
-            '1d': path to 1-day chart,
-            '1w': path to 1-week chart
+            '24h': path to 24-hour chart,
+            '7d': path to 7-day chart,
+            '30d': path to 30-day chart,
+            '6mo': path to 6-month chart
         }
     """
     # Ensure all data is numeric - handle string conversions and filter invalid data
@@ -492,8 +540,8 @@ def plot_multi_timeframe_charts(
             print(f"  Skipping {timeframe_key} chart: insufficient data after resampling ({len(resampled_prices)} candles, need at least 3)")
             continue
 
-        # Only include volume for 24h and 7d charts (since it's rolling 24h volume from Coinbase)
-        # For longer timeframes (30d, 6mo), rolling 24h volume is less meaningful
+        # Only include volume for 24h and 7d charts
+        # Volume is summed across each resampled period to show total trading activity
         resampled_volumes = None
         if timeframe_key in ['24h', '7d'] and volume_data:
             volume_data_clean = [float(v) if v is not None else 0.0 for v in volume_data]
@@ -504,30 +552,12 @@ def plot_multi_timeframe_charts(
             else:
                 filtered_volume_data = volume_data_clean
 
-            resampled_volume_data = resample_price_data_to_timeframe(
+            # Use the volume-specific resampling function that SUMS volume
+            resampled_volumes = resample_volume_data_to_timeframe(
                 filtered_volume_data,
                 interval,
                 timeframe_config['hours']
             )
-            resampled_volumes = resampled_volume_data['close']  # Use closing volume for each period
-
-        # Include volume change for 24h and 7d charts
-        resampled_volume_changes = None
-        if timeframe_key in ['24h', '7d'] and volume_change_data:
-            volume_change_data_clean = [float(v) if v is not None else 0.0 for v in volume_change_data]
-
-            # Apply the same lookback window filter to volume change data
-            if lookback_hours is not None:
-                filtered_volume_change_data = volume_change_data_clean[-lookback_data_points:] if len(volume_change_data_clean) > lookback_data_points else volume_change_data_clean
-            else:
-                filtered_volume_change_data = volume_change_data_clean
-
-            resampled_volume_change_data = resample_price_data_to_timeframe(
-                filtered_volume_change_data,
-                interval,
-                timeframe_config['hours']
-            )
-            resampled_volume_changes = resampled_volume_change_data['close']  # Use closing volume change for each period
 
         # Calculate min/max for this resampled timeframe
         local_min = min(resampled_prices)
@@ -547,7 +577,6 @@ def plot_multi_timeframe_charts(
             max_price=local_max,
             range_percentage_from_min=local_range_pct,
             volume_data=resampled_volumes,
-            volume_change_data=resampled_volume_changes,
             analysis=analysis,
             timeframe_label=timeframe_config['label'],
             timeframe_title=timeframe_config['title_suffix'],
@@ -568,7 +597,6 @@ def _generate_single_timeframe_chart(
     max_price,
     range_percentage_from_min,
     volume_data=None,
-    volume_change_data=None,
     analysis=None,
     timeframe_label='',
     timeframe_title='',
@@ -585,17 +613,12 @@ def _generate_single_timeframe_chart(
     if volume_data:
         num_subplots += 1
 
-    if volume_change_data:
-        num_subplots += 1
-
     has_rsi = len(price_data) >= 15
     if has_rsi:
         num_subplots += 1
 
     # Create subplots with height ratios
-    if num_subplots == 4:
-        gs = fig.add_gridspec(4, 1, height_ratios=[3, 1, 1, 1], hspace=0.3)
-    elif num_subplots == 3:
+    if num_subplots == 3:
         gs = fig.add_gridspec(3, 1, height_ratios=[3, 1, 1], hspace=0.3)
     elif num_subplots == 2:
         gs = fig.add_gridspec(2, 1, height_ratios=[3, 1], hspace=0.3)
@@ -698,41 +721,22 @@ def _generate_single_timeframe_chart(
         ax3 = fig.add_subplot(gs[subplot_idx])
         # Ensure volume_data contains only numeric values
         volume_data_clean = [float(val) if val is not None else 0.0 for val in volume_data]
-        colors = ['#2E7D32' if i == 0 or price_data[i] >= price_data[i-1] else '#C62828'
-                 for i in range(len(volume_data_clean))]
+
+        # Color bars based on volume increase/decrease (not price)
+        colors = []
+        for i in range(len(volume_data_clean)):
+            if i == 0 or volume_data_clean[i] >= volume_data_clean[i-1]:
+                colors.append('#2E7D32')  # Green for volume increase
+            else:
+                colors.append('#C62828')  # Red for volume decrease
+
         ax3.bar(x_values, volume_data_clean, color=colors, alpha=0.85, width=0.8, edgecolor='none')
-        ax3.set_ylabel('Volume (24h)', fontsize=10, fontweight='bold')
+        ax3.set_ylabel('Volume', fontsize=10, fontweight='bold')
         ax3.grid(True, alpha=0.5, linewidth=0.8, axis='y')
         ax3.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, p: f'{x/1e6:.1f}M' if x >= 1e6 else f'{x/1e3:.0f}K'))
         # Share x-axis with main chart
         ax3.set_xticks(positions)
         ax3.set_xticklabels(labels, rotation=45, ha='right')
-        subplot_idx += 1
-
-    # Volume Change subplot
-    if volume_change_data:
-        ax_vol_change = fig.add_subplot(gs[subplot_idx])
-        # Ensure volume_change_data contains only numeric values
-        volume_change_clean = [float(val) if val is not None else 0.0 for val in volume_change_data]
-
-        # Color bars based on positive/negative change
-        colors = ['#2E7D32' if val >= 0 else '#C62828' for val in volume_change_clean]
-        ax_vol_change.bar(x_values, volume_change_clean, color=colors, alpha=0.85, width=0.8, edgecolor='none')
-
-        # Add zero line for reference
-        ax_vol_change.axhline(y=0, color='#424242', linewidth=1.5, linestyle='-', alpha=0.8)
-
-        # Add horizontal lines at +50% and -50% for reference
-        ax_vol_change.axhline(y=50, color='#2E7D32', linewidth=1.2, linestyle='--', alpha=0.5)
-        ax_vol_change.axhline(y=-50, color='#C62828', linewidth=1.2, linestyle='--', alpha=0.5)
-
-        ax_vol_change.set_ylabel('Volume Change %', fontsize=10, fontweight='bold')
-        ax_vol_change.grid(True, alpha=0.5, linewidth=0.8, axis='y')
-        ax_vol_change.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, p: f'{x:+.0f}%'))
-
-        # Share x-axis with main chart
-        ax_vol_change.set_xticks(positions)
-        ax_vol_change.set_xticklabels(labels, rotation=45, ha='right')
         subplot_idx += 1
 
     # X-axis label on bottom subplot
