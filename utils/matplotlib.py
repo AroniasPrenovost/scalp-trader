@@ -383,6 +383,7 @@ def plot_multi_timeframe_charts(
     symbol,
     price_data,
     volume_data=None,
+    volume_change_data=None,
     analysis=None
 ):
     """
@@ -395,6 +396,7 @@ def plot_multi_timeframe_charts(
         symbol: trading pair symbol
         price_data: full list of price values (all available historical data)
         volume_data: optional full list of volume values
+        volume_change_data: optional full list of volume change percentage values
         analysis: optional AI analysis dictionary
 
     Returns:
@@ -507,6 +509,24 @@ def plot_multi_timeframe_charts(
             )
             resampled_volumes = resampled_volume_data['close']  # Use closing volume for each period
 
+        # Include volume change for 24h and 7d charts
+        resampled_volume_changes = None
+        if timeframe_key in ['24h', '7d'] and volume_change_data:
+            volume_change_data_clean = [float(v) if v is not None else 0.0 for v in volume_change_data]
+
+            # Apply the same lookback window filter to volume change data
+            if lookback_hours is not None:
+                filtered_volume_change_data = volume_change_data_clean[-lookback_data_points:] if len(volume_change_data_clean) > lookback_data_points else volume_change_data_clean
+            else:
+                filtered_volume_change_data = volume_change_data_clean
+
+            resampled_volume_change_data = resample_price_data_to_timeframe(
+                filtered_volume_change_data,
+                interval,
+                timeframe_config['hours']
+            )
+            resampled_volume_changes = resampled_volume_change_data['close']  # Use closing volume change for each period
+
         # Calculate min/max for this resampled timeframe
         local_min = min(resampled_prices)
         local_max = max(resampled_prices)
@@ -525,6 +545,7 @@ def plot_multi_timeframe_charts(
             max_price=local_max,
             range_percentage_from_min=local_range_pct,
             volume_data=resampled_volumes,
+            volume_change_data=resampled_volume_changes,
             analysis=analysis,
             timeframe_label=timeframe_config['label'],
             timeframe_title=timeframe_config['title_suffix'],
@@ -545,6 +566,7 @@ def _generate_single_timeframe_chart(
     max_price,
     range_percentage_from_min,
     volume_data=None,
+    volume_change_data=None,
     analysis=None,
     timeframe_label='',
     timeframe_title='',
@@ -561,12 +583,17 @@ def _generate_single_timeframe_chart(
     if volume_data:
         num_subplots += 1
 
+    if volume_change_data:
+        num_subplots += 1
+
     has_rsi = len(price_data) >= 15
     if has_rsi:
         num_subplots += 1
 
     # Create subplots with height ratios
-    if num_subplots == 3:
+    if num_subplots == 4:
+        gs = fig.add_gridspec(4, 1, height_ratios=[3, 1, 1, 1], hspace=0.3)
+    elif num_subplots == 3:
         gs = fig.add_gridspec(3, 1, height_ratios=[3, 1, 1], hspace=0.3)
     elif num_subplots == 2:
         gs = fig.add_gridspec(2, 1, height_ratios=[3, 1], hspace=0.3)
@@ -676,6 +703,33 @@ def _generate_single_timeframe_chart(
         # Share x-axis with main chart
         ax3.set_xticks(positions)
         ax3.set_xticklabels(labels, rotation=45, ha='right')
+        subplot_idx += 1
+
+    # Volume Change subplot
+    if volume_change_data:
+        ax_vol_change = fig.add_subplot(gs[subplot_idx])
+        # Ensure volume_change_data contains only numeric values
+        volume_change_clean = [float(val) if val is not None else 0.0 for val in volume_change_data]
+
+        # Color bars based on positive/negative change
+        colors = ['#27AE60' if val >= 0 else '#C0392B' for val in volume_change_clean]
+        ax_vol_change.bar(x_values, volume_change_clean, color=colors, alpha=0.7, width=0.8)
+
+        # Add zero line for reference
+        ax_vol_change.axhline(y=0, color='#7F8C8D', linewidth=1, linestyle='-', alpha=0.5)
+
+        # Add horizontal lines at +50% and -50% for reference
+        ax_vol_change.axhline(y=50, color='#27AE60', linewidth=0.8, linestyle='--', alpha=0.3)
+        ax_vol_change.axhline(y=-50, color='#C0392B', linewidth=0.8, linestyle='--', alpha=0.3)
+
+        ax_vol_change.set_ylabel('Volume Change %', fontsize=10, fontweight='bold')
+        ax_vol_change.grid(True, alpha=0.3, axis='y')
+        ax_vol_change.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, p: f'{x:+.0f}%'))
+
+        # Share x-axis with main chart
+        ax_vol_change.set_xticks(positions)
+        ax_vol_change.set_xticklabels(labels, rotation=45, ha='right')
+        subplot_idx += 1
 
     # X-axis label on bottom subplot
     if num_subplots > 1:
