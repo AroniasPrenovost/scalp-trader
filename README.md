@@ -16,10 +16,12 @@ An advanced cryptocurrency scalp trading bot that leverages GPT-4o Vision for in
 ## Key Features
 
 ### 🤖 AI-Powered Market Analysis (GPT-4o Vision)
-- **Multi-Timeframe Chart Analysis**: Generates and analyzes charts across three timeframes
-  - **Short-term (24 hours)**: High-detail analysis for precise entry/exit timing
-  - **Medium-term (7 days)**: Confirms trend momentum and direction
-  - **Long-term (90 days)**: Provides macro trend context
+- **Multi-Timeframe Chart Analysis**: Generates and analyzes charts across five timeframes
+  - **72-hour view**: High-detail analysis for precise entry/exit timing with recent context
+  - **7-day view**: Confirms short-term trend momentum and direction
+  - **30-day view**: Recent trend analysis and medium-term momentum
+  - **90-day view**: Extended trend analysis and quarterly patterns
+  - **6-month view**: Provides macro trend context and long-term support/resistance
 - **Visual + Numerical Analysis**: Combines chart images with price data for holistic market understanding
 - **Technical Indicators**: Calculates and analyzes RSI, Bollinger Bands, Moving Averages, Support/Resistance levels
 - **Confidence Scoring**: Provides high/medium/low confidence levels for each trade recommendation
