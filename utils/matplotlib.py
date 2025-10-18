@@ -472,7 +472,7 @@ def plot_multi_timeframe_charts(
 ):
     """
     Generate multiple charts at different timeframes for LLM analysis by resampling data.
-    Creates 4 charts: 24h, 7d, 30d, and 6mo views using ALL available data.
+    Creates 5 charts: 24h, 7d, 30d, 90d, and 6mo views using ALL available data.
 
     Args:
         current_timestamp: timestamp for filename
@@ -488,6 +488,7 @@ def plot_multi_timeframe_charts(
             '24h': path to 24-hour chart,
             '7d': path to 7-day chart,
             '30d': path to 30-day chart,
+            '90d': path to 90-day chart,
             '6mo': path to 6-month chart
         }
     """
@@ -514,15 +515,22 @@ def plot_multi_timeframe_charts(
 
     # Optimized timeframes based on senior developer recommendations for effective AI analysis:
     # 1. Full 6-Month View: Macro trends, major support/resistance, long-term patterns
-    # 2. 30-Day View: Recent trend analysis, medium-term momentum
-    # 3. 7-Day View: Short-term price action, immediate trading context
-    # 4. 24-Hour View: Immediate market conditions, entry/exit timing
+    # 2. 90-Day View: Extended trend analysis, quarterly patterns
+    # 3. 30-Day View: Recent trend analysis, medium-term momentum
+    # 4. 7-Day View: Short-term price action, immediate trading context
+    # 5. 24-Hour View: Immediate market conditions, entry/exit timing
     timeframes = {
         '6mo': {
             'hours': 1,  # Use 1h candles for full 6-month historical view
             'label': '6mo',
             'title_suffix': '6 Month Full History - Macro Trends',
             'lookback_hours': 4380  # Full 6 months (182.5 days)
+        },
+        '90d': {
+            'hours': 1,  # Use 1h candles for 90-day view
+            'label': '90d',
+            'title_suffix': '90 Day View - Extended Trend Analysis',
+            'lookback_hours': 2160  # 90 days
         },
         '30d': {
             'hours': 1,  # Use 1h candles for 30-day view

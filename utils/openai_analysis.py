@@ -63,12 +63,13 @@ def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_ra
         timeframe_context = """
 
 IMPORTANT - MULTI-TIMEFRAME ANALYSIS FRAMEWORK:
-You are being provided with FOUR charts showing different lookback windows for comprehensive analysis.
+You are being provided with FIVE charts showing different lookback windows for comprehensive analysis.
 NOTE: All charts use 1-hour interval data points - the difference is the lookback window (how much historical data is shown).
 
 DATA STRUCTURE:
 - Base interval: 1 hour (each data point represents 1 hour of price action)
 - 6-month chart: ~4,380 hourly data points (182.5 days × 24 hours)
+- 90-day chart: ~2,160 hourly data points (90 days × 24 hours)
 - 30-day chart: ~720 hourly data points (30 days × 24 hours)
 - 7-day chart: ~168 hourly data points (7 days × 24 hours)
 - 24-hour chart: 24 hourly data points (1 day × 24 hours)
@@ -81,6 +82,15 @@ DATA STRUCTURE:
 - Assess overall macro trend: strong uptrend, downtrend, or range-bound?
 - Identify key psychological price levels that have been tested multiple times
 - This provides the MACRO CONTEXT for your trading decision
+
+90-DAY CHART (Extended Trend) - Quarterly Patterns & Validation:
+- Identify extended trend patterns and quarterly support/resistance zones
+- Validate macro trend continuation or reversal signals from 6-month chart
+- Look for broader accumulation/distribution patterns
+- Check if recent 30-day moves are part of larger quarterly structure
+- Assess sustainability of trends: are higher timeframe levels holding?
+- Identify intermediate support/resistance that may not be visible on shorter timeframes
+- This bridges the gap between macro context (6mo) and recent action (30d)
 
 30-DAY CHART (Recent Trend) - Medium-Term Momentum:
 - Confirm current trend strength and direction over the past month
@@ -110,15 +120,15 @@ DATA STRUCTURE:
 - This fine-tunes your EXACT entry price and timing
 
 MULTI-TIMEFRAME DECISION LOGIC:
-✓ All 4 timeframes bullish + volume confirmation = HIGH confidence long candidate
-✓ 6mo uptrend + 30d uptrend + 7d pullback to support + 24h showing reversal = HIGH confidence entry
-✓ 6mo uptrend + 30d consolidation near support + 7d breakout + 24h momentum = HIGH confidence entry
-✗ Timeframe conflict (e.g., 24h/7d bullish but 30d/6mo bearish) = NO TRADE (wait for alignment)
-✗ Price approaching major 6-month resistance = NO TRADE or significantly reduce confidence
-✗ 6-month downtrend + 7d bounce = Counter-trend risk, NO TRADE unless exceptional setup
+✓ All 5 timeframes bullish + volume confirmation = HIGH confidence long candidate
+✓ 6mo uptrend + 90d uptrend + 30d uptrend + 7d pullback to support + 24h showing reversal = HIGH confidence entry
+✓ 6mo uptrend + 90d uptrend + 30d consolidation near support + 7d breakout + 24h momentum = HIGH confidence entry
+✗ Timeframe conflict (e.g., 24h/7d bullish but 30d/90d/6mo bearish) = NO TRADE (wait for alignment)
+✗ Price approaching major 6-month or 90-day resistance = NO TRADE or significantly reduce confidence
+✗ 6-month downtrend + 90d downtrend + 7d bounce = Counter-trend risk, NO TRADE unless exceptional setup
 ✗ 30-day trend weak/sideways + mixed signals = NO TRADE (wait for clarity)
 
-Base your primary trading decision on the 7-DAY chart (immediate context), but REQUIRE validation from 30-day and 6-month charts. Use 24-hour chart for fine-tuning entry timing.
+Base your primary trading decision on the 7-DAY chart (immediate context), but REQUIRE validation from 30-day, 90-day, and 6-month charts. Use 24-hour chart for fine-tuning entry timing.
 """
 
     # Build volatility context
@@ -235,7 +245,7 @@ CRITICAL REQUIREMENTS:
 CONFIDENCE LEVEL CRITERIA (OBJECTIVE RUBRIC):
 
 HIGH confidence requires ALL of the following:
-✓ All 3 timeframes (24h, 7d, 90d) aligned in same direction
+✓ All 5 timeframes (24h, 7d, 30d, 90d, 6mo) aligned in same direction
 ✓ Price at key technical level (major support/resistance, Fibonacci level)
 ✓ Volume confirms the setup (above average on bullish setups, spike at support)
 ✓ Risk/reward ratio >= 3.0 (preferably 3.5+)
@@ -301,11 +311,11 @@ Output ONLY valid JSON with no markdown formatting or explanatory text outside t
                     }
                 ]
 
-                # Add charts in order: 7d (high detail - primary execution), 30d (high - trend), 24h (high - timing), 6mo (low - macro context)
+                # Add charts in order: 7d (high detail - primary execution), 30d (high - trend), 90d (high - extended trend), 24h (high - timing), 6mo (low - macro context)
                 # This prioritizes the most important timeframes while saving tokens on context
-                # 7d = immediate trading context, 30d = trend validation, 24h = entry timing, 6mo = big picture
-                timeframe_order = ['7d', '30d', '24h', '6mo']
-                detail_levels = {'7d': 'high', '30d': 'high', '24h': 'high', '6mo': 'low'}
+                # 7d = immediate trading context, 30d = recent trend, 90d = extended trend, 24h = entry timing, 6mo = big picture
+                timeframe_order = ['7d', '30d', '90d', '24h', '6mo']
+                detail_levels = {'7d': 'high', '30d': 'high', '90d': 'high', '24h': 'high', '6mo': 'low'}
 
                 for timeframe in timeframe_order:
                     if timeframe in chart_paths and chart_paths[timeframe] and os.path.exists(chart_paths[timeframe]):
