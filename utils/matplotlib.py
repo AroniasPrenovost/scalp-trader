@@ -273,8 +273,8 @@ def plot_simple_snapshot(
         rsi = calculate_rsi(price_data, period=14)
         rsi_clean = [val if val is not None else np.nan for val in rsi]
         ax2.plot(x_values, rsi_clean, label='RSI(14)', c='#6A1B9A', linewidth=1.8)
-        ax2.axhline(y=70, color='#C62828', linewidth=2.0, linestyle='--', alpha=0.8, label='Overbought (>=70)')
-        ax2.axhline(y=30, color='#2E7D32', linewidth=2.0, linestyle='--', alpha=0.8, label='Oversold (<=30)')
+        ax2.axhline(y=70, color='#C62828', linewidth=2.0, linestyle='--', alpha=0.8, label='Overbought (>70)')
+        ax2.axhline(y=30, color='#2E7D32', linewidth=2.0, linestyle='--', alpha=0.8, label='Oversold (<30)')
         ax2.fill_between(x_values, 70, 100, alpha=0.2, color='#C62828')
         ax2.fill_between(x_values, 0, 30, alpha=0.2, color='#2E7D32')
         ax2.set_ylim(0, 100)
@@ -703,8 +703,8 @@ def _generate_single_timeframe_chart(
         # Filter out None values for plotting - matplotlib requires numeric values
         rsi_clean = [val if val is not None else np.nan for val in rsi]
         ax2.plot(x_values, rsi_clean, label='RSI(14)', c='#6A1B9A', linewidth=1.8)
-        ax2.axhline(y=70, color='#C62828', linewidth=2.0, linestyle='--', alpha=0.8, label='Overbought (>=70)')
-        ax2.axhline(y=30, color='#2E7D32', linewidth=2.0, linestyle='--', alpha=0.8, label='Oversold (<=30)')
+        ax2.axhline(y=70, color='#C62828', linewidth=2.0, linestyle='--', alpha=0.8, label='Overbought (>70)')
+        ax2.axhline(y=30, color='#2E7D32', linewidth=2.0, linestyle='--', alpha=0.8, label='Oversold (<30)')
         ax2.fill_between(x_values, 70, 100, alpha=0.2, color='#C62828')
         ax2.fill_between(x_values, 0, 30, alpha=0.2, color='#2E7D32')
         ax2.set_ylim(0, 100)
@@ -932,8 +932,8 @@ def plot_graph(
         # Filter out None values for plotting - matplotlib requires numeric values
         rsi_clean = [val if val is not None else np.nan for val in rsi]
         ax2.plot(x_values, rsi_clean, label='RSI(14)', c='#6A1B9A', linewidth=1.8)
-        ax2.axhline(y=70, color='#C62828', linewidth=2.0, linestyle='--', alpha=0.8, label='Overbought (>=70)')
-        ax2.axhline(y=30, color='#2E7D32', linewidth=2.0, linestyle='--', alpha=0.8, label='Oversold (<=30)')
+        ax2.axhline(y=70, color='#C62828', linewidth=2.0, linestyle='--', alpha=0.8, label='Overbought (>70)')
+        ax2.axhline(y=30, color='#2E7D32', linewidth=2.0, linestyle='--', alpha=0.8, label='Oversold (<30)')
         ax2.fill_between(x_values, 70, 100, alpha=0.2, color='#C62828')
         ax2.fill_between(x_values, 0, 30, alpha=0.2, color='#2E7D32')
         ax2.set_ylim(0, 100)
