@@ -9,6 +9,39 @@ import numpy as np
 import pandas as pd
 from utils.price_helpers import calculate_percentage_from_min
 
+def format_price(x, p):
+    """Format price labels, removing .00 for whole numbers"""
+    if x == int(x):
+        return f'${int(x)}'
+    else:
+        return f'${x:.2f}'
+
+def format_volume(x, p):
+    """Format volume labels, removing .00 for whole numbers"""
+    if x >= 1e9:
+        value = x / 1e9
+        if value == int(value):
+            return f'{int(value)}B'
+        else:
+            return f'{value:.2f}B'
+    elif x >= 1e6:
+        value = x / 1e6
+        if value == int(value):
+            return f'{int(value)}M'
+        else:
+            return f'{value:.2f}M'
+    elif x >= 1e3:
+        value = x / 1e3
+        if value == int(value):
+            return f'{int(value)}K'
+        else:
+            return f'{value:.1f}K'
+    else:
+        if x == int(x):
+            return f'{int(x)}'
+        else:
+            return f'{x:.0f}'
+
 def create_time_labels(num_points, interval_minutes, current_timestamp):
     """
     Create time labels for x-axis based on data points and interval.
@@ -254,7 +287,7 @@ def plot_simple_snapshot(
     ax1.set_xticks(positions)
     ax1.set_xticklabels(labels, rotation=45, ha='right')
 
-    ax1.yaxis.set_major_formatter(ticker.FormatStrFormatter('$%.2f'))
+    ax1.yaxis.set_major_formatter(ticker.FuncFormatter(format_price))
     ax1.set_ylabel('Price (USD)', fontsize=10, fontweight='bold')
     ax1.grid(True, alpha=0.5, linewidth=0.8, which='major')
     ax1.grid(True, alpha=0.25, linewidth=0.5, which='minor')
@@ -682,7 +715,7 @@ def _generate_single_timeframe_chart(
     ax1.set_xticks(positions)
     ax1.set_xticklabels(labels, rotation=45, ha='right')
 
-    ax1.yaxis.set_major_formatter(ticker.FormatStrFormatter('$%.2f'))
+    ax1.yaxis.set_major_formatter(ticker.FuncFormatter(format_price))
     ax1.set_ylabel('Price (USD)', fontsize=10, fontweight='bold')
     ax1.grid(True, alpha=0.5, linewidth=0.8, which='major')
     ax1.grid(True, alpha=0.25, linewidth=0.5, which='minor')
@@ -735,16 +768,6 @@ def _generate_single_timeframe_chart(
         ax3.grid(True, alpha=0.5, linewidth=0.8, axis='y')
 
         # Format volume labels for better readability
-        def format_volume(x, p):
-            if x >= 1e9:
-                return f'{x/1e9:.2f}B'
-            elif x >= 1e6:
-                return f'{x/1e6:.2f}M'
-            elif x >= 1e3:
-                return f'{x/1e3:.1f}K'
-            else:
-                return f'{x:.0f}'
-
         ax3.yaxis.set_major_formatter(ticker.FuncFormatter(format_volume))
         # Share x-axis with main chart
         ax3.set_xticks(positions)
@@ -924,7 +947,7 @@ def plot_graph(
     ax1.set_xticks(positions)
     ax1.set_xticklabels(labels, rotation=45, ha='right')
 
-    ax1.yaxis.set_major_formatter(ticker.FormatStrFormatter('$%.2f'))
+    ax1.yaxis.set_major_formatter(ticker.FuncFormatter(format_price))
     ax1.set_ylabel('Price (USD)', fontsize=10, fontweight='bold')
     ax1.grid(True, alpha=0.5, linewidth=0.8, which='major')
     ax1.grid(True, alpha=0.25, linewidth=0.5, which='minor')
