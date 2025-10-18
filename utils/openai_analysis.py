@@ -63,49 +63,62 @@ def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_ra
         timeframe_context = """
 
 IMPORTANT - MULTI-TIMEFRAME ANALYSIS FRAMEWORK:
-You are being provided with FOUR charts showing different timeframes:
+You are being provided with FOUR charts showing different lookback windows for comprehensive analysis.
+NOTE: All charts use 1-hour interval data points - the difference is the lookback window (how much historical data is shown).
 
-1H CHART (1 hour) - Micro Execution Timing:
+DATA STRUCTURE:
+- Base interval: 1 hour (each data point represents 1 hour of price action)
+- 6-month chart: ~4,380 hourly data points (182.5 days × 24 hours)
+- 30-day chart: ~720 hourly data points (30 days × 24 hours)
+- 7-day chart: ~168 hourly data points (7 days × 24 hours)
+- 24-hour chart: 24 hourly data points (1 day × 24 hours)
+
+6-MONTH CHART (Full Historical View) - Macro Trends & Context:
+- Identify major long-term support/resistance levels and trend channels
+- Look for head & shoulders, double tops/bottoms, major chart patterns
+- Determine cyclical patterns and long-term market structure
+- Are we near all-time highs/lows within this 6-month window?
+- Assess overall macro trend: strong uptrend, downtrend, or range-bound?
+- Identify key psychological price levels that have been tested multiple times
+- This provides the MACRO CONTEXT for your trading decision
+
+30-DAY CHART (Recent Trend) - Medium-Term Momentum:
+- Confirm current trend strength and direction over the past month
+- Identify key support/resistance zones that are actively relevant
+- Look for swing patterns: higher highs/higher lows (uptrend) or lower highs/lower lows (downtrend)
+- Check if price is respecting moving averages (MA20, MA50)
+- Assess if we're in a pullback within uptrend or a breakout scenario
+- Note recent volume patterns: increasing on rallies = bullish, decreasing = bearish
+- This validates whether recent momentum aligns with macro trend
+
+7-DAY CHART (Short-term Action) - Immediate Trading Context:
+- Identify short-term support/resistance levels forming this week
+- Look for recent breakouts, breakdowns, or consolidation patterns
+- Check RSI for oversold (<30) or overbought (>70) conditions
+- Assess price action quality: clean directional moves vs. choppy/whipsaw
+- Note any candlestick patterns at key levels (doji, hammer, engulfing)
+- Verify if short-term trend aligns with 30-day and 6-month trends
+- This determines if NOW is a good time to enter based on recent price action
+
+24-HOUR CHART (Intraday View) - Entry/Exit Timing:
 - Identify precise entry zone and immediate micro support/resistance
-- Look for recent momentum shifts and very short-term patterns
-- Check RSI for immediate oversold (<30) or overbought (>70) conditions
-- Note if price is bouncing off key technical levels in the last hour
-- Assess immediate price action quality (clean moves vs choppy)
-
-4H CHART (4 hours) - Primary Execution Chart:
-- Identify precise entry zone (not just single price point)
-- Note intraday support/resistance levels forming over last 4 hours
-- Check if price is at key Fibonacci retracement levels (23.6%, 38.2%, 50%, 61.8%, 78.6%)
-- Assess whether current price offers favorable risk/reward
-- Look for candlestick patterns (doji, hammer, engulfing) at key levels
-- Verify volume patterns support the directional bias
-- This is your PRIMARY execution timeframe
-
-1D CHART (1 day / 24 hours) - Trend Confirmation:
-- Confirm trend direction (higher highs/higher lows = uptrend, lower highs/lower lows = downtrend)
-- Check if we're in a pullback within uptrend or a breakout scenario
-- Verify RSI isn't showing bearish divergence (price makes higher high, RSI makes lower high)
-- Ensure volume supports the move (increasing volume on uptrends, decreasing on pullbacks)
-- Identify swing highs/lows for position context
-- Confirm daily trend aligns with 4H setup
-
-1W CHART (1 week / 7 days) - Macro Context:
-- Are we near weekly highs/lows? (extreme = potential mean reversion risk)
-- Identify major resistance zones that could cap upside potential
-- Check if weekly trend aligns with intended trade direction
-- Determine if symbol is in accumulation phase, distribution phase, or trending
-- Note weekly support/resistance levels that could impact trade
-- Assess overall market structure and position in larger cycle
+- Look for intraday momentum shifts or reversal signals
+- Check if price is bouncing off key technical levels RIGHT NOW
+- Assess immediate risk/reward: is current price near support (good entry) or resistance (poor entry)?
+- Note volume spikes in last 24 hours that signal buyer/seller interest
+- Confirm RSI is not showing extreme conditions that might reverse quickly
+- This fine-tunes your EXACT entry price and timing
 
 MULTI-TIMEFRAME DECISION LOGIC:
 ✓ All 4 timeframes bullish + volume confirmation = HIGH confidence long candidate
-✓ Weekly uptrend + daily uptrend + 4H pullback to support + 1H showing reversal = HIGH confidence entry
-✓ Weekly uptrend + 4H pullback to key Fibonacci level + 1H momentum shift = HIGH confidence entry
-✗ Timeframe conflict (e.g., 4H/1H bullish but 1D/1W bearish) = NO TRADE (wait for alignment)
-✗ Price approaching major weekly resistance = NO TRADE or significantly reduce confidence
-✗ Weekly downtrend + 4H bounce = Counter-trend risk, NO TRADE unless exceptional setup
+✓ 6mo uptrend + 30d uptrend + 7d pullback to support + 24h showing reversal = HIGH confidence entry
+✓ 6mo uptrend + 30d consolidation near support + 7d breakout + 24h momentum = HIGH confidence entry
+✗ Timeframe conflict (e.g., 24h/7d bullish but 30d/6mo bearish) = NO TRADE (wait for alignment)
+✗ Price approaching major 6-month resistance = NO TRADE or significantly reduce confidence
+✗ 6-month downtrend + 7d bounce = Counter-trend risk, NO TRADE unless exceptional setup
+✗ 30-day trend weak/sideways + mixed signals = NO TRADE (wait for clarity)
 
-Base your primary trading decision on the 4H chart, but REQUIRE validation from 1D and 1W context. Use 1H for fine-tuning entry timing.
+Base your primary trading decision on the 7-DAY chart (immediate context), but REQUIRE validation from 30-day and 6-month charts. Use 24-hour chart for fine-tuning entry timing.
 """
 
     # Build volatility context
@@ -288,10 +301,11 @@ Output ONLY valid JSON with no markdown formatting or explanatory text outside t
                     }
                 ]
 
-                # Add charts in order: 4h (high detail - primary execution), 1h (high - timing), 1d (low), 1w (low)
+                # Add charts in order: 7d (high detail - primary execution), 30d (high - trend), 24h (high - timing), 6mo (low - macro context)
                 # This prioritizes the most important timeframes while saving tokens on context
-                timeframe_order = ['4h', '1h', '1d', '1w']
-                detail_levels = {'4h': 'high', '1h': 'high', '1d': 'low', '1w': 'low'}
+                # 7d = immediate trading context, 30d = trend validation, 24h = entry timing, 6mo = big picture
+                timeframe_order = ['7d', '30d', '24h', '6mo']
+                detail_levels = {'7d': 'high', '30d': 'high', '24h': 'high', '6mo': 'low'}
 
                 for timeframe in timeframe_order:
                     if timeframe in chart_paths and chart_paths[timeframe] and os.path.exists(chart_paths[timeframe]):

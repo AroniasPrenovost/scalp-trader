@@ -427,30 +427,35 @@ def plot_multi_timeframe_charts(
         print(f"  Skipping all charts: insufficient data ({len(price_data)} points, need at least 10)")
         return {}
 
+    # Optimized timeframes based on senior developer recommendations for effective AI analysis:
+    # 1. Full 6-Month View: Macro trends, major support/resistance, long-term patterns
+    # 2. 30-Day View: Recent trend analysis, medium-term momentum
+    # 3. 7-Day View: Short-term price action, immediate trading context
+    # 4. 24-Hour View: Immediate market conditions, entry/exit timing
     timeframes = {
-        '1h': {
-            'hours': 1,
-            'label': '1h',
-            'title_suffix': '1 Hour Timeframe',
-            'lookback_hours': 2160  # Show last 3 months (90 days)
+        '6mo': {
+            'hours': 1,  # Use 1h candles for full 6-month historical view
+            'label': '6mo',
+            'title_suffix': '6 Month Full History - Macro Trends',
+            'lookback_hours': 4380  # Full 6 months (182.5 days)
         },
-        '4h': {
-            'hours': 4,
-            'label': '4h',
-            'title_suffix': '4 Hour Timeframe',
-            'lookback_hours': 2160  # Show last 3 months (90 days)
+        '30d': {
+            'hours': 1,  # Use 1h candles for 30-day view
+            'label': '30d',
+            'title_suffix': '30 Day View - Recent Trend Analysis',
+            'lookback_hours': 720  # 30 days
         },
-        '1d': {
-            'hours': 24,
-            'label': '1d',
-            'title_suffix': '1 Day Timeframe',
-            'lookback_hours': 2160  # Show last 3 months (90 days)
+        '7d': {
+            'hours': 1,  # Use 1h candles for 7-day view
+            'label': '7d',
+            'title_suffix': '7 Day View - Short-term Price Action',
+            'lookback_hours': 168  # 7 days
         },
-        '1w': {
-            'hours': 168,  # 7 * 24
-            'label': '1w',
-            'title_suffix': '1 Week Timeframe',
-            'lookback_hours': 2160  # Show last 3 months (90 days)
+        '24h': {
+            'hours': 1,  # Use 1h candles for intraday view
+            'label': '24h',
+            'title_suffix': '24 Hour View - Immediate Market Conditions',
+            'lookback_hours': 24  # 1 day
         }
     }
 
@@ -483,10 +488,10 @@ def plot_multi_timeframe_charts(
             print(f"  Skipping {timeframe_key} chart: insufficient data after resampling ({len(resampled_prices)} candles, need at least 3)")
             continue
 
-        # Only include volume for 1h and 4h charts (since it's rolling 24h volume from Coinbase)
-        # For longer timeframes (1d, 1w), rolling 24h volume is misleading
+        # Only include volume for 24h and 7d charts (since it's rolling 24h volume from Coinbase)
+        # For longer timeframes (30d, 6mo), rolling 24h volume is less meaningful
         resampled_volumes = None
-        if timeframe_key in ['1h', '4h'] and volume_data:
+        if timeframe_key in ['24h', '7d'] and volume_data:
             volume_data_clean = [float(v) if v is not None else 0.0 for v in volume_data]
 
             # Apply the same lookback window filter to volume data
