@@ -272,7 +272,7 @@ def plot_simple_snapshot(
         ax2 = fig.add_subplot(gs[1])
         rsi = calculate_rsi(price_data, period=14)
         rsi_clean = [val if val is not None else np.nan for val in rsi]
-        ax2.plot(x_values, rsi_clean, label='RSI(14)', c='#6A1B9A', linewidth=1.8)
+        ax2.plot(x_values, rsi_clean, label='RSI(14)', c='#6A1B9A', linewidth=1.5)
         ax2.axhline(y=70, color='#C62828', linewidth=2.0, linestyle='--', alpha=0.8, label='Overbought (>70)')
         ax2.axhline(y=30, color='#2E7D32', linewidth=2.0, linestyle='--', alpha=0.8, label='Oversold (<30)')
         ax2.fill_between(x_values, 70, 100, alpha=0.2, color='#C62828')
@@ -702,7 +702,7 @@ def _generate_single_timeframe_chart(
         rsi = calculate_rsi(price_data, period=14)
         # Filter out None values for plotting - matplotlib requires numeric values
         rsi_clean = [val if val is not None else np.nan for val in rsi]
-        ax2.plot(x_values, rsi_clean, label='RSI(14)', c='#6A1B9A', linewidth=1.8)
+        ax2.plot(x_values, rsi_clean, label='RSI(14)', c='#6A1B9A', linewidth=1.5)
         ax2.axhline(y=70, color='#C62828', linewidth=2.0, linestyle='--', alpha=0.8, label='Overbought (>70)')
         ax2.axhline(y=30, color='#2E7D32', linewidth=2.0, linestyle='--', alpha=0.8, label='Oversold (<30)')
         ax2.fill_between(x_values, 70, 100, alpha=0.2, color='#C62828')
@@ -733,7 +733,19 @@ def _generate_single_timeframe_chart(
         ax3.bar(x_values, volume_data_clean, color=colors, alpha=0.85, width=0.8, edgecolor='none')
         ax3.set_ylabel('Volume', fontsize=10, fontweight='bold')
         ax3.grid(True, alpha=0.5, linewidth=0.8, axis='y')
-        ax3.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, p: f'{x/1e6:.1f}M' if x >= 1e6 else f'{x/1e3:.0f}K'))
+
+        # Format volume labels for better readability
+        def format_volume(x, p):
+            if x >= 1e9:
+                return f'{x/1e9:.2f}B'
+            elif x >= 1e6:
+                return f'{x/1e6:.2f}M'
+            elif x >= 1e3:
+                return f'{x/1e3:.1f}K'
+            else:
+                return f'{x:.0f}'
+
+        ax3.yaxis.set_major_formatter(ticker.FuncFormatter(format_volume))
         # Share x-axis with main chart
         ax3.set_xticks(positions)
         ax3.set_xticklabels(labels, rotation=45, ha='right')
@@ -931,7 +943,7 @@ def plot_graph(
         rsi = calculate_rsi(price_data, period=14)
         # Filter out None values for plotting - matplotlib requires numeric values
         rsi_clean = [val if val is not None else np.nan for val in rsi]
-        ax2.plot(x_values, rsi_clean, label='RSI(14)', c='#6A1B9A', linewidth=1.8)
+        ax2.plot(x_values, rsi_clean, label='RSI(14)', c='#6A1B9A', linewidth=1.5)
         ax2.axhline(y=70, color='#C62828', linewidth=2.0, linestyle='--', alpha=0.8, label='Overbought (>70)')
         ax2.axhline(y=30, color='#2E7D32', linewidth=2.0, linestyle='--', alpha=0.8, label='Oversold (<30)')
         ax2.fill_between(x_values, 70, 100, alpha=0.2, color='#C62828')
