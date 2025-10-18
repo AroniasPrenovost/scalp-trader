@@ -582,6 +582,24 @@ def iterate_wallets(interval_seconds):
                                 # Save transaction record
                                 buy_timestamp = last_order['order'].get('created_time')
                                 buy_screenshot_path = last_order.get('buy_screenshot_path')  # Get screenshot path from ledger
+
+                                # Build market context at entry
+                                entry_market_conditions = {
+                                    "volatility_range_pct": range_percentage_from_min,
+                                    "current_trend": analysis.get('market_trend') if analysis else None,
+                                    "confidence_level": analysis.get('confidence_level') if analysis else None,
+                                    "entry_reasoning": analysis.get('reasoning') if analysis else None,
+                                }
+
+                                # Build position sizing data
+                                position_sizing_data = {
+                                    "buy_amount_usd": analysis.get('buy_amount_usd') if analysis else None,
+                                    "actual_shares": number_of_shares,
+                                    "entry_position_value": entry_position_value_after_fees,
+                                    "starting_capital": STARTING_CAPITAL_USD,
+                                    "wallet_allocation_pct": (entry_position_value_after_fees / STARTING_CAPITAL_USD * 100) if STARTING_CAPITAL_USD > 0 else None,
+                                }
+
                                 save_transaction_record(
                                     symbol=symbol,
                                     buy_price=entry_price,
@@ -592,7 +610,11 @@ def iterate_wallets(interval_seconds):
                                     exchange_fees=sell_now_exchange_fee,
                                     total_profit=potential_profit,
                                     buy_timestamp=buy_timestamp,
-                                    buy_screenshot_path=buy_screenshot_path
+                                    buy_screenshot_path=buy_screenshot_path,
+                                    analysis=analysis,
+                                    entry_market_conditions=entry_market_conditions,
+                                    exit_trigger='stop_loss',
+                                    position_sizing_data=position_sizing_data
                                 )
 
                                 delete_analysis_file(symbol)
@@ -628,6 +650,24 @@ def iterate_wallets(interval_seconds):
                                 # Save transaction record
                                 buy_timestamp = last_order['order'].get('created_time')
                                 buy_screenshot_path = last_order.get('buy_screenshot_path')  # Get screenshot path from ledger
+
+                                # Build market context at entry
+                                entry_market_conditions = {
+                                    "volatility_range_pct": range_percentage_from_min,
+                                    "current_trend": analysis.get('market_trend') if analysis else None,
+                                    "confidence_level": analysis.get('confidence_level') if analysis else None,
+                                    "entry_reasoning": analysis.get('reasoning') if analysis else None,
+                                }
+
+                                # Build position sizing data
+                                position_sizing_data = {
+                                    "buy_amount_usd": analysis.get('buy_amount_usd') if analysis else None,
+                                    "actual_shares": number_of_shares,
+                                    "entry_position_value": entry_position_value_after_fees,
+                                    "starting_capital": STARTING_CAPITAL_USD,
+                                    "wallet_allocation_pct": (entry_position_value_after_fees / STARTING_CAPITAL_USD * 100) if STARTING_CAPITAL_USD > 0 else None,
+                                }
+
                                 save_transaction_record(
                                     symbol=symbol,
                                     buy_price=entry_price,
@@ -638,7 +678,11 @@ def iterate_wallets(interval_seconds):
                                     exchange_fees=sell_now_exchange_fee,
                                     total_profit=potential_profit,
                                     buy_timestamp=buy_timestamp,
-                                    buy_screenshot_path=buy_screenshot_path
+                                    buy_screenshot_path=buy_screenshot_path,
+                                    analysis=analysis,
+                                    entry_market_conditions=entry_market_conditions,
+                                    exit_trigger='profit_target',
+                                    position_sizing_data=position_sizing_data
                                 )
 
                                 delete_analysis_file(symbol)

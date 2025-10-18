@@ -104,6 +104,121 @@ def calculate_wallet_metrics(symbol: str, starting_capital_usd: float) -> Dict:
     }
 
 
+def _analyze_trade_patterns(transactions: List[Dict]) -> Dict:
+    """
+    Analyze trading patterns from transaction history to identify what works and what doesn't.
+
+    Args:
+        transactions: List of transaction records
+
+    Returns:
+        Dictionary containing pattern analysis insights
+    """
+    if not transactions:
+        return {}
+
+    insights = {}
+
+    # Analyze by confidence level
+    confidence_analysis = {}
+    for conf_level in ['high', 'medium', 'low']:
+        trades_at_level = [t for t in transactions if t.get('ai_model_data', {}).get('confidence_level') == conf_level]
+        if trades_at_level:
+            wins = [t for t in trades_at_level if t.get('total_profit', 0) > 0]
+            win_rate = (len(wins) / len(trades_at_level) * 100) if trades_at_level else 0
+            avg_profit = sum(t.get('potential_profit_percentage', 0) for t in trades_at_level) / len(trades_at_level)
+            confidence_analysis[conf_level] = {
+                'count': len(trades_at_level),
+                'win_rate': win_rate,
+                'avg_profit_pct': avg_profit
+            }
+    insights['by_confidence_level'] = confidence_analysis
+
+    # Analyze by market trend
+    trend_analysis = {}
+    for trend in ['bullish', 'bearish', 'neutral', 'ranging']:
+        trades_in_trend = [t for t in transactions if t.get('market_context_at_entry', {}).get('current_trend') == trend]
+        if trades_in_trend:
+            wins = [t for t in trades_in_trend if t.get('total_profit', 0) > 0]
+            win_rate = (len(wins) / len(trades_in_trend) * 100) if trades_in_trend else 0
+            avg_profit = sum(t.get('potential_profit_percentage', 0) for t in trades_in_trend) / len(trades_in_trend)
+            trend_analysis[trend] = {
+                'count': len(trades_in_trend),
+                'win_rate': win_rate,
+                'avg_profit_pct': avg_profit
+            }
+    insights['by_market_trend'] = trend_analysis
+
+    # Analyze by exit trigger
+    exit_analysis = {}
+    for exit_type in ['profit_target', 'stop_loss', 'manual']:
+        trades_by_exit = [t for t in transactions if t.get('exit_analysis', {}).get('exit_trigger') == exit_type]
+        if trades_by_exit:
+            avg_profit = sum(t.get('potential_profit_percentage', 0) for t in trades_by_exit) / len(trades_by_exit)
+            exit_analysis[exit_type] = {
+                'count': len(trades_by_exit),
+                'avg_profit_pct': avg_profit
+            }
+    insights['by_exit_trigger'] = exit_analysis
+
+    # Analyze volatility impact
+    volatility_buckets = {'low': [], 'medium': [], 'high': [], 'extreme': []}
+    for t in transactions:
+        volatility = t.get('market_context_at_entry', {}).get('volatility_range_pct')
+        if volatility is not None:
+            if volatility < 15:
+                volatility_buckets['low'].append(t)
+            elif volatility < 30:
+                volatility_buckets['medium'].append(t)
+            elif volatility < 50:
+                volatility_buckets['high'].append(t)
+            else:
+                volatility_buckets['extreme'].append(t)
+
+    volatility_analysis = {}
+    for vol_level, trades_list in volatility_buckets.items():
+        if trades_list:
+            wins = [t for t in trades_list if t.get('total_profit', 0) > 0]
+            win_rate = (len(wins) / len(trades_list) * 100) if trades_list else 0
+            avg_profit = sum(t.get('potential_profit_percentage', 0) for t in trades_list) / len(trades_list)
+            volatility_analysis[vol_level] = {
+                'count': len(trades_list),
+                'win_rate': win_rate,
+                'avg_profit_pct': avg_profit
+            }
+    insights['by_volatility'] = volatility_analysis
+
+    # Analyze hold time patterns
+    winning_trades = [t for t in transactions if t.get('total_profit', 0) > 0]
+    losing_trades = [t for t in transactions if t.get('total_profit', 0) <= 0]
+
+    winning_hold_times = [t.get('time_held_seconds') for t in winning_trades if t.get('time_held_seconds')]
+    losing_hold_times = [t.get('time_held_seconds') for t in losing_trades if t.get('time_held_seconds')]
+
+    insights['hold_time_analysis'] = {
+        'avg_winning_hold_hours': (sum(winning_hold_times) / len(winning_hold_times) / 3600) if winning_hold_times else None,
+        'avg_losing_hold_hours': (sum(losing_hold_times) / len(losing_hold_times) / 3600) if losing_hold_times else None,
+    }
+
+    # Analyze entry quality (distance from support)
+    support_proximity_wins = []
+    support_proximity_losses = []
+    for t in transactions:
+        tech_signals = t.get('technical_signals_at_entry', {})
+        if 'price_vs_support' in tech_signals:
+            if t.get('total_profit', 0) > 0:
+                support_proximity_wins.append(tech_signals['price_vs_support'])
+            else:
+                support_proximity_losses.append(tech_signals['price_vs_support'])
+
+    insights['entry_quality'] = {
+        'sample_winning_support_distances': support_proximity_wins[:5],
+        'sample_losing_support_distances': support_proximity_losses[:5],
+    }
+
+    return insights
+
+
 def build_trading_context(symbol: str, max_trades: int = 10, include_screenshots: bool = True, starting_capital_usd: Optional[float] = None) -> Dict:
     """
     Build contextual information from past trades for LLM analysis.
@@ -181,12 +296,16 @@ def build_trading_context(symbol: str, max_trades: int = 10, include_screenshots
     losing_trades = len([t for t in transactions if t.get('total_profit', 0) <= 0])
     win_rate = (profitable_trades / len(transactions) * 100) if transactions else 0
 
+    # Enhanced analytics: Analyze patterns by market conditions
+    pattern_insights = _analyze_trade_patterns(transactions)
+
     performance_summary = {
         'total_profit': total_profit,
         'average_profit_percentage': average_profit_percentage,
         'win_rate': win_rate,
         'profitable_trades': profitable_trades,
-        'losing_trades': losing_trades
+        'losing_trades': losing_trades,
+        'pattern_insights': pattern_insights
     }
 
     # Build trade records with optional screenshots
@@ -282,7 +401,60 @@ Performance Summary (All-Time):
 - Win Rate: {summary['win_rate']:.1f}% ({summary['profitable_trades']} wins, {summary['losing_trades']} losses)
 - Average Profit: {summary['average_profit_percentage']:.2f}% per trade
 - Total Cumulative Profit: ${summary['total_profit']:.2f}
+"""
 
+    # Add pattern insights if available
+    pattern_insights = summary.get('pattern_insights', {})
+    if pattern_insights:
+        output += "\n=== CRITICAL PATTERN INSIGHTS FROM PAST TRADES ===\n"
+
+        # Confidence level analysis
+        if 'by_confidence_level' in pattern_insights and pattern_insights['by_confidence_level']:
+            output += "\n📊 Performance by AI Confidence Level:\n"
+            for level, stats in pattern_insights['by_confidence_level'].items():
+                output += f"  - {level.upper()}: {stats['count']} trades, {stats['win_rate']:.1f}% win rate, {stats['avg_profit_pct']:.2f}% avg profit\n"
+
+        # Market trend analysis
+        if 'by_market_trend' in pattern_insights and pattern_insights['by_market_trend']:
+            output += "\n📈 Performance by Market Trend:\n"
+            for trend, stats in pattern_insights['by_market_trend'].items():
+                output += f"  - {trend.upper()}: {stats['count']} trades, {stats['win_rate']:.1f}% win rate, {stats['avg_profit_pct']:.2f}% avg profit\n"
+
+        # Volatility analysis
+        if 'by_volatility' in pattern_insights and pattern_insights['by_volatility']:
+            output += "\n💹 Performance by Volatility Level:\n"
+            for vol, stats in pattern_insights['by_volatility'].items():
+                output += f"  - {vol.upper()}: {stats['count']} trades, {stats['win_rate']:.1f}% win rate, {stats['avg_profit_pct']:.2f}% avg profit\n"
+
+        # Exit trigger analysis
+        if 'by_exit_trigger' in pattern_insights and pattern_insights['by_exit_trigger']:
+            output += "\n🎯 Performance by Exit Trigger:\n"
+            for exit_type, stats in pattern_insights['by_exit_trigger'].items():
+                output += f"  - {exit_type.replace('_', ' ').title()}: {stats['count']} trades, {stats['avg_profit_pct']:.2f}% avg profit\n"
+
+        # Hold time analysis
+        if 'hold_time_analysis' in pattern_insights:
+            hold_time = pattern_insights['hold_time_analysis']
+            if hold_time.get('avg_winning_hold_hours') or hold_time.get('avg_losing_hold_hours'):
+                output += "\n⏱️ Hold Time Patterns:\n"
+                if hold_time.get('avg_winning_hold_hours'):
+                    output += f"  - Winning trades: avg {hold_time['avg_winning_hold_hours']:.1f} hours\n"
+                if hold_time.get('avg_losing_hold_hours'):
+                    output += f"  - Losing trades: avg {hold_time['avg_losing_hold_hours']:.1f} hours\n"
+
+        # Entry quality
+        if 'entry_quality' in pattern_insights:
+            entry = pattern_insights['entry_quality']
+            if entry.get('sample_winning_support_distances') or entry.get('sample_losing_support_distances'):
+                output += "\n🎯 Entry Quality (Distance from Support):\n"
+                if entry.get('sample_winning_support_distances'):
+                    output += f"  - Winning entries: {', '.join(entry['sample_winning_support_distances'][:3])}\n"
+                if entry.get('sample_losing_support_distances'):
+                    output += f"  - Losing entries: {', '.join(entry['sample_losing_support_distances'][:3])}\n"
+
+        output += "\n"
+
+    output += f"""
 Recent Trade History (Last {context['trades_included']} trades):
 """
 
@@ -296,42 +468,98 @@ Recent Trade History (Last {context['trades_included']} trades):
    - Screenshot: {'Available' if trade['screenshot_available'] else 'Not available'}
 """
 
-    output += """
-HISTORICAL LEARNING DIRECTIVES:
+    # Build data-driven learning directives based on actual patterns
+    learning_directives = f"""
+HISTORICAL LEARNING DIRECTIVES - DATA-DRIVEN INSIGHTS:
 
-1. WINNING TRADE PATTERN ANALYSIS - Identify:
-   - What price levels triggered entries? (support bounces? breakouts? Fibonacci levels?)
-   - What timeframe confluence existed at entry? (all aligned bullish?)
-   - What was the typical profit target % that succeeded vs. failed?
-   - How long did profitable trades typically take? (hours/days - adjust timing expectations)
-   - What technical indicators were present? (RSI levels, volume patterns, MACD state)
-
-2. LOSING TRADE ANALYSIS - Avoid repeating:
-   - What conditions led to losses? (false breakouts? counter-trend trades? late entries?)
-   - Were stop losses too tight (noise stopped out) or too wide (big losses)?
-   - Did losses cluster during specific market conditions? (high volatility, low volume, trend reversals)
-   - Were there warning signs ignored? (divergences, volume weakness, resistance overhead)
-
-3. SYMBOL-SPECIFIC BEHAVIORAL PATTERNS:
-   - Does this symbol respond better to technical levels or momentum trading?
-   - What's the optimal hold time based on past successful trades?
-   - Are there recurring price levels that act as magnets or rejection zones?
-   - What volatility range is typical? (helps set realistic profit targets and stop losses)
-   - Does this symbol fake out often? (if yes, require stronger confirmation)
-
-4. POSITION SIZING CALIBRATION BASED ON TRACK RECORD:
-   - Current win rate is {summary['win_rate']:.1f}% - adjust confidence thresholds accordingly
-   - If win rate <60%: Require EXCEPTIONAL technical setup for HIGH confidence rating
-   - If win rate 60-75%: Maintain current strict criteria
-   - If win rate >75%: Maintain discipline - DO NOT increase position size due to past success
-   - Average profit per trade is {summary['average_profit_percentage']:.2f}% - ensure new trades target similar or better
-
-5. ADAPTATION PRIORITY:
-   - Weight: 70% current technical setup + 30% historical patterns
-   - If current setup contradicts historical patterns, prioritize current technicals
-   - Market regimes change - past performance doesn't guarantee future results
-   - Use history to inform, not dictate decisions
+1. CONFIDENCE CALIBRATION:
+   - Current overall win rate: {summary['win_rate']:.1f}%
 """
+
+    # Add confidence-specific guidance if data available
+    if pattern_insights.get('by_confidence_level'):
+        conf_data = pattern_insights['by_confidence_level']
+        if 'high' in conf_data:
+            learning_directives += f"   - HIGH confidence trades: {conf_data['high']['win_rate']:.1f}% win rate ({conf_data['high']['count']} trades) - "
+            if conf_data['high']['win_rate'] < 70:
+                learning_directives += "CALIBRATION NEEDED: High confidence should achieve >70% win rate\n"
+            else:
+                learning_directives += "Well calibrated, continue current criteria\n"
+
+        if 'medium' in conf_data:
+            learning_directives += f"   - MEDIUM confidence trades: {conf_data['medium']['win_rate']:.1f}% win rate - Consider avoiding these, focus on HIGH only\n"
+
+    learning_directives += "\n2. MARKET CONDITION OPTIMIZATION:\n"
+
+    # Add market trend insights
+    if pattern_insights.get('by_market_trend'):
+        trend_data = pattern_insights['by_market_trend']
+        best_trend = max(trend_data.items(), key=lambda x: x[1]['win_rate']) if trend_data else None
+        worst_trend = min(trend_data.items(), key=lambda x: x[1]['win_rate']) if trend_data else None
+
+        if best_trend:
+            learning_directives += f"   ✓ BEST: {best_trend[0].upper()} markets ({best_trend[1]['win_rate']:.1f}% win rate) - PRIORITIZE these conditions\n"
+        if worst_trend and worst_trend[1]['count'] > 0:
+            learning_directives += f"   ✗ WORST: {worst_trend[0].upper()} markets ({worst_trend[1]['win_rate']:.1f}% win rate) - "
+            if worst_trend[1]['win_rate'] < 50:
+                learning_directives += "AVOID trading in these conditions\n"
+            else:
+                learning_directives += "Exercise extra caution\n"
+
+    # Add volatility insights
+    if pattern_insights.get('by_volatility'):
+        vol_data = pattern_insights['by_volatility']
+        learning_directives += "\n3. VOLATILITY SWEET SPOT:\n"
+        for vol_level in ['low', 'medium', 'high', 'extreme']:
+            if vol_level in vol_data and vol_data[vol_level]['count'] > 0:
+                learning_directives += f"   - {vol_level.upper()}: {vol_data[vol_level]['win_rate']:.1f}% win rate, {vol_data[vol_level]['avg_profit_pct']:.2f}% avg profit ({vol_data[vol_level]['count']} trades)\n"
+
+    # Add hold time guidance
+    if pattern_insights.get('hold_time_analysis'):
+        hold_data = pattern_insights['hold_time_analysis']
+        learning_directives += "\n4. OPTIMAL HOLD TIME EXPECTATIONS:\n"
+        if hold_data.get('avg_winning_hold_hours'):
+            learning_directives += f"   - Winners typically held: {hold_data['avg_winning_hold_hours']:.1f} hours\n"
+            learning_directives += f"   - Set profit targets that align with this timeframe\n"
+        if hold_data.get('avg_losing_hold_hours'):
+            learning_directives += f"   - Losers typically held: {hold_data['avg_losing_hold_hours']:.1f} hours\n"
+            if hold_data.get('avg_winning_hold_hours') and hold_data.get('avg_losing_hold_hours'):
+                if hold_data['avg_losing_hold_hours'] > hold_data['avg_winning_hold_hours']:
+                    learning_directives += f"   ⚠️  Losers held LONGER than winners - consider tighter stop losses or earlier exits on struggling positions\n"
+
+    # Add exit trigger insights
+    if pattern_insights.get('by_exit_trigger'):
+        exit_data = pattern_insights['by_exit_trigger']
+        learning_directives += "\n5. EXIT STRATEGY EFFECTIVENESS:\n"
+        if 'profit_target' in exit_data:
+            learning_directives += f"   - Profit targets hit: {exit_data['profit_target']['count']} times, {exit_data['profit_target']['avg_profit_pct']:.2f}% avg profit\n"
+        if 'stop_loss' in exit_data:
+            learning_directives += f"   - Stop losses hit: {exit_data['stop_loss']['count']} times, {exit_data['stop_loss']['avg_profit_pct']:.2f}% avg loss\n"
+            if exit_data['stop_loss']['count'] > 2:
+                learning_directives += f"   ⚠️  Multiple stop losses triggered - review entry quality and stop loss placement\n"
+
+    learning_directives += f"""
+6. POSITION SIZING RULES:
+   - Win rate {summary['win_rate']:.1f}%: """
+
+    if summary['win_rate'] < 60:
+        learning_directives += "Below target - only trade EXCEPTIONAL setups with HIGH confidence\n"
+    elif summary['win_rate'] < 75:
+        learning_directives += "Good - maintain current strict criteria\n"
+    else:
+        learning_directives += "Excellent - maintain discipline, avoid overconfidence\n"
+
+    learning_directives += f"""
+7. CRITICAL RULES - APPLY TO CURRENT TRADE:
+   - Use the pattern insights above to CALIBRATE your analysis
+   - If current market conditions match your worst-performing scenarios, REDUCE confidence or SKIP trade
+   - If current conditions match your best-performing scenarios, this validates the setup
+   - Profit targets should be realistic based on historical achievement rates
+   - Hold time expectations should align with historical winning patterns
+   - Weight: 70% current technical setup + 30% historical pattern validation
+"""
+
+    output += learning_directives
 
     return output
 

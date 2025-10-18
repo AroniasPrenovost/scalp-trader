@@ -260,7 +260,7 @@ def place_market_sell_order(client, symbol, base_size, potential_profit, potenti
 # save_transaction_record
 #
 
-def save_transaction_record(symbol, buy_price, sell_price, potential_profit_percentage, gross_profit, taxes, exchange_fees, total_profit, buy_timestamp, buy_screenshot_path=None):
+def save_transaction_record(symbol, buy_price, sell_price, potential_profit_percentage, gross_profit, taxes, exchange_fees, total_profit, buy_timestamp, buy_screenshot_path=None, analysis=None, entry_market_conditions=None, exit_trigger=None, position_sizing_data=None):
     """
     Store/append successful transaction records to /transactions/data.json
 
@@ -275,6 +275,10 @@ def save_transaction_record(symbol, buy_price, sell_price, potential_profit_perc
         total_profit: Net profit after all costs
         buy_timestamp: Timestamp when position was opened
         buy_screenshot_path: Optional path to the buy event screenshot
+        analysis: Optional dict containing AI analysis data (support, resistance, reasoning, etc.)
+        entry_market_conditions: Optional dict with market context at entry (volatility, trend, etc.)
+        exit_trigger: Optional string indicating what triggered the exit ('profit_target', 'stop_loss', 'manual')
+        position_sizing_data: Optional dict with position sizing decisions (amount, allocation %, etc.)
     """
     import datetime
 
@@ -282,6 +286,7 @@ def save_transaction_record(symbol, buy_price, sell_price, potential_profit_perc
     sell_timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
     # Parse buy timestamp and calculate time held
+    time_held_seconds = None
     if buy_timestamp:
         try:
             buy_time = datetime.datetime.fromisoformat(buy_timestamp.replace('Z', '+00:00'))
@@ -294,7 +299,7 @@ def save_transaction_record(symbol, buy_price, sell_price, potential_profit_perc
     else:
         time_held_position = "unknown"
 
-    # Create transaction record
+    # Create base transaction record
     transaction_record = {
         "symbol": symbol,
         "buy_price": buy_price,
@@ -306,9 +311,65 @@ def save_transaction_record(symbol, buy_price, sell_price, potential_profit_perc
         "exchange_fees": exchange_fees,
         "total_profit": total_profit,
         "time_held_position": time_held_position,
+        "time_held_seconds": time_held_seconds,
         "buy_timestamp": buy_timestamp,
         "buy_screenshot_path": buy_screenshot_path
     }
+
+    # Add market context at entry if provided
+    if entry_market_conditions:
+        transaction_record["market_context_at_entry"] = entry_market_conditions
+
+    # Add technical signals and AI analysis if provided
+    if analysis:
+        # Extract technical signals from analysis
+        technical_signals = {
+            "major_support": analysis.get("major_support"),
+            "minor_support": analysis.get("minor_support"),
+            "major_resistance": analysis.get("major_resistance"),
+            "minor_resistance": analysis.get("minor_resistance"),
+            "buy_in_price_target": analysis.get("buy_in_price"),
+            "actual_entry_price": buy_price,
+            "stop_loss_set": analysis.get("stop_loss"),
+            "profit_target_percentage": analysis.get("profit_target_percentage"),
+            "actual_profit_percentage": potential_profit_percentage,
+            "risk_reward_ratio": analysis.get("risk_reward_ratio"),
+        }
+
+        # Calculate price position relative to support/resistance
+        if analysis.get("major_support"):
+            support_distance = ((buy_price - analysis["major_support"]) / analysis["major_support"]) * 100
+            technical_signals["price_vs_support"] = f"{support_distance:.2f}% above major support"
+
+        if analysis.get("major_resistance"):
+            resistance_distance = ((analysis["major_resistance"] - buy_price) / buy_price) * 100
+            technical_signals["price_vs_resistance"] = f"{resistance_distance:.2f}% below major resistance"
+
+        transaction_record["technical_signals_at_entry"] = technical_signals
+
+        # Store AI model metadata
+        transaction_record["ai_model_data"] = {
+            "model_used": analysis.get("model_used"),
+            "analyzed_at": analysis.get("analyzed_at"),
+            "confidence_level": analysis.get("confidence_level"),
+            "trade_recommendation": analysis.get("trade_recommendation"),
+            "market_trend": analysis.get("market_trend"),
+            "volume_confirmation": analysis.get("volume_confirmation"),
+            "reasoning": analysis.get("reasoning"),
+            "trade_invalidation_price": analysis.get("trade_invalidation_price"),
+        }
+
+    # Add exit analysis
+    exit_analysis = {
+        "exit_trigger": exit_trigger or "unknown",
+        "profit_target_percentage": analysis.get("profit_target_percentage") if analysis else None,
+        "actual_profit_percentage": potential_profit_percentage,
+    }
+    transaction_record["exit_analysis"] = exit_analysis
+
+    # Add position sizing data if provided
+    if position_sizing_data:
+        transaction_record["position_sizing"] = position_sizing_data
 
     # Create transactions directory if it doesn't exist
     transactions_dir = "transactions"
