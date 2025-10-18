@@ -351,7 +351,15 @@ def iterate_wallets(interval_seconds):
                     analysis = load_analysis_from_file(symbol)
 
                     # Check if we need to generate new analysis
-                    should_refresh = should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours, low_confidence_wait_hours, medium_confidence_wait_hours)
+                    should_refresh = should_refresh_analysis(
+                        symbol,
+                        last_order_type,
+                        no_trade_refresh_hours,
+                        low_confidence_wait_hours,
+                        medium_confidence_wait_hours,
+                        coin_data=coin_data,
+                        config=config
+                    )
 
                     if should_refresh and not ENABLE_AI_ANALYSIS:
                         print(f"AI analysis is disabled for {symbol} - skipping analysis generation")
@@ -404,7 +412,8 @@ def iterate_wallets(interval_seconds):
                                 min_profit_target_percentage=min_profit_target_percentage,
                                 chart_paths=chart_paths,
                                 trading_context=trading_context,
-                                range_percentage_from_min=range_percentage_from_min
+                                range_percentage_from_min=range_percentage_from_min,
+                                config=config
                             )
                             if analysis:
                                 save_analysis_to_file(symbol, analysis)

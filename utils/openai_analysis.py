@@ -5,7 +5,7 @@ import base64
 from openai import OpenAI
 from io import BytesIO
 
-def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_rate_percentage=0, min_profit_target_percentage=3.0, chart_paths=None, trading_context=None, graph_image_path=None, range_percentage_from_min=None):
+def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_rate_percentage=0, min_profit_target_percentage=3.0, chart_paths=None, trading_context=None, graph_image_path=None, range_percentage_from_min=None, config=None):
     """
     Analyzes market data using OpenAI's API to determine key support/resistance levels
     and trading recommendations.
@@ -26,6 +26,7 @@ def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_ra
         trading_context: Optional dictionary containing historical trading context from build_trading_context()
         graph_image_path: DEPRECATED - use chart_paths instead. Optional path to a single graph image
         range_percentage_from_min: Optional volatility metric showing price range from min to max (e.g., 50 = 50% range)
+        config: Optional config dictionary for position sizing and other settings
 
     Returns:
         Dictionary with analysis results or None if API call fails
@@ -71,7 +72,7 @@ DATA STRUCTURE:
 - 6-month chart: ~4,380 hourly data points (182.5 days × 24 hours)
 - 90-day chart: ~2,160 hourly data points (90 days × 24 hours)
 - 30-day chart: ~720 hourly data points (30 days × 24 hours)
-- 7-day chart: ~168 hourly data points (7 days × 24 hours)
+- 14-day chart: ~336 hourly data points (14 days × 24 hours)
 - 72-hour chart: 72 hourly data points (3 days × 24 hours)
 
 6-MONTH CHART (Full Historical View) - Macro Trends & Context:
@@ -101,14 +102,14 @@ DATA STRUCTURE:
 - Note recent volume patterns: increasing on rallies = bullish, decreasing = bearish
 - This validates whether recent momentum aligns with macro trend
 
-7-DAY CHART (Short-term Action) - Immediate Trading Context:
-- Identify short-term support/resistance levels forming this week
+14-DAY CHART (Short-term Swing Momentum) - Immediate Trading Context:
+- Identify short-term support/resistance levels forming over the past 2 weeks
 - Look for recent breakouts, breakdowns, or consolidation patterns
 - Check RSI for oversold (<30) or overbought (>70) conditions
 - Assess price action quality: clean directional moves vs. choppy/whipsaw
 - Note any candlestick patterns at key levels (doji, hammer, engulfing)
-- Verify if short-term trend aligns with 30-day and 6-month trends
-- This determines if NOW is a good time to enter based on recent price action
+- Verify if short-term swing momentum aligns with 30-day and longer-term trends
+- This determines if NOW is a good time to enter based on recent swing price action
 
 72-HOUR CHART (Recent View) - Entry/Exit Timing & Context:
 - Identify precise entry zone and immediate micro support/resistance over past 3 days
@@ -121,14 +122,14 @@ DATA STRUCTURE:
 
 MULTI-TIMEFRAME DECISION LOGIC:
 ✓ All 5 timeframes bullish + volume confirmation = HIGH confidence long candidate
-✓ 6mo uptrend + 90d uptrend + 30d uptrend + 7d pullback to support + 72h showing reversal = HIGH confidence entry
-✓ 6mo uptrend + 90d uptrend + 30d consolidation near support + 7d breakout + 72h momentum = HIGH confidence entry
-✗ Timeframe conflict (e.g., 72h/7d bullish but 30d/90d/6mo bearish) = NO TRADE (wait for alignment)
+✓ 6mo uptrend + 90d uptrend + 30d uptrend + 14d pullback to support + 72h showing reversal = HIGH confidence entry
+✓ 6mo uptrend + 90d uptrend + 30d consolidation near support + 14d breakout + 72h momentum = HIGH confidence entry
+✗ Timeframe conflict (e.g., 72h/14d bullish but 30d/90d/6mo bearish) = NO TRADE (wait for alignment)
 ✗ Price approaching major 6-month or 90-day resistance = NO TRADE or significantly reduce confidence
-✗ 6-month downtrend + 90d downtrend + 7d bounce = Counter-trend risk, NO TRADE unless exceptional setup
+✗ 6-month downtrend + 90d downtrend + 14d bounce = Counter-trend risk, NO TRADE unless exceptional setup
 ✗ 30-day trend weak/sideways + mixed signals = NO TRADE (wait for clarity)
 
-Base your primary trading decision on the 7-DAY chart (immediate context), but REQUIRE validation from 30-day, 90-day, and 6-month charts. Use 72-hour chart for fine-tuning entry timing with better short-term context.
+Base your primary trading decision on the 14-DAY chart (immediate swing context), but REQUIRE validation from 30-day, 90-day, and 6-month charts. Use 72-hour chart for fine-tuning entry timing with better short-term context.
 """
 
     # Build volatility context
@@ -226,17 +227,22 @@ CRITICAL REQUIREMENTS:
    - Example: "Buy $0.50, sell $0.52 = 4% gross, 2.8% net after costs"
    - Gross price movement must exceed net profit target to cover {total_fee_percentage}% fees + {tax_rate_percentage}% tax
 
-4. POSITION SIZING (REQUIRED): Use the Portfolio Status data to determine buy_amount_usd:
-   - NEVER commit more than 75% of current_usd value to a single trade - ALWAYS keep at least 25% in reserve
-   - Portfolio metrics are provided for LEARNING CONTEXT only - to help you understand what worked/didn't work in past trades
-   - DO NOT let portfolio performance (profit/loss) influence your position sizing - maintain the SAME disciplined approach whether up or down
-   - Position sizing based SOLELY on THIS trade's quality and confidence:
-     * HIGH confidence: 50-75% of current_usd (only for exceptional setups meeting ALL criteria below)
+4. POSITION SIZING (REQUIRED): Position size will be automatically calculated based on volatility.
+   - VOLATILITY-ADJUSTED SIZING is enabled: Position size scales inversely with market volatility
+   - Low volatility (<15%): Up to 75% of capital for HIGH confidence trades
+   - Moderate volatility (15-30%): Up to 64% of capital (85% multiplier)
+   - High volatility (30-50%): Up to 49% of capital (65% multiplier)
+   - Extreme volatility (>50%): Up to 38% of capital (50% multiplier)
+   - NEVER commit more than 75% of current_usd value - ALWAYS keep at least 25% in reserve
+   - Portfolio metrics are provided for LEARNING CONTEXT only
+   - DO NOT let portfolio performance influence your position sizing - maintain SAME disciplined approach
+   - Position sizing confidence requirements:
+     * HIGH confidence: Volatility-adjusted position (only for exceptional setups meeting ALL criteria)
      * MEDIUM confidence: DO NOT TRADE - wait for higher quality opportunities
      * LOW confidence: DO NOT TRADE - recommend "no_trade" instead
+   - The system will automatically calculate the optimal buy_amount_usd based on current volatility
+   - You should set buy_amount_usd to 0 in your JSON response - it will be overridden by volatility calculation
    - Prioritize QUALITY over QUANTITY - focus on high-likelihood trades with strong technical confirmation
-   - Learn from historical trades (entry/exit timing, market conditions, what worked) but DO NOT increase risk due to past success
-   - Maintain strict risk discipline regardless of win streaks or losing streaks
 
 5. TRADE INVALIDATION: Set trade_invalidation_price to a level where if breached, the entire trade thesis is wrong
    - Typically below stop_loss by a small margin
@@ -245,7 +251,7 @@ CRITICAL REQUIREMENTS:
 CONFIDENCE LEVEL CRITERIA (OBJECTIVE RUBRIC):
 
 HIGH confidence requires ALL of the following:
-✓ All 5 timeframes (24h, 7d, 30d, 90d, 6mo) aligned in same direction
+✓ All 5 timeframes (72h, 14d, 30d, 90d, 6mo) aligned in same direction
 ✓ Price at key technical level (major support/resistance, Fibonacci level)
 ✓ Volume confirms the setup (above average on bullish setups, spike at support)
 ✓ Risk/reward ratio >= 3.0 (preferably 3.5+)
@@ -311,11 +317,11 @@ Output ONLY valid JSON with no markdown formatting or explanatory text outside t
                     }
                 ]
 
-                # Add charts in order: 7d (high detail - primary execution), 30d (high - trend), 90d (high - extended trend), 72h (high - timing), 6mo (low - macro context)
+                # Add charts in order: 14d (high detail - primary execution), 30d (high - trend), 90d (high - extended trend), 72h (high - timing), 6mo (low - macro context)
                 # This prioritizes the most important timeframes while saving tokens on context
-                # 7d = immediate trading context, 30d = recent trend, 90d = extended trend, 72h = entry timing, 6mo = big picture
-                timeframe_order = ['7d', '30d', '90d', '72h', '6mo']
-                detail_levels = {'7d': 'high', '30d': 'high', '90d': 'high', '72h': 'high', '6mo': 'low'}
+                # 14d = immediate swing context, 30d = recent trend, 90d = extended trend, 72h = entry timing, 6mo = big picture
+                timeframe_order = ['14d', '30d', '90d', '72h', '6mo']
+                detail_levels = {'14d': 'high', '30d': 'high', '90d': 'high', '72h': 'high', '6mo': 'low'}
 
                 for timeframe in timeframe_order:
                     if timeframe in chart_paths and chart_paths[timeframe] and os.path.exists(chart_paths[timeframe]):
@@ -402,6 +408,30 @@ Output ONLY valid JSON with no markdown formatting or explanatory text outside t
         analysis_result['symbol'] = symbol
         analysis_result['analyzed_at'] = time.time()
         analysis_result['model_used'] = response.model
+
+        # Override buy_amount_usd with volatility-adjusted position sizing if enabled
+        if config and range_percentage_from_min is not None and trading_context:
+            from utils.dynamic_refresh import calculate_volatility_adjusted_position_size
+
+            # Get current USD value from trading context
+            wallet_metrics = trading_context.get('wallet_metrics', {})
+            current_usd_value = wallet_metrics.get('current_usd', 0)
+            starting_capital = wallet_metrics.get('starting_capital_usd', 0)
+            confidence_level = analysis_result.get('confidence_level', 'low')
+
+            if current_usd_value > 0:
+                adjusted_position = calculate_volatility_adjusted_position_size(
+                    range_percentage_from_min=range_percentage_from_min,
+                    starting_capital_usd=starting_capital,
+                    current_usd_value=current_usd_value,
+                    confidence_level=confidence_level,
+                    config=config
+                )
+
+                # Override the LLM's buy_amount_usd with volatility-adjusted amount
+                analysis_result['buy_amount_usd'] = adjusted_position
+                analysis_result['position_sizing_method'] = 'volatility_adjusted'
+                print(f"✓ Position size adjusted for volatility: ${adjusted_position:.2f}")
 
         print(f"✓ OpenAI analysis completed for {symbol}")
         return analysis_result
@@ -529,9 +559,10 @@ def delete_analysis_file(symbol):
         return False
 
 
-def should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours=1, low_confidence_wait_hours=2, medium_confidence_wait_hours=1):
+def should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours=1, low_confidence_wait_hours=2, medium_confidence_wait_hours=1, coin_data=None, config=None):
     """
-    Determines if a new analysis should be performed.
+    Determines if a new analysis should be performed, considering both time-based
+    and dynamic market condition triggers.
 
     Args:
         symbol: The trading pair symbol
@@ -539,6 +570,8 @@ def should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours=1, l
         no_trade_refresh_hours: Hours to wait before refreshing a 'no_trade' analysis (default: 1)
         low_confidence_wait_hours: Hours to wait before refreshing a 'low' confidence analysis (default: 2)
         medium_confidence_wait_hours: Hours to wait before refreshing a 'medium' confidence analysis (default: 1)
+        coin_data: Optional dict with current price and volume data for dynamic refresh checks
+        config: Optional config dict for dynamic refresh settings
 
     Returns:
         Boolean indicating whether to refresh the analysis
@@ -551,8 +584,23 @@ def should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours=1, l
         return True
 
     # If we're holding a position (last order was 'buy'), keep existing analysis
-    # Don't refresh while we're in a position
+    # Don't refresh while we're in a position UNLESS dynamic conditions warrant it
     if last_order_type == 'buy':
+        # Check if dynamic refresh conditions are met even while holding
+        if coin_data and config:
+            from utils.dynamic_refresh import should_trigger_dynamic_refresh
+            should_refresh, reason = should_trigger_dynamic_refresh(
+                symbol=symbol,
+                current_price=coin_data.get('current_price'),
+                price_history=coin_data.get('coin_prices_list', []),
+                volume_history=coin_data.get('coin_volume_24h_LIST', []),
+                current_volume=coin_data.get('current_volume_24h'),
+                analysis=existing_analysis,
+                config=config
+            )
+            if should_refresh:
+                print(f"Dynamic refresh triggered while holding position: {reason}")
+                return True
         return False
 
     # For 'placeholder' (pending orders), don't refresh
@@ -562,6 +610,22 @@ def should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours=1, l
     # Check if the analysis recommended 'no_trade'
     trade_recommendation = existing_analysis.get('trade_recommendation', 'buy')
     if trade_recommendation == 'no_trade':
+        # First check if dynamic conditions warrant immediate refresh
+        if coin_data and config:
+            from utils.dynamic_refresh import should_trigger_dynamic_refresh
+            should_refresh, reason = should_trigger_dynamic_refresh(
+                symbol=symbol,
+                current_price=coin_data.get('current_price'),
+                price_history=coin_data.get('coin_prices_list', []),
+                volume_history=coin_data.get('coin_volume_24h_LIST', []),
+                current_volume=coin_data.get('current_volume_24h'),
+                analysis=existing_analysis,
+                config=config
+            )
+            if should_refresh:
+                print(f"Dynamic refresh triggered for no_trade analysis: {reason}")
+                return True
+
         # Check how old the analysis is
         analyzed_at = existing_analysis.get('analyzed_at', 0)
         current_time = time.time()

@@ -479,7 +479,7 @@ def plot_multi_timeframe_charts(
 ):
     """
     Generate multiple charts at different timeframes for LLM analysis by resampling data.
-    Creates 5 charts: 72h, 7d, 30d, 90d, and 6mo views using ALL available data.
+    Creates 5 charts: 72h, 14d, 30d, 90d, and 6mo views using ALL available data.
 
     Args:
         current_timestamp: timestamp for filename
@@ -493,7 +493,7 @@ def plot_multi_timeframe_charts(
         Dictionary with paths to generated charts:
         {
             '72h': path to 72-hour chart,
-            '7d': path to 7-day chart,
+            '14d': path to 14-day chart,
             '30d': path to 30-day chart,
             '90d': path to 90-day chart,
             '6mo': path to 6-month chart
@@ -524,7 +524,7 @@ def plot_multi_timeframe_charts(
     # 1. Full 6-Month View: Macro trends, major support/resistance, long-term patterns
     # 2. 90-Day View: Extended trend analysis, quarterly patterns
     # 3. 30-Day View: Recent trend analysis, medium-term momentum
-    # 4. 7-Day View: Short-term price action, immediate trading context
+    # 4. 14-Day View: Short-term swing momentum, entry/exit timing
     # 5. 72-Hour View: Recent market conditions with better context, entry/exit timing
     timeframes = {
         '6mo': {
@@ -545,11 +545,11 @@ def plot_multi_timeframe_charts(
             'title_suffix': '30 Day View - Recent Trend Analysis',
             'lookback_hours': 720  # 30 days
         },
-        '7d': {
-            'hours': 1,  # Use 1h candles for 7-day view
-            'label': '7d',
-            'title_suffix': '7 Day View - Short-term Price Action',
-            'lookback_hours': 168  # 7 days
+        '14d': {
+            'hours': 1,  # Use 1h candles for 14-day view
+            'label': '14d',
+            'title_suffix': '14 Day View - Short-term Swing Momentum',
+            'lookback_hours': 336  # 14 days
         },
         '72h': {
             'hours': 1,  # Use 1h candles for 72-hour view
@@ -588,10 +588,10 @@ def plot_multi_timeframe_charts(
             print(f"  Skipping {timeframe_key} chart: insufficient data after resampling ({len(resampled_prices)} candles, need at least 3)")
             continue
 
-        # Only include volume for 72h and 7d charts
+        # Only include volume for 72h and 14d charts
         # Volume is summed across each resampled period to show total trading activity
         resampled_volumes = None
-        if timeframe_key in ['72h', '7d'] and volume_data:
+        if timeframe_key in ['72h', '14d'] and volume_data:
             volume_data_clean = [float(v) if v is not None else 0.0 for v in volume_data]
 
             # Apply the same lookback window filter to volume data
