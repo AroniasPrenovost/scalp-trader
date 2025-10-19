@@ -153,16 +153,16 @@ print_local_time()
 def iterate_wallets(interval_seconds):
     while True:
 
-        # Fetch and display current fee rates from Coinbase
-        fee_rates = get_current_fee_rates(coinbase_client)
-        coinbase_spot_taker_fee = fee_rates['taker_fee'] if fee_rates else 1.2 # Tier: 'Intro 1' fee
-        coinbase_spot_maker_fee = fee_rates['maker_fee'] if fee_rates else 0.6 # Tier: 'Intro 1' fee
-
         #
         #
         # ERROR TRACKING
         global LAST_EXCEPTION_ERROR
         global LAST_EXCEPTION_ERROR_COUNT
+
+        # Get Coinbase fees
+        fee_rates = get_current_fee_rates(coinbase_client)
+        coinbase_spot_taker_fee = fee_rates['taker_fee'] if fee_rates else 1.2 # Tier: 'Intro 1' fee
+        coinbase_spot_maker_fee = fee_rates['maker_fee'] if fee_rates else 0.6 # Tier: 'Intro 1' fee
 
         # load config
         config = load_config('config.json')
