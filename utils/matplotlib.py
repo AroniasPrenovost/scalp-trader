@@ -543,7 +543,7 @@ def plot_volume_trend_chart(
 
     # Format and configure chart
     ax.yaxis.set_major_formatter(ticker.FuncFormatter(format_volume))
-    ax.set_ylabel('24h Volume Snapshots (USD)', fontsize=11, fontweight='bold')
+    ax.set_ylabel('24h Volume Snapshots', fontsize=11, fontweight='bold')
     ax.set_xlabel('Time', fontsize=11, fontweight='bold')
 
     # Set time-based x-axis labels
