@@ -163,17 +163,20 @@ Market Data:
 - Average Price: ${avg_price}
 - Number of Data Points: {len(prices)}
 - Recent Price Trend: {prices[-20:] if len(prices) >= 20 else prices}
-- Current 24h Volume: {coin_data.get('current_volume_24h', 0)}
-- Average 24h Volume: {sum(volumes) / len(volumes) if volumes else 0}
-- Min/Max 24h Volume: {min(volumes) if volumes else 0} / {max(volumes) if volumes else 0}
-- Recent Volume Trend: {volumes[-20:] if len(volumes) >= 20 else volumes}
 
-VOLUME ANALYSIS REQUIREMENTS:
-- Assess if current volume is above or below recent average
-- Breakouts/breakdowns on LOW volume = likely fakeout (reduce confidence significantly)
-- Support bounces with VOLUME SPIKE = strong reversal signal (increase confidence)
-- Sustained moves with increasing volume = healthy trend continuation
-- Include "volume_confirmation" field: true if volume supports the trade setup, false otherwise
+VOLUME DATA (Rolling 24h Snapshots - NOTE: This is Coinbase's rolling 24-hour volume):
+- Current 24h Volume: {coin_data.get('current_volume_24h', 0)}
+- Average 24h Volume (across all snapshots): {sum(volumes) / len(volumes) if volumes else 0}
+- Min/Max 24h Volume observed: {min(volumes) if volumes else 0} / {max(volumes) if volumes else 0}
+
+VOLUME ANALYSIS GUIDELINES (Limited by rolling 24h snapshot data):
+- Use the volume snapshot chart to assess GENERAL volume trends over time (increasing, decreasing, or stable)
+- Current volume above recent average = generally more market activity/interest
+- Current volume below recent average = generally less market activity/interest
+- LIMITATION: This data shows rolling 24h totals, NOT specific volume at price levels or candles
+- Cannot reliably confirm breakout/breakdown volume or pinpoint volume spikes at specific times
+- Use volume as CONTEXT for overall market interest, not as primary confirmation for entries
+- Include "volume_trend" field: "increasing", "decreasing", or "stable" based on the snapshot chart
 
 Trading Costs (IMPORTANT - Factor these into your recommendations):
 - Exchange Taker Fee: {taker_fee_percentage}% per trade ({total_fee_percentage}% total for buy + sell)
@@ -194,7 +197,7 @@ Please analyze this data and respond with a JSON object (ONLY valid JSON, no mar
     "risk_reward_ratio": <calculated as (sell_price - buy_in_price) / (buy_in_price - stop_loss)>,
     "confidence_level": <"high", "medium", or "low">,
     "market_trend": <"bullish", "bearish", or "sideways">,
-    "volume_confirmation": <true if volume supports trade setup, false otherwise>,
+    "volume_trend": <"increasing", "decreasing", or "stable" based on the volume snapshot chart>,
     "trade_invalidation_price": <price level where trade thesis is completely invalidated>,
     "reasoning": <brief factual explanation, max 200 characters>,
     "trade_recommendation": <"buy", "sell", "hold", or "no_trade">,
@@ -207,7 +210,7 @@ JSON SCHEMA VALIDATION REQUIREMENTS:
 - risk_reward_ratio: Must be >= 2.0 for any "buy" recommendation (MANDATORY)
 - confidence_level: ENUM only ["high", "medium", "low"]
 - trade_recommendation: ENUM only ["buy", "sell", "hold", "no_trade"]
-- volume_confirmation: Boolean (true/false)
+- volume_trend: ENUM only ["increasing", "decreasing", "stable"]
 - reasoning: Max 200 characters, factual only (no subjective language like "could", "might", "possibly")
 - If confidence_level = "medium" OR "low" → trade_recommendation MUST be "no_trade"
 - If trade_recommendation = "buy" → risk_reward_ratio MUST be >= 2.0
@@ -317,11 +320,11 @@ Output ONLY valid JSON with no markdown formatting or explanatory text outside t
                     }
                 ]
 
-                # Add charts in order: 14d (high detail - primary execution), 30d (high - trend), 90d (high - extended trend), 72h (high - timing), 6mo (low - macro context)
+                # Add charts in order: 14d (high detail - primary execution), 30d (high - trend), 90d (high - extended trend), 72h (high - timing), 6mo (low - macro context), volume_snapshots (low - context)
                 # This prioritizes the most important timeframes while saving tokens on context
-                # 14d = immediate swing context, 30d = recent trend, 90d = extended trend, 72h = entry timing, 6mo = big picture
-                timeframe_order = ['14d', '30d', '90d', '72h', '6mo']
-                detail_levels = {'14d': 'high', '30d': 'high', '90d': 'high', '72h': 'high', '6mo': 'low'}
+                # 14d = immediate swing context, 30d = recent trend, 90d = extended trend, 72h = entry timing, 6mo = big picture, volume_snapshots = volume context
+                timeframe_order = ['14d', '30d', '90d', '72h', '6mo', 'volume_snapshots']
+                detail_levels = {'14d': 'high', '30d': 'high', '90d': 'high', '72h': 'high', '6mo': 'low', 'volume_snapshots': 'low'}
 
                 for timeframe in timeframe_order:
                     if timeframe in chart_paths and chart_paths[timeframe] and os.path.exists(chart_paths[timeframe]):
@@ -334,7 +337,8 @@ Output ONLY valid JSON with no markdown formatting or explanatory text outside t
                                     "detail": detail_levels[timeframe]
                                 }
                             })
-                            print(f"  Added {timeframe} chart with {detail_levels[timeframe]} detail")
+                            chart_type = "volume snapshot chart" if timeframe == 'volume_snapshots' else f"{timeframe} chart"
+                            print(f"  Added {chart_type} with {detail_levels[timeframe]} detail")
 
                 # Add historical trade screenshots if available
                 if trading_context:

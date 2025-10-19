@@ -118,6 +118,7 @@ def transform_coingecko_to_coinbase_format(coingecko_data, product_id):
     Returns:
         List of data points in Coinbase format
     """
+    print(coingecko_data)
     transformed_data = []
     prices = coingecko_data.get('prices', [])
     volumes = coingecko_data.get('total_volumes', [])

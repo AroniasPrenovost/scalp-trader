@@ -320,7 +320,7 @@ def iterate_wallets(interval_seconds):
                         # Load analysis for snapshot if available (analysis will be loaded later in the code flow)
                         snapshot_analysis = load_analysis_from_file(symbol)
 
-                        # Generate all 5 timeframe charts for comprehensive market view
+                        # Generate all timeframe charts (5 price + 1 volume) for comprehensive market view
                         print(f"Generating snapshot charts for {symbol}...")
                         chart_paths = plot_multi_timeframe_charts(
                             current_timestamp=time.time(),

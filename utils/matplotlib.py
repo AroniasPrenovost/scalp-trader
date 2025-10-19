@@ -469,6 +469,134 @@ def resample_price_data_to_timeframe(price_data, interval_minutes, target_timefr
     return resampled
 
 
+def plot_volume_trend_chart(
+    current_timestamp,
+    interval,
+    symbol,
+    volume_data
+):
+    """
+    Generate a volume trend chart showing the rolling 24-hour volume over time.
+    This correctly visualizes Coinbase's rolling 24h volume snapshots as a trend line.
+    Uses ALL available volume data - the rolling 24h metric is independent of timeframes.
+
+    Args:
+        current_timestamp: timestamp for filename
+        interval: data interval in minutes (e.g., 60 for hourly snapshots)
+        symbol: trading pair symbol
+        volume_data: list of ALL rolling 24h volume values (complete historical data)
+
+    Returns:
+        Path to generated chart, or None if insufficient data
+    """
+    # Clean and validate volume data
+    clean_volume_data = []
+    for v in volume_data:
+        try:
+            if v is None:
+                continue
+            if isinstance(v, str):
+                v = v.strip()
+                if v == '':
+                    continue
+            clean_volume_data.append(float(v))
+        except (ValueError, TypeError):
+            print(f"Warning: Skipping invalid volume value: {v}")
+            continue
+
+    if not clean_volume_data or len(clean_volume_data) < 3:
+        print(f"Insufficient volume data for trend chart ({len(clean_volume_data)} points)")
+        return None
+
+    # Use ALL available volume data
+    filtered_volume = clean_volume_data
+
+    # Calculate the actual timespan covered by the data
+    total_hours = (len(filtered_volume) * interval) / 60
+    total_days = total_hours / 24
+
+    # Create figure
+    fig, ax = plt.subplots(figsize=(14, 6))
+
+    x_values = list(range(len(filtered_volume)))
+
+    # Plot volume as a line with area fill
+    ax.plot(x_values, filtered_volume, color='#1565C0', linewidth=1.5, label='Rolling 24h Volume (snapshots)', zorder=3)
+    ax.fill_between(x_values, 0, filtered_volume, alpha=0.2, color='#1565C0', zorder=2)
+
+    # Calculate and plot moving average of volume
+    if len(filtered_volume) >= 20:
+        volume_ma = calculate_moving_average(filtered_volume, 20)
+        volume_ma_clean = [val if val is not None else np.nan for val in volume_ma]
+        ax.plot(x_values, volume_ma_clean, color='#D32F2F', linewidth=2,
+                linestyle='--', label='MA(20)', alpha=0.9, zorder=4)
+
+    # Calculate volume statistics
+    avg_volume = np.mean(filtered_volume)
+    max_volume = max(filtered_volume)
+    min_volume = min(filtered_volume)
+    current_volume = filtered_volume[-1]
+
+    # Add average volume line
+    ax.axhline(y=avg_volume, color='#757575', linewidth=1.5,
+               linestyle=':', label=f'Average: ${avg_volume/1e6:.1f}M', alpha=0.7)
+
+    # Format and configure chart
+    ax.yaxis.set_major_formatter(ticker.FuncFormatter(format_volume))
+    ax.set_ylabel('24h Volume Snapshots (USD)', fontsize=11, fontweight='bold')
+    ax.set_xlabel('Time', fontsize=11, fontweight='bold')
+
+    # Set time-based x-axis labels
+    positions, labels = create_time_labels(len(filtered_volume), interval, current_timestamp)
+    ax.set_xticks(positions)
+    ax.set_xticklabels(labels, rotation=45, ha='right')
+
+    # Add padding to x-axis
+    padding = len(filtered_volume) * 0.01
+    ax.set_xlim(-padding, len(filtered_volume) - 1 + padding)
+
+    # Set y-axis limits with some headroom
+    y_range = max_volume - min_volume
+    ax.set_ylim(max(0, min_volume - y_range * 0.1), max_volume + y_range * 0.1)
+
+    # Grid and legend
+    ax.grid(True, alpha=0.4, linewidth=0.8, which='major', axis='y')
+    ax.grid(True, alpha=0.2, linewidth=0.5, which='minor', axis='y')
+    ax.minorticks_on()
+    ax.legend(loc='upper left', fontsize='small')
+
+    # Calculate volume change percentage from start to current
+    if len(filtered_volume) > 1:
+        volume_change_pct = ((current_volume - filtered_volume[0]) / filtered_volume[0]) * 100
+        change_indicator = "↑" if volume_change_pct > 0 else "↓"
+    else:
+        volume_change_pct = 0
+        change_indicator = ""
+
+    # Create title that accurately describes what's shown
+    if total_days >= 30:
+        timespan_label = f"{total_days:.0f}d"
+    else:
+        timespan_label = f"{total_hours:.0f}h"
+
+    title = f"{symbol} - Rolling 24h Volume Snapshots ({len(filtered_volume)} points over {timespan_label})\n"
+    title += f"Current: ${current_volume/1e6:.1f}M | Avg: ${avg_volume/1e6:.1f}M"
+    if volume_change_pct != 0:
+        title += f" | Change: {change_indicator}{abs(volume_change_pct):.1f}%"
+
+    ax.set_title(title, fontsize=11, fontweight='bold', pad=15)
+
+    # Save figure with descriptive filename
+    timestamp_str = time.strftime("%Y%m%d%H%M%S", time.localtime(current_timestamp))
+    filename = os.path.join("./screenshots", f"{symbol}_volume-24h-snapshots_{timestamp_str}.png")
+    plt.savefig(filename, dpi=300, bbox_inches='tight')
+    plt.close(fig)
+    plt.close('all')
+
+    print(f"  Volume snapshot chart saved: {filename}")
+    return filename
+
+
 def plot_multi_timeframe_charts(
     current_timestamp,
     interval,
@@ -479,14 +607,15 @@ def plot_multi_timeframe_charts(
 ):
     """
     Generate multiple charts at different timeframes for LLM analysis by resampling data.
-    Creates 5 charts: 72h, 14d, 30d, 90d, and 6mo views using ALL available data.
+    Creates 5 price charts: 72h, 14d, 30d, 90d, and 6mo views using ALL available data.
+    Also creates a dedicated volume snapshot chart showing rolling 24h volume trends.
 
     Args:
         current_timestamp: timestamp for filename
-        interval: data interval in minutes (e.g., 5 for 5-minute data)
+        interval: data interval in minutes (e.g., 60 for hourly data)
         symbol: trading pair symbol
         price_data: full list of price values (all available historical data)
-        volume_data: optional full list of volume values (will be summed when resampled)
+        volume_data: optional full list of rolling 24h volume values
         analysis: optional AI analysis dictionary
 
     Returns:
@@ -496,7 +625,8 @@ def plot_multi_timeframe_charts(
             '14d': path to 14-day chart,
             '30d': path to 30-day chart,
             '90d': path to 90-day chart,
-            '6mo': path to 6-month chart
+            '6mo': path to 6-month chart,
+            'volume_snapshots': path to rolling 24h volume snapshot chart (if volume_data provided)
         }
     """
     # Ensure all data is numeric - handle string conversions and filter invalid data
@@ -588,24 +718,9 @@ def plot_multi_timeframe_charts(
             print(f"  Skipping {timeframe_key} chart: insufficient data after resampling ({len(resampled_prices)} candles, need at least 3)")
             continue
 
-        # Only include volume for 72h and 14d charts
-        # Volume is summed across each resampled period to show total trading activity
+        # NOTE: Volume subplot removed from all timeframe charts because rolling 24h volume
+        # data is misleading when resampled/summed. See dedicated volume trend chart instead.
         resampled_volumes = None
-        if timeframe_key in ['72h', '14d'] and volume_data:
-            volume_data_clean = [float(v) if v is not None else 0.0 for v in volume_data]
-
-            # Apply the same lookback window filter to volume data
-            if lookback_hours is not None:
-                filtered_volume_data = volume_data_clean[-lookback_data_points:] if len(volume_data_clean) > lookback_data_points else volume_data_clean
-            else:
-                filtered_volume_data = volume_data_clean
-
-            # Use the volume-specific resampling function that SUMS volume
-            resampled_volumes = resample_volume_data_to_timeframe(
-                filtered_volume_data,
-                interval,
-                timeframe_config['hours']
-            )
 
         # Calculate min/max for this resampled timeframe
         local_min = min(resampled_prices)
@@ -632,6 +747,18 @@ def plot_multi_timeframe_charts(
         )
 
         chart_paths[timeframe_key] = chart_path
+
+    # Generate volume snapshot chart if volume data is available
+    if volume_data:
+        print(f"  Generating volume snapshot chart")
+        volume_chart_path = plot_volume_trend_chart(
+            current_timestamp=current_timestamp,
+            interval=interval,
+            symbol=symbol,
+            volume_data=volume_data
+        )
+        if volume_chart_path:
+            chart_paths['volume_snapshots'] = volume_chart_path
 
     return chart_paths
 
