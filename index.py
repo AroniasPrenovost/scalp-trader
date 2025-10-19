@@ -56,7 +56,6 @@ def load_config(file_path):
 # Define time intervals
 #
 
-# load config
 config = load_config('config.json')
 
 INTERVAL_SECONDS = config['data_retention']['interval_seconds'] # 900 # 15 minutes
@@ -67,20 +66,12 @@ EXPECTED_DATA_POINTS = int((DATA_RETENTION_HOURS * 60) / INTERVAL_SAVE_DATA_EVER
 
 #
 #
-# Store the last error and manage number of errors before exiting program
 #
+# Store the last error and manage number of errors before exiting program
 
 LAST_EXCEPTION_ERROR = None
 LAST_EXCEPTION_ERROR_COUNT = 0
 MAX_LAST_EXCEPTION_ERROR_COUNT = 5
-
-
-#
-#
-# Set tax rate (fees are fetched from API)
-#
-
-federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
 
 #
 #
@@ -159,7 +150,8 @@ def iterate_wallets(interval_seconds):
         global LAST_EXCEPTION_ERROR
         global LAST_EXCEPTION_ERROR_COUNT
 
-        # Get Coinbase fees
+        # Get taxes and Coinbase fees
+        federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
         fee_rates = get_current_fee_rates(coinbase_client)
         coinbase_spot_taker_fee = fee_rates['taker_fee'] if fee_rates else 1.2 # Tier: 'Intro 1' fee
         coinbase_spot_maker_fee = fee_rates['maker_fee'] if fee_rates else 0.6 # Tier: 'Intro 1' fee
