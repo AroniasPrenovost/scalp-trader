@@ -22,7 +22,7 @@ from utils.time_helpers import print_local_time
 
 # Coinbase-related
 # Coinbase helpers and define client
-from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order, get_asset_price, calculate_exchange_fee, save_order_data_to_local_json_ledger, get_last_order_from_local_json_ledger, reset_json_ledger_file, detect_stored_coinbase_order_type, save_transaction_record
+from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order, get_asset_price, calculate_exchange_fee, save_order_data_to_local_json_ledger, get_last_order_from_local_json_ledger, reset_json_ledger_file, detect_stored_coinbase_order_type, save_transaction_record, get_current_fee_rates
 coinbase_client = get_coinbase_client()
 # custom coinbase listings check
 from utils.new_coinbase_listings import check_for_new_coinbase_listings
@@ -77,11 +77,9 @@ MAX_LAST_EXCEPTION_ERROR_COUNT = 5
 
 #
 #
-# Set exchange fees and tax rate
+# Set tax rate (fees are fetched from API)
 #
 
-# coinbase_spot_maker_fee = float(os.environ.get('COINBASE_SPOT_MAKER_FEE')) # unused
-coinbase_spot_taker_fee   = float(os.environ.get('COINBASE_SPOT_TAKER_FEE'))
 federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
 
 #
@@ -151,6 +149,11 @@ def get_hours_since_last_sell(symbol):
 #
 
 print_local_time()
+
+# Fetch and display current fee rates from Coinbase
+fee_rates = get_current_fee_rates(coinbase_client)
+coinbase_spot_taker_fee = fee_rates['taker_fee'] if fee_rates else 1.2  # fallback to 1.2% if API fails
+coinbase_spot_maker_fee = fee_rates['maker_fee'] if fee_rates else 0.6  # fallback to 0.6% if API fails
 
 def iterate_wallets(interval_seconds):
     while True:

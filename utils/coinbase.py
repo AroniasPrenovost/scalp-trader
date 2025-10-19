@@ -91,9 +91,6 @@ from coinbase.rest import RESTClient
 
 coinbase_api_key = os.environ.get('COINBASE_API_KEY')
 coinbase_api_secret = os.environ.get('COINBASE_API_SECRET')
-
-coinbase_spot_maker_fee = float(os.environ.get('COINBASE_SPOT_MAKER_FEE'))
-coinbase_spot_taker_fee = float(os.environ.get('COINBASE_SPOT_TAKER_FEE'))
 federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
 
 def get_coinbase_client():
@@ -128,6 +125,49 @@ def get_asset_price(client, symbol):
         return price
     except Exception as e:
         print(f"Error fetching product price for {symbol}: {e}")
+        return None
+
+
+def get_current_fee_rates(client):
+    """
+    Fetch current taker and maker fee rates from Coinbase Advanced Trade API.
+
+    Returns:
+        dict: {
+            'taker_fee': float (percentage, e.g., 0.6 for 0.6%),
+            'maker_fee': float (percentage, e.g., 0.4 for 0.4%),
+            'tier': str (fee tier name, e.g., 'Advanced 1'),
+            'pricing_tier': str (detailed tier info),
+            'usd_from': str (volume range start),
+            'usd_to': str (volume range end)
+        }
+        or None if there's an error
+    """
+    try:
+        summary = client.get_transaction_summary()
+        # Convert response object to dict if it has to_dict method
+        if hasattr(summary, 'to_dict'):
+            summary = summary.to_dict()
+        fee_tier = summary.get('fee_tier', {})
+
+        # Convert fee rates from decimal to percentage (e.g., 0.006 -> 0.6%)
+        taker_fee_rate = float(fee_tier.get('taker_fee_rate', 0)) * 100
+        maker_fee_rate = float(fee_tier.get('maker_fee_rate', 0)) * 100
+
+        fee_info = {
+            'taker_fee': taker_fee_rate,
+            'maker_fee': maker_fee_rate,
+            'tier': fee_tier.get('pricing_tier', 'Unknown'),
+            'pricing_tier': fee_tier.get('pricing_tier', 'Unknown'),
+            'usd_from': fee_tier.get('usd_from', '0'),
+            'usd_to': fee_tier.get('usd_to', 'N/A')
+        }
+
+        print(f"Current fee rates - Taker: {taker_fee_rate}%, Maker: {maker_fee_rate}% (Tier: {fee_info['tier']})")
+        return fee_info
+
+    except Exception as e:
+        print(f"Error fetching current fee rates: {e}")
         return None
 
 

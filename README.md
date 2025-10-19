@@ -1,3 +1,5 @@
+o
+
 # Scalp-Scripts: AI-Powered Cryptocurrency Trading Bot
 
 An advanced cryptocurrency scalp trading bot that leverages GPT-4o Vision for intelligent market analysis, self-learning from historical trades, and automated execution on the Coinbase exchange. The bot combines multi-timeframe technical analysis with AI-driven decision-making to identify and execute profitable short-term trades while managing risk, taxes, and fees.
@@ -179,8 +181,6 @@ Create a `.env` file in the root directory with the following variables. You can
 # Coinbase API Credentials
 COINBASE_API_KEY=your_api_key_here
 COINBASE_API_SECRET=your_api_secret_here
-COINBASE_SPOT_MAKER_FEE=0.1        # Your maker fee percentage (e.g., 0.1 for 0.1%)
-COINBASE_SPOT_TAKER_FEE=0.6        # Your taker fee percentage (e.g., 0.6 for 0.6%)
 
 # Tax Configuration
 FEDERAL_TAX_RATE=15                # Your federal tax rate on capital gains (e.g., 15 for 15%)
