@@ -162,7 +162,6 @@ def get_current_fee_rates(client):
             'usd_from': fee_tier.get('usd_from', '0'),
             'usd_to': fee_tier.get('usd_to', 'N/A')
         }
-
         # print(f"Current fee rates - Taker: {taker_fee_rate}%, Maker: {maker_fee_rate}% (Tier: {fee_info['tier']})")
         return fee_info
 
