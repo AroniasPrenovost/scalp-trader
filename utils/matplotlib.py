@@ -539,11 +539,20 @@ def plot_volume_trend_chart(
 
     # Add average volume line
     ax.axhline(y=avg_volume, color='#757575', linewidth=1.5,
-               linestyle=':', label=f'Average: ${avg_volume/1e6:.1f}M', alpha=0.7)
+               linestyle=':', label=f'Average: {avg_volume:,.0f} BTC', alpha=0.7)
 
-    # Format and configure chart
-    ax.yaxis.set_major_formatter(ticker.FuncFormatter(format_volume))
-    ax.set_ylabel('24h Volume Snapshots', fontsize=11, fontweight='bold')
+    # Format and configure chart - use custom formatter for BTC volumes
+    def format_btc_volume(x, p):
+        """Format BTC volume labels"""
+        if x >= 1e6:
+            return f'{x/1e6:.2f}M BTC'
+        elif x >= 1e3:
+            return f'{x/1e3:.1f}K BTC'
+        else:
+            return f'{x:.0f} BTC'
+
+    ax.yaxis.set_major_formatter(ticker.FuncFormatter(format_btc_volume))
+    ax.set_ylabel('24h Volume (BTC)', fontsize=11, fontweight='bold')
     ax.set_xlabel('Time', fontsize=11, fontweight='bold')
 
     # Set time-based x-axis labels
@@ -580,7 +589,7 @@ def plot_volume_trend_chart(
         timespan_label = f"{total_hours:.0f}h"
 
     title = f"{symbol} - Rolling 24h Volume Snapshots ({len(filtered_volume)} points over {timespan_label})\n"
-    title += f"Current: ${current_volume/1e6:.1f}M | Avg: ${avg_volume/1e6:.1f}M"
+    title += f"Current: {current_volume:,.0f} BTC | Avg: {avg_volume:,.0f} BTC"
     if volume_change_pct != 0:
         title += f" | Change: {change_indicator}{abs(volume_change_pct):.1f}%"
 

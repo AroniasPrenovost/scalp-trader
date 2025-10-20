@@ -7,20 +7,20 @@ from utils.matplotlib import plot_volume_trend_chart
 from utils.file_helpers import get_property_values_from_crypto_file
 
 # Configuration
-coinbase_data_directory = "./coinbase-data"
+global_volume_directory = "./coingecko-global-volume"  # Use global volume data
 symbol = "BTC-USD"  # Change to test different symbols
 data_retention_hours = 4380  # Should match your config
 interval_minutes = 60  # 1 hour intervals
 
 print(f"Testing volume trend chart generation for {symbol}")
-print(f"Data directory: {coinbase_data_directory}")
+print(f"Data directory: {global_volume_directory}")
 print(f"Interval: {interval_minutes} minutes")
 print()
 
-# Get volume data from file
-print("Loading volume data...")
+# Get volume data from file (global volume from CoinGecko)
+print("Loading global volume data (CoinGecko)...")
 coin_volume_24h_LIST = get_property_values_from_crypto_file(
-    coinbase_data_directory,
+    global_volume_directory,
     symbol,
     'volume_24h',
     max_age_hours=data_retention_hours

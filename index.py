@@ -19,6 +19,7 @@ from utils.email import send_email_notification
 from utils.file_helpers import save_obj_dict_to_file, count_files_in_directory, append_crypto_data_to_file, get_property_values_from_crypto_file, cleanup_old_crypto_data
 from utils.price_helpers import calculate_percentage_from_min, calculate_offset_price, calculate_price_change_percentage
 from utils.time_helpers import print_local_time
+from utils.coingecko_live import fetch_coingecko_current_data, should_update_coingecko_data, get_last_coingecko_update_time
 
 # Coinbase-related
 # Coinbase helpers and define client
@@ -224,6 +225,56 @@ def iterate_wallets(interval_seconds):
                 }
                 append_crypto_data_to_file(coinbase_data_directory, product_id, data_entry)
             print(f"Appended data for {len(coinbase_data_dictionary)} cryptos\n")
+
+            #
+            # COLLECT GLOBAL VOLUME DATA FROM COINGECKO (hourly)
+            # This maintains consistency with backfilled historical data
+            # CoinGecko returns global volume across all exchanges (not just Coinbase)
+            #
+            coingecko_config = config.get('coingecko', {})
+            enable_coingecko_live_collection = coingecko_config.get('enable_live_collection', True)
+            coingecko_update_interval_seconds = coingecko_config.get('live_update_interval_seconds', 3600)  # Default: 1 hour
+
+            if enable_coingecko_live_collection:
+                global_volume_directory = 'coingecko-global-volume'
+
+                for wallet in config['wallets']:
+                    if not wallet.get('enabled', False):
+                        continue
+
+                    symbol = wallet['symbol']
+                    coingecko_id = wallet.get('coingecko_id')
+
+                    if not coingecko_id:
+                        continue
+
+                    # Check if it's time to update (hourly by default)
+                    data_file = f"{global_volume_directory}/{symbol}.json"
+                    last_update = get_last_coingecko_update_time(data_file)
+
+                    if should_update_coingecko_data(last_update, coingecko_update_interval_seconds):
+                        print(f"Fetching global volume data from CoinGecko for {symbol}...")
+
+                        coingecko_data = fetch_coingecko_current_data(coingecko_id, 'usd')
+
+                        if coingecko_data:
+                            # Create data entry matching our format
+                            global_volume_entry = {
+                                'timestamp': time.time(),
+                                'product_id': symbol,
+                                'price': coingecko_data['price'],
+                                'volume_24h': coingecko_data['volume_24h']  # Global volume in BTC
+                            }
+
+                            append_crypto_data_to_file(global_volume_directory, symbol, global_volume_entry)
+                            print(f"  ✓ Appended global volume: {float(coingecko_data['volume_24h']):,.0f} BTC (${float(coingecko_data['volume_24h_usd']):,.0f} USD)")
+                        else:
+                            print(f"  ✗ Failed to fetch global volume for {symbol}")
+                    else:
+                        time_until_next = coingecko_update_interval_seconds - (time.time() - last_update)
+                        print(f"Skipping CoinGecko update for {symbol} (next update in {time_until_next/60:.1f} minutes)")
+
+                print()  # Blank line for readability
 
             if count_files_in_directory(coinbase_data_directory) < 1:
                 print('waiting for more data...\n')

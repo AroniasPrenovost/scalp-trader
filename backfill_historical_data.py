@@ -111,12 +111,16 @@ def transform_coingecko_to_coinbase_format(coingecko_data, product_id):
     """
     Transform CoinGecko market chart data to match Coinbase data format
 
+    IMPORTANT: CoinGecko returns total_volumes in USD (because vs_currency='usd'),
+    but Coinbase API returns volume_24h in base currency (BTC for BTC-USD).
+    We convert CoinGecko USD volumes to BTC by dividing by price to maintain consistency.
+
     Args:
         coingecko_data: Dict with 'prices', 'market_caps', 'total_volumes' from CoinGecko API
         product_id: Product ID (e.g., 'BTC-USD')
 
     Returns:
-        List of data points in Coinbase format
+        List of data points in Coinbase format with volume_24h in BTC units
     """
     print(coingecko_data)
     transformed_data = []
@@ -133,14 +137,21 @@ def transform_coingecko_to_coinbase_format(coingecko_data, product_id):
         # Convert milliseconds to seconds for Unix timestamp
         unix_timestamp = timestamp_ms / 1000
 
-        # Get volume for this timestamp
-        volume_24h = volume_dict.get(int(timestamp_ms), 0)
+        # Get volume for this timestamp (in USD from CoinGecko)
+        volume_usd = volume_dict.get(int(timestamp_ms), 0)
+
+        # Convert USD volume to BTC volume to match Coinbase API format
+        # (Coinbase returns volume_24h in base currency, which is BTC for BTC-USD)
+        if price > 0 and volume_usd > 0:
+            volume_24h_btc = volume_usd / price
+        else:
+            volume_24h_btc = 0
 
         data_point = {
             'timestamp': unix_timestamp,
             'product_id': product_id,
             'price': str(price),
-            'volume_24h': str(volume_24h)
+            'volume_24h': str(volume_24h_btc)
         }
 
         transformed_data.append(data_point)
