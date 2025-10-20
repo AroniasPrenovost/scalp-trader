@@ -46,5 +46,11 @@
         "product_id": "ETH-USD",
         "price": "4036.45",
         "volume_24h": "8094557.087539794"
+    },
+    {
+        "timestamp": 1760966229.7739038,
+        "product_id": "ETH-USD",
+        "price": "4030.83",
+        "volume_24h": "7958921.8384302985"
     }
 ]

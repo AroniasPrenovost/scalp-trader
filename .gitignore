@@ -8,6 +8,8 @@ config.json
 /analysis
 /coinbase-listings
 
+/coingecko-global-volume
+
 /screenshots
 
 .DS_Store
