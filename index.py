@@ -37,6 +37,9 @@ from utils.openai_analysis import analyze_market_with_openai, save_analysis_to_f
 # trading context for LLM learning
 from utils.trade_context import build_trading_context, calculate_wallet_metrics
 
+# correlation manager for multi-asset portfolio risk
+from utils.correlation_manager import load_correlation_manager
+
 #
 # end imports
 #
@@ -179,6 +182,21 @@ def iterate_wallets(interval_seconds):
         include_screenshots = llm_learning_config.get('include_screenshots', True)
         prune_old_trades_after = llm_learning_config.get('prune_old_trades_after', 50)
 
+        # Correlation Manager initialization
+        correlation_config = config.get('correlation_settings', {})
+        correlation_enabled = correlation_config.get('enabled', True)
+        correlation_manager = load_correlation_manager('config.json') if correlation_enabled else None
+
+        # Multi-asset state tracking
+        btc_prices_for_correlation = []
+        sol_prices_for_correlation = []
+        eth_prices_for_correlation = []
+
+        # BTC context for altcoin correlation analysis
+        btc_chart_paths = None
+        btc_analysis = None
+        btc_current_price = None
+
         #
         #
         # get crypto price data from coinbase
@@ -279,6 +297,15 @@ def iterate_wallets(interval_seconds):
             if count_files_in_directory(coinbase_data_directory) < 1:
                 print('waiting for more data...\n')
             else:
+                # CORRELATION PHASE 1: Sort assets to analyze BTC first
+                if correlation_enabled and correlation_manager:
+                    # Ensure BTC is processed first by sorting
+                    btc_first = sorted(coinbase_data_dictionary,
+                                      key=lambda x: (x['product_id'] != 'BTC-USD', x['product_id']))
+                    coinbase_data_dictionary = btc_first
+                    print("📊 Correlation mode enabled - analyzing BTC first for market context")
+                    print()
+
                 for coin in coinbase_data_dictionary:
                     # set data from coinbase data
                     symbol = coin['product_id']
@@ -340,6 +367,29 @@ def iterate_wallets(interval_seconds):
                     max_price = max(coin_prices_LIST)
                     range_percentage_from_min = calculate_percentage_from_min(min_price, max_price)
 
+                    #
+                    #
+                    #
+                    #
+                    if ENABLE_CHART_SNAPSHOT:
+                        # Load analysis for snapshot if available (analysis will be loaded later in the code flow)
+                        snapshot_analysis = load_analysis_from_file(symbol)
+
+                        # Generate all timeframe charts (5 price + 1 volume) for comprehensive market view
+                        print(f"Generating snapshot charts for {symbol}...")
+                        chart_paths = plot_multi_timeframe_charts(
+                            current_timestamp=time.time(),
+                            interval=INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                            symbol=symbol,
+                            price_data=coin_prices_LIST,
+                            volume_data=coin_volume_24h_LIST,
+                            analysis=snapshot_analysis
+                        )
+                        if chart_paths:
+                            print(f"✓ Generated {len(chart_paths)} snapshot charts: {', '.join(chart_paths.keys())}")
+                        else:
+                            print(f"Warning: No snapshot charts generated (insufficient data)")
+
                     # Volatility check - skip trading if outside acceptable range
                     if enable_volatility_checks:
                         if range_percentage_from_min < min_range_percentage:
@@ -361,25 +411,6 @@ def iterate_wallets(interval_seconds):
                         'coin_prices_list': coin_prices_LIST,
                         'coin_volume_24h_LIST': coin_volume_24h_LIST,
                     }
-
-                    if ENABLE_CHART_SNAPSHOT:
-                        # Load analysis for snapshot if available (analysis will be loaded later in the code flow)
-                        snapshot_analysis = load_analysis_from_file(symbol)
-
-                        # Generate all timeframe charts (5 price + 1 volume) for comprehensive market view
-                        print(f"Generating snapshot charts for {symbol}...")
-                        chart_paths = plot_multi_timeframe_charts(
-                            current_timestamp=time.time(),
-                            interval=INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
-                            symbol=symbol,
-                            price_data=coin_prices_LIST,
-                            volume_data=coin_volume_24h_LIST,
-                            analysis=snapshot_analysis
-                        )
-                        if chart_paths:
-                            print(f"✓ Generated {len(chart_paths)} snapshot charts: {', '.join(chart_paths.keys())}")
-                        else:
-                            print(f"Warning: No snapshot charts generated (insufficient data)")
 
                     #
                     #
@@ -450,6 +481,31 @@ def iterate_wallets(interval_seconds):
                             else:
                                 print("LLM learning disabled in config")
 
+                            # Build BTC context for altcoin correlation analysis
+                            btc_context_for_analysis = None
+                            if correlation_enabled and symbol in ['SOL-USD', 'ETH-USD'] and btc_analysis and btc_chart_paths:
+                                # Calculate BTC price changes
+                                btc_change_7d_pct = 0.0
+                                btc_change_24h_pct = 0.0
+                                if btc_prices_for_correlation and len(btc_prices_for_correlation) >= 168:
+                                    btc_change_7d_pct = ((btc_prices_for_correlation[-1] - btc_prices_for_correlation[-168]) /
+                                                         btc_prices_for_correlation[-168] * 100)
+                                if btc_prices_for_correlation and len(btc_prices_for_correlation) >= 24:
+                                    btc_change_24h_pct = ((btc_prices_for_correlation[-1] - btc_prices_for_correlation[-24]) /
+                                                          btc_prices_for_correlation[-24] * 100)
+
+                                btc_context_for_analysis = {
+                                    'sentiment': btc_analysis,
+                                    'chart_paths': btc_chart_paths,
+                                    'price_metrics': {
+                                        'current_price': btc_current_price,
+                                        'change_7d_pct': round(btc_change_7d_pct, 2),
+                                        'change_24h_pct': round(btc_change_24h_pct, 2)
+                                    }
+                                }
+                                print(f"📊 BTC context prepared for {symbol} correlation analysis")
+                                print(f"   BTC trend: {btc_analysis.get('market_trend')} | 7d: {btc_change_7d_pct:+.2f}% | 24h: {btc_change_24h_pct:+.2f}%")
+
                             analysis = analyze_market_with_openai(
                                 symbol,
                                 coin_data,
@@ -459,7 +515,8 @@ def iterate_wallets(interval_seconds):
                                 chart_paths=chart_paths,
                                 trading_context=trading_context,
                                 range_percentage_from_min=range_percentage_from_min,
-                                config=config
+                                config=config,
+                                btc_context=btc_context_for_analysis
                             )
                             if analysis:
                                 save_analysis_to_file(symbol, analysis)
@@ -475,6 +532,45 @@ def iterate_wallets(interval_seconds):
                         print(f"No market analysis available for {symbol}. Skipping trading logic.")
                         print('\n')
                         continue
+
+                    # CORRELATION PHASE 2: Store sentiment and calculate relative strength
+                    if correlation_enabled and correlation_manager:
+                        # Store price data for correlation calculations
+                        if symbol == 'BTC-USD':
+                            btc_prices_for_correlation = coin_prices_LIST.copy()
+                            btc_current_price = current_price
+                            btc_analysis = analysis.copy()
+                            correlation_manager.set_btc_sentiment(analysis)
+
+                            # Store BTC chart paths for altcoin correlation analysis
+                            if ENABLE_CHART_SNAPSHOT and chart_paths:
+                                btc_chart_paths = {
+                                    '30_day': chart_paths.get('30_day'),
+                                    '14_day': chart_paths.get('14_day'),
+                                    '72_hour': chart_paths.get('72_hour')
+                                }
+                                print(f"✓ BTC sentiment stored: {analysis.get('market_trend', 'N/A')}")
+                                print(f"✓ BTC charts cached for altcoin correlation: {list(btc_chart_paths.keys())}")
+                            else:
+                                print(f"✓ BTC sentiment stored: {analysis.get('market_trend', 'N/A')}")
+                        elif symbol == 'SOL-USD':
+                            sol_prices_for_correlation = coin_prices_LIST.copy()
+                            correlation_manager.set_asset_sentiment(symbol, analysis)
+                        elif symbol == 'ETH-USD':
+                            eth_prices_for_correlation = coin_prices_LIST.copy()
+                            correlation_manager.set_asset_sentiment(symbol, analysis)
+
+                        # Calculate relative strength for altcoins vs BTC
+                        relative_strength = None
+                        if symbol in ['SOL-USD', 'ETH-USD'] and btc_prices_for_correlation:
+                            relative_strength = correlation_manager.calculate_relative_strength(
+                                coin_prices_LIST,
+                                btc_prices_for_correlation,
+                                correlation_config.get('correlation_lookback_hours', 168)
+                            )
+                            print(f"📈 Relative Strength vs BTC:")
+                            print(f"   {symbol}: {relative_strength['asset_change_pct']:+.2f}% | BTC: {relative_strength['btc_change_pct']:+.2f}%")
+                            print(f"   Outperformance: {relative_strength['outperformance']:+.2f}% ({relative_strength['strength_category']})")
 
                     # Set trading parameters from analysis
                     BUY_AT_PRICE = analysis.get('buy_in_price')
@@ -511,8 +607,51 @@ def iterate_wallets(interval_seconds):
                     # BUY logic
                     elif last_order_type == 'none' or last_order_type == 'sell':
                         MARKET_TREND = analysis.get('market_trend', 'N/A')
+
+                        # CORRELATION PHASE 3: Apply portfolio-level filters before buy
+                        correlation_check_passed = True
+                        correlation_reason = ""
+                        adjusted_confidence = CONFIDENCE_LEVEL
+
+                        if correlation_enabled and correlation_manager:
+                            # Get current portfolio state
+                            portfolio_state = correlation_manager.get_portfolio_state('transaction_log.json')
+
+                            # Check if trade should be allowed based on correlation rules
+                            btc_trend = correlation_manager.btc_trend or 'sideways'
+                            allow_trade, reason = correlation_manager.should_allow_trade(
+                                symbol,
+                                TRADE_RECOMMENDATION,
+                                btc_trend,
+                                portfolio_state,
+                                relative_strength if symbol in ['SOL-USD', 'ETH-USD'] else None
+                            )
+
+                            correlation_check_passed = allow_trade
+                            correlation_reason = reason
+
+                            # Adjust confidence based on BTC alignment
+                            if allow_trade and symbol in ['SOL-USD', 'ETH-USD']:
+                                adjusted_confidence = correlation_manager.adjust_confidence_for_correlation(
+                                    symbol,
+                                    CONFIDENCE_LEVEL,
+                                    btc_trend,
+                                    MARKET_TREND,
+                                    relative_strength
+                                )
+                                if adjusted_confidence != CONFIDENCE_LEVEL:
+                                    print(f"⚖️  Confidence adjusted: {CONFIDENCE_LEVEL} → {adjusted_confidence} (correlation analysis)")
+                                    CONFIDENCE_LEVEL = adjusted_confidence
+
+                            # Display portfolio exposure
+                            print(f"📊 Portfolio State: {len(portfolio_state['long_positions'])} positions | ${portfolio_state['total_exposure_usd']:,.2f} exposure")
+                            print(f"   Correlation Risk: ${portfolio_state['correlation_adjusted_risk']:,.2f}")
+                            print(f"   {correlation_reason}")
+
                         if TRADE_RECOMMENDATION != 'buy':
                             print(f"STATUS: AI recommends '{TRADE_RECOMMENDATION}' - only executing buy orders when recommendation is 'buy'")
+                        elif not correlation_check_passed:
+                            print(f"STATUS: Correlation filter blocked trade - {correlation_reason}")
                         elif CONFIDENCE_LEVEL != 'high':
                             print(f"STATUS: AI confidence level is '{CONFIDENCE_LEVEL}' - only trading with HIGH confidence")
                         elif MARKET_TREND == 'bearish':
@@ -545,6 +684,19 @@ def iterate_wallets(interval_seconds):
                                     if analysis and 'buy_amount_usd' in analysis:
                                         buy_amount = analysis.get('buy_amount_usd')
                                         print(f"Using buy amount: ${buy_amount} (from LLM analysis)")
+
+                                        # CORRELATION PHASE 4: Apply correlation-adjusted position sizing
+                                        if correlation_enabled and correlation_manager and correlation_config.get('correlation_position_size_scaling', True):
+                                            portfolio_state = correlation_manager.get_portfolio_state('transaction_log.json')
+                                            adjusted_buy_amount = correlation_manager.calculate_correlation_adjusted_position_size(
+                                                buy_amount,
+                                                portfolio_state,
+                                                symbol
+                                            )
+                                            if adjusted_buy_amount != buy_amount:
+                                                print(f"⚖️  Position size adjusted for correlation: ${buy_amount:.2f} → ${adjusted_buy_amount:.2f}")
+                                                print(f"   (scaling down due to {len(portfolio_state['long_positions'])} existing correlated positions)")
+                                                buy_amount = adjusted_buy_amount
 
                                         shares_to_buy = math.floor(buy_amount / current_price) # Calculate whole shares (rounded down)
                                         print(f"Calculated shares to buy: {shares_to_buy} (${buy_amount} / ${current_price})")
@@ -748,6 +900,17 @@ def iterate_wallets(interval_seconds):
                 # ERROR TRACKING: reset error count if they're non-consecutive
                 LAST_EXCEPTION_ERROR = None
                 LAST_EXCEPTION_ERROR_COUNT = 0
+
+        # Display portfolio risk dashboard at end of iteration
+        if correlation_enabled and correlation_manager:
+            if btc_prices_for_correlation or sol_prices_for_correlation or eth_prices_for_correlation:
+                from utils.portfolio_dashboard import print_portfolio_dashboard
+                print_portfolio_dashboard(
+                    correlation_manager,
+                    btc_prices_for_correlation,
+                    sol_prices_for_correlation,
+                    eth_prices_for_correlation
+                )
 
         #
         #

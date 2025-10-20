@@ -5,7 +5,7 @@ import base64
 from openai import OpenAI
 from io import BytesIO
 
-def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_rate_percentage=0, min_profit_target_percentage=3.0, chart_paths=None, trading_context=None, graph_image_path=None, range_percentage_from_min=None, config=None):
+def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_rate_percentage=0, min_profit_target_percentage=3.0, chart_paths=None, trading_context=None, graph_image_path=None, range_percentage_from_min=None, config=None, btc_context=None):
     """
     Analyzes market data using OpenAI's API to determine key support/resistance levels
     and trading recommendations.
@@ -154,8 +154,111 @@ VOLATILITY TRADING RULES:
 4. Profit targets should be realistic relative to observed volatility (don't target 10% profit on 8% range asset)
 5. Position sizing: Higher volatility = smaller position size to manage risk"""
 
+    # Build BTC correlation context section
+    btc_correlation_context = ""
+    if btc_context and symbol in ['SOL-USD', 'ETH-USD']:
+        btc_sentiment = btc_context.get('sentiment', {})
+        btc_metrics = btc_context.get('price_metrics', {})
+        btc_trend = btc_sentiment.get('market_trend', 'N/A')
+        btc_confidence = btc_sentiment.get('confidence_level', 'N/A')
+        btc_7d_change = btc_metrics.get('change_7d_pct', 0.0)
+        btc_24h_change = btc_metrics.get('change_24h_pct', 0.0)
+
+        asset_name = 'Solana' if symbol == 'SOL-USD' else 'Ethereum'
+        btc_correlation_context = f"""
+
+BTC CORRELATION ANALYSIS - CRITICAL MARKET CONTEXT:
+You are analyzing {symbol} ({asset_name}), which is HIGHLY CORRELATED with Bitcoin (BTC-USD).
+Historical correlation coefficient: 0.75-0.90 (very high correlation).
+{asset_name} typically has beta of 1.2-1.8 vs BTC (amplifies BTC moves by 20-80%).
+
+CURRENT BTC MARKET STATE (for mandatory correlation assessment):
+- BTC Trend: {btc_trend} (confidence: {btc_confidence})
+- BTC Price Change (7 days): {btc_7d_change:+.2f}%
+- BTC Price Change (24 hours): {btc_24h_change:+.2f}%
+- BTC Current Price: ${btc_metrics.get('current_price', 'N/A')}
+- BTC Major Support: ${btc_sentiment.get('major_support', 'N/A')}
+- BTC Major Resistance: ${btc_sentiment.get('major_resistance', 'N/A')}
+
+NOTE: You will see BTC charts alongside {symbol} charts in the image payload.
+Compare the two assets visually:
+- Are they moving in sync or diverging?
+- Is {symbol} respecting BTC support/resistance levels proportionally?
+- Is {symbol} showing relative strength or weakness vs BTC?
+
+MANDATORY CORRELATION RULES (override technical signals if violated):
+
+1. BTC BEARISH TREND = NO BUY FOR {symbol}
+   - If BTC trend is "bearish" → trade_recommendation MUST be "no_trade" or "sell"
+   - Reasoning: {asset_name} rarely sustains rallies against BTC downtrends
+   - Even if {symbol} technicals look bullish, BTC will likely drag it down
+
+2. BTC SIDEWAYS/CONSOLIDATION = SELECTIVE BUYING
+   - If BTC trend is "sideways" → Only recommend "buy" if:
+     a) {symbol} shows clear relative strength (outperforming BTC on recent timeframes)
+     b) {symbol} has strong technical breakout setup (not just minor bounce)
+   - Otherwise → "no_trade" (wait for BTC to establish direction)
+
+3. BTC BULLISH TREND = GREEN LIGHT FOR {symbol}
+   - If BTC trend is "bullish" and {symbol} technicals align → confidence_level can be "high"
+   - If BTC bullish but {symbol} lagging → reduce confidence by 1 level
+   - Best setups: BTC bullish + {symbol} breaking out = maximum confidence
+
+4. DIVERGENCE DETECTION (compare charts visually):
+   - BTC breaking support but {symbol} holding support = WARNING (likely to follow BTC down soon)
+     → Reduce confidence or recommend "no_trade"
+   - BTC consolidating but {symbol} breaking out = LEADERSHIP (strong relative strength)
+     → Increase confidence if volume confirms
+   - BTC at resistance but {symbol} already broke out = DECOUPLING (rare, high conviction)
+     → Can maintain high confidence if volume is strong
+
+5. CONFIDENCE ADJUSTMENT BASED ON BTC ALIGNMENT:
+   - BTC bullish + {symbol} bullish = NO ADJUSTMENT (alignment is good)
+   - BTC sideways + {symbol} bullish = REDUCE confidence by 1 level (caution)
+   - BTC bearish + {symbol} bullish = FORCE "no_trade" (fighting the market)
+   - BTC bullish + {symbol} bearish = REDUCE confidence (lagging is concerning)
+
+6. VOLUME CORRELATION:
+   - If BTC volume is "increasing" and {symbol} volume "stable/decreasing" = weak participation
+     → Reduce confidence (not leading, just following weakly)
+   - If both have increasing volume = strong confirmation
+     → Can maintain or increase confidence
+
+YOUR ANALYSIS WORKFLOW:
+Step 1: Analyze {symbol} charts independently (support, resistance, trends, patterns)
+Step 2: Review BTC charts provided in the image payload
+Step 3: Compare the two assets:
+        - Are trends aligned (both bullish, both bearish, or diverging)?
+        - Is {symbol} at a similar technical position as BTC (both near support, both breaking out)?
+        - Is {symbol} showing relative strength or weakness?
+Step 4: Apply correlation rules above to OVERRIDE or ADJUST your initial {symbol} analysis
+Step 5: Final recommendation must factor in BTC context
+
+EXAMPLE SCENARIOS:
+✓ GOOD TRADE: BTC bullish uptrend + {symbol} bullish breakout above resistance + both showing volume increase
+  → confidence_level: "high", trade_recommendation: "buy"
+
+✗ BAD TRADE: BTC bearish breakdown + {symbol} bullish bounce off support
+  → confidence_level: "low", trade_recommendation: "no_trade"
+  → reasoning: "{asset_name} bounce against BTC downtrend - likely fails"
+
+⚠️ CAUTION TRADE: BTC sideways consolidation + {symbol} bullish breakout + {symbol} volume weak
+  → confidence_level: "medium" → MUST be "no_trade" (per schema rules)
+  → reasoning: "{asset_name} breakout lacks BTC confirmation and volume"
+
+✓ SELECTIVE TRADE: BTC sideways + {symbol} strong breakout with volume + clear outperformance
+  → confidence_level: "high", trade_recommendation: "buy"
+  → reasoning: "{asset_name} showing leadership vs BTC - breakout confirmed"
+
+CRITICAL: Your "reasoning" field MUST mention BTC trend alignment/divergence.
+Examples:
+- "BTC bullish aligns with SOL breakout - strong setup"
+- "BTC bearish backdrop overrides SOL technicals - no trade"
+- "SOL outperforming BTC consolidation - selective buy"
+"""
+
     prompt = f"""Analyze the following market data for {symbol} and provide a technical analysis with specific trading levels.
-{historical_context_section}{timeframe_context}{volatility_context}
+{historical_context_section}{timeframe_context}{volatility_context}{btc_correlation_context}
 
 Market Data:
 - Current Price: ${current_price}
@@ -320,11 +423,29 @@ Output ONLY valid JSON with no markdown formatting or explanatory text outside t
                     }
                 ]
 
+                # Add BTC correlation charts FIRST if analyzing altcoins
+                if btc_context and symbol in ['SOL-USD', 'ETH-USD']:
+                    btc_charts = btc_context.get('chart_paths', {})
+                    btc_timeframes = ['30_day', '14_day', '72_hour']  # 3 key BTC charts
+
+                    for btc_tf in btc_timeframes:
+                        if btc_tf in btc_charts and btc_charts[btc_tf] and os.path.exists(btc_charts[btc_tf]):
+                            with open(btc_charts[btc_tf], "rb") as image_file:
+                                base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+                                content_array.append({
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/png;base64,{base64_image}",
+                                        "detail": "high"
+                                    }
+                                })
+                                print(f"  Added BTC {btc_tf} correlation chart with high detail")
+
                 # Add charts in order: 14d (high detail - primary execution), 30d (high - trend), 90d (high - extended trend), 72h (high - timing), 6mo (low - macro context), volume_snapshots (low - context)
                 # This prioritizes the most important timeframes while saving tokens on context
                 # 14d = immediate swing context, 30d = recent trend, 90d = extended trend, 72h = entry timing, 6mo = big picture, volume_snapshots = volume context
-                timeframe_order = ['14d', '30d', '90d', '72h', '6mo', 'volume_snapshots']
-                detail_levels = {'14d': 'high', '30d': 'high', '90d': 'high', '72h': 'high', '6mo': 'low', 'volume_snapshots': 'low'}
+                timeframe_order = ['14_day', '30_day', '90_day', '72_hour', '6_month', 'volume_snapshot']
+                detail_levels = {'14_day': 'high', '30_day': 'high', '90_day': 'high', '72_hour': 'high', '6_month': 'low', 'volume_snapshot': 'low'}
 
                 for timeframe in timeframe_order:
                     if timeframe in chart_paths and chart_paths[timeframe] and os.path.exists(chart_paths[timeframe]):
@@ -337,7 +458,7 @@ Output ONLY valid JSON with no markdown formatting or explanatory text outside t
                                     "detail": detail_levels[timeframe]
                                 }
                             })
-                            chart_type = "volume snapshot chart" if timeframe == 'volume_snapshots' else f"{timeframe} chart"
+                            chart_type = "volume snapshot chart" if timeframe == 'volume_snapshot' else f"{symbol} {timeframe} chart"
                             print(f"  Added {chart_type} with {detail_levels[timeframe]} detail")
 
                 # Add historical trade screenshots if available

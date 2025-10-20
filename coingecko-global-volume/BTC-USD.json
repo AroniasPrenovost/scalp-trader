@@ -52,5 +52,11 @@
         "product_id": "BTC-USD",
         "price": "110635",
         "volume_24h": "493846.1196727979"
+    },
+    {
+        "timestamp": 1761002964.975904,
+        "product_id": "BTC-USD",
+        "price": "110651",
+        "volume_24h": "552172.9109271494"
     }
 ]
