@@ -40,6 +40,46 @@ from utils.trade_context import build_trading_context, calculate_wallet_metrics
 # correlation manager for multi-asset portfolio risk
 from utils.correlation_manager import load_correlation_manager
 
+# Terminal colors for output formatting
+class Colors:
+    HEADER = '\033[95m'
+    BLUE = '\033[94m'
+    CYAN = '\033[96m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    RED = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+def format_wallet_metrics(symbol, metrics):
+    """Format wallet metrics dictionary in a human-readable way with colors"""
+    print(f"\n{Colors.BOLD}{Colors.CYAN}{'='*50}")
+    print(f"    {symbol}")
+    print(f"{'='*50}{Colors.ENDC}\n")
+
+    # Format currency values
+    print(f"{Colors.BOLD}Starting Capital:{Colors.ENDC}    {Colors.BLUE}${metrics['starting_capital_usd']:,.2f}{Colors.ENDC}")
+    print(f"{Colors.BOLD}Current Value:{Colors.ENDC}       {Colors.BLUE}${metrics['current_usd']:,.2f}{Colors.ENDC}")
+
+    # Profit metrics with color based on positive/negative
+    profit_color = Colors.GREEN if metrics['gross_profit'] >= 0 else Colors.RED
+    print(f"{Colors.BOLD}Gross Profit:{Colors.ENDC}        {profit_color}${metrics['gross_profit']:,.2f}{Colors.ENDC}")
+
+    # Percentage gain with color
+    pct_color = Colors.GREEN if metrics['percentage_gain'] >= 0 else Colors.RED
+    print(f"{Colors.BOLD}Percentage Gain:{Colors.ENDC}     {pct_color}{metrics['percentage_gain']:.2f}%{Colors.ENDC}")
+
+    # Fees and taxes
+    print(f"{Colors.BOLD}Exchange Fees:{Colors.ENDC}       {Colors.YELLOW}${metrics['exchange_fees']:,.2f}{Colors.ENDC}")
+    print(f"{Colors.BOLD}Taxes:{Colors.ENDC}               {Colors.YELLOW}${metrics['taxes']:,.2f}{Colors.ENDC}")
+
+    # Total profit
+    total_color = Colors.GREEN if metrics['total_profit'] >= 0 else Colors.RED
+    print(f"{Colors.BOLD}Net Profit:{Colors.ENDC}          {total_color}${metrics['total_profit']:,.2f}{Colors.ENDC}")
+
+    print(f"\n{Colors.CYAN}{'='*50}{Colors.ENDC}\n")
+
 #
 # end imports
 #
@@ -311,7 +351,7 @@ def iterate_wallets(interval_seconds):
                 for coin in coinbase_data_dictionary:
                     # set data from coinbase data
                     symbol = coin['product_id']
-                    print(f"[ {symbol} ]")
+                    # print(f"[ {symbol} ]")
 
                     # set config.json data
                     READY_TO_TRADE = False
@@ -326,7 +366,7 @@ def iterate_wallets(interval_seconds):
                             STARTING_CAPITAL_USD = wallet['starting_capital_usd']
 
                     wallet_metrics = calculate_wallet_metrics(symbol, STARTING_CAPITAL_USD)
-                    pprint(wallet_metrics)
+                    format_wallet_metrics(symbol, wallet_metrics)
 
                     # Check cooldown period after sell
                     if cooldown_hours_after_sell > 0:
