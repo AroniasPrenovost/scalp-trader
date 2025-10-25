@@ -188,6 +188,12 @@ print_local_time()
 def iterate_wallets(interval_seconds):
     while True:
 
+        # send_email_notification(
+        #     subject="ello moto",
+        #     text_content=f"An error occurred: T(ESTINGG)",
+        #     html_content=f"An error occurred: (TESTING)."
+        # )
+
         #
         #
         # ERROR TRACKING
