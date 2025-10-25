@@ -62,7 +62,7 @@ def load_config(file_path):
 
 config = load_config('config.json')
 
-INTERVAL_SECONDS = config['data_retention']['interval_seconds'] # 900 # 15 minutes
+INTERVAL_SECONDS = config['data_retention']['interval_seconds'] # 3600 1 hour
 INTERVAL_SAVE_DATA_EVERY_X_MINUTES = (INTERVAL_SECONDS / 60)
 DATA_RETENTION_HOURS = config['data_retention']['max_hours'] # 730 # 1 month #
 
@@ -245,13 +245,14 @@ def iterate_wallets(interval_seconds):
             print(f"Appended data for {len(coinbase_data_dictionary)} cryptos\n")
 
             #
-            # COLLECT GLOBAL VOLUME DATA FROM COINGECKO (hourly)
+            # COLLECT GLOBAL VOLUME DATA FROM COINGECKO
             # This maintains consistency with backfilled historical data
             # CoinGecko returns global volume across all exchanges (not just Coinbase)
+            # Uses the same interval as Coinbase data collection (from data_retention.interval_seconds)
             #
             coingecko_config = config.get('coingecko', {})
             enable_coingecko_live_collection = coingecko_config.get('enable_live_collection', True)
-            coingecko_update_interval_seconds = coingecko_config.get('live_update_interval_seconds', 3600)  # Default: 1 hour
+            coingecko_update_interval_seconds = INTERVAL_SECONDS  # Use same interval as data_retention setting
 
             if enable_coingecko_live_collection:
                 global_volume_directory = 'coingecko-global-volume'
@@ -266,7 +267,7 @@ def iterate_wallets(interval_seconds):
                     if not coingecko_id:
                         continue
 
-                    # Check if it's time to update (hourly by default)
+                    # Check if it's time to update (uses data_retention.interval_seconds)
                     data_file = f"{global_volume_directory}/{symbol}.json"
                     last_update = get_last_coingecko_update_time(data_file)
 
@@ -290,7 +291,8 @@ def iterate_wallets(interval_seconds):
                             print(f"  ✗ Failed to fetch global volume for {symbol}")
                     else:
                         time_until_next = coingecko_update_interval_seconds - (time.time() - last_update)
-                        print(f"Skipping CoinGecko update for {symbol} (next update in {time_until_next/60:.1f} minutes)")
+                        interval_minutes = coingecko_update_interval_seconds / 60
+                        print(f"Skipping CoinGecko update for {symbol} (next update in {time_until_next/60:.1f} of {interval_minutes:.0f} minutes)")
 
                 print()  # Blank line for readability
 
@@ -343,12 +345,12 @@ def iterate_wallets(interval_seconds):
                     # Note: get_property_values_from_crypto_file already converts prices to float
                     coin_prices_LIST = get_property_values_from_crypto_file(coinbase_data_directory, symbol, 'price', max_age_hours=DATA_RETENTION_HOURS)
 
-                    # NOTE: coin_volume_24h represents Coinbase's rolling 24-hour volume at each data point.
-                    # This is useful for 24h charts but misleading for longer timeframes (7d, 90d) since
-                    # each historical point shows the 24h rolling volume at that moment, not the actual
-                    # volume during that specific interval. See matplotlib.py:199-203 for conditional usage.
+                    # NOTE: Using global volume data from CoinGecko for consistency with backfilled historical data.
+                    # CoinGecko provides global volume across all exchanges (not just Coinbase).
+                    # This ensures volume charts don't have a nosedive between backfilled and live data.
                     # Note: get_property_values_from_crypto_file already converts volumes to float
-                    coin_volume_24h_LIST = get_property_values_from_crypto_file(coinbase_data_directory, symbol, 'volume_24h', max_age_hours=DATA_RETENTION_HOURS)
+                    global_volume_directory = 'coingecko-global-volume'
+                    coin_volume_24h_LIST = get_property_values_from_crypto_file(global_volume_directory, symbol, 'volume_24h', max_age_hours=DATA_RETENTION_HOURS)
                     current_volume_24h = float(coin['volume_24h'])
 
                     # Periodically cleanup old data from crypto files (runs once per iteration, for each coin)

@@ -122,7 +122,7 @@ def transform_coingecko_to_coinbase_format(coingecko_data, product_id):
     Returns:
         List of data points in Coinbase format with volume_24h in BTC units
     """
-    print(coingecko_data)
+    # print(coingecko_data)
     transformed_data = []
     prices = coingecko_data.get('prices', [])
     volumes = coingecko_data.get('total_volumes', [])
@@ -291,19 +291,23 @@ def backfill_wallet_data(wallet, config):
         print(f"  ERROR: No data to save for {symbol}")
         return
 
-    # Load existing data
-    data_file = f"coinbase-data/{symbol}.json"
-    existing_data = load_existing_data(data_file)
+    # Save to coinbase-data directory (price + volume)
+    print(f"\n  Saving to coinbase-data directory...")
+    coinbase_data_file = f"coinbase-data/{symbol}.json"
+    existing_coinbase_data = load_existing_data(coinbase_data_file)
+    print(f"  Found {len(existing_coinbase_data)} existing data points in coinbase-data")
+    merged_coinbase_data = merge_data(existing_coinbase_data, all_transformed_data)
+    save_data(coinbase_data_file, merged_coinbase_data)
 
-    print(f"  Found {len(existing_data)} existing data points")
+    # ALSO save to coingecko-global-volume directory (same data, used for volume charts)
+    print(f"\n  Saving to coingecko-global-volume directory...")
+    volume_data_file = f"coingecko-global-volume/{symbol}.json"
+    existing_volume_data = load_existing_data(volume_data_file)
+    print(f"  Found {len(existing_volume_data)} existing data points in coingecko-global-volume")
+    merged_volume_data = merge_data(existing_volume_data, all_transformed_data)
+    save_data(volume_data_file, merged_volume_data)
 
-    # Merge with existing data
-    merged_data = merge_data(existing_data, all_transformed_data)
-
-    # Save merged data
-    save_data(data_file, merged_data)
-
-    print(f"  ✓ Backfill complete for {symbol}")
+    print(f"\n  ✓ Backfill complete for {symbol} (saved to both directories)")
 
 def main():
     """Main backfill execution function"""
