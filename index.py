@@ -356,8 +356,7 @@ def iterate_wallets(interval_seconds):
 
                 for coin in coinbase_data_dictionary:
                     # set data from coinbase data
-                    symbol = coin['product_id']
-                    # print(f"[ {symbol} ]")
+                    symbol = coin['product_id'] # 'BTC-USD', 'ETH-USD', etc..
 
                     # set config.json data
                     READY_TO_TRADE = False
@@ -387,7 +386,7 @@ def iterate_wallets(interval_seconds):
                     # Get current price and append to data to account for the gap in incrementally stored data
                     current_price = get_asset_price(coinbase_client, symbol) # current_price = float(coin['price'])
 
-                    # NEW RETRIEVAL: Read from individual crypto file (only data from last X hours)
+                    # RETRIEVAL: Read from individual crypto file (only data from last X hours)
                     # Note: get_property_values_from_crypto_file already converts prices to float
                     coin_prices_LIST = get_property_values_from_crypto_file(coinbase_data_directory, symbol, 'price', max_age_hours=DATA_RETENTION_HOURS)
 
