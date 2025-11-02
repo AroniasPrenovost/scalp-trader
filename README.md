@@ -192,7 +192,6 @@ MAILJET_FROM_EMAIL=bot@example.com
 MAILJET_FROM_NAME=Trading Bot
 MAILJET_TO_EMAIL=your@email.com
 MAILJET_TO_NAME=Your Name
-MAILJET_TO_EMAIL_2=backup@email.com    # Optional: Second email recipient
 
 # OpenAI API (for GPT-4o Vision)
 OPENAI_API_KEY=sk-your_openai_api_key_here

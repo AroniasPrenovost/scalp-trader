@@ -11,7 +11,6 @@ mailjet_secret_key = os.environ.get('MAILJET_SECRET_KEY')
 mailjet_from_email = os.environ.get('MAILJET_FROM_EMAIL')
 mailjet_from_name = os.environ.get('MAILJET_FROM_NAME')
 mailjet_to_email = os.environ.get('MAILJET_TO_EMAIL')
-mailjet_to_email_2 = os.environ.get('MAILJET_TO_EMAIL_2')
 mailjet_to_name = os.environ.get('MAILJET_TO_NAME')
 
 mailjet = Client(auth=(mailjet_api_key, mailjet_secret_key), version='v3.1')
