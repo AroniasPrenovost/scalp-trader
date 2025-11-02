@@ -3,6 +3,7 @@
 config.json
 
 *_orders.json
+/transactions
 
 /coinbase-data
 /analysis
