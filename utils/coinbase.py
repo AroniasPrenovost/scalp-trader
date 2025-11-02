@@ -187,6 +187,48 @@ def get_coinbase_order_by_order_id(client, order_id):
         print(f"Error fetching order with ID {order_id}: {e}")
         return None
 
+
+def cancel_order(client, order_id):
+    """
+    Cancel an open order by order_id.
+
+    Args:
+        client: Coinbase client instance
+        order_id: The order ID to cancel
+
+    Returns:
+        True if cancelled successfully, False otherwise
+    """
+    try:
+        result = client.cancel_orders(order_ids=[order_id])
+        print(f"Order {order_id} cancelled successfully")
+        return True
+    except Exception as e:
+        print(f"Error cancelling order {order_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def clear_order_ledger(symbol):
+    """
+    Clear the order ledger for a symbol to restart trading.
+
+    Args:
+        symbol: Trading pair (e.g., 'BTC-USD')
+    """
+    file_name = f"{symbol}_orders.json"
+    try:
+        if os.path.exists(file_name):
+            with open(file_name, 'w') as file:
+                json.dump([], file, indent=4)
+            print(f"✓ Cleared order ledger for {symbol}")
+        else:
+            print(f"No ledger file found for {symbol}")
+    except Exception as e:
+        print(f"Error clearing order ledger for {symbol}: {e}")
+
+
 #
 #
 #
@@ -203,8 +245,19 @@ def place_market_buy_order(client, symbol, base_size):
         # Convert the order object to a dictionary if necessary
         order_data_dict = convert_products_to_dicts([order])[0]
 
-        if 'order_id' in order_data_dict['response']:
+        # Debug: Print the structure to understand what we're getting
+        print(f"Order response structure: {dumps(order_data_dict, indent=2)}")
+
+        # Try different possible response structures
+        order_id = None
+        if 'response' in order_data_dict and 'order_id' in order_data_dict['response']:
             order_id = order_data_dict['response']['order_id']
+        elif 'order_id' in order_data_dict:
+            order_id = order_data_dict['order_id']
+        elif 'success_response' in order_data_dict and 'order_id' in order_data_dict['success_response']:
+            order_id = order_data_dict['success_response']['order_id']
+
+        if order_id:
             print(f"BUY ORDER placed successfully. Order ID: {order_id}")
 
             # Save the placeholder order data until we can lookup the completed transaction
@@ -216,9 +269,11 @@ def place_market_buy_order(client, symbol, base_size):
                 html_content=f"<h3>BUY ORDER placed successfully for {symbol}. Order ID: {order_id}</h3>"
             )
         else:
-            print(f"Unexpected response: {dumps(order_data_dict)}")
+            print(f"Unexpected response structure - could not find order_id: {dumps(order_data_dict)}")
     except Exception as e:
         print(f"Error placing BUY order for {symbol}: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 def save_trade_record(symbol, buy_price, sell_price, total_profit_percentage, taxes, exchange_fee, total_profit):
@@ -265,6 +320,114 @@ def save_trade_record(symbol, buy_price, sell_price, total_profit_percentage, ta
         print(f"Error saving trade record for {symbol}: {e}")
 
 
+def place_limit_buy_order(client, symbol, base_size, limit_price):
+    """
+    Place a limit buy order at the specified limit price.
+
+    Args:
+        client: Coinbase client instance
+        symbol: Trading pair (e.g., 'BTC-USD')
+        base_size: Amount of base currency to buy
+        limit_price: Maximum price willing to pay
+    """
+    try:
+        # Use limit_order_gtc (Good-Till-Cancelled) for limit orders
+        order = client.limit_order_gtc_buy(
+            client_order_id=generate_client_order_id(symbol, 'buy'),
+            product_id=symbol,
+            base_size=str(base_size),
+            limit_price=str(limit_price)
+        )
+
+        # Convert the order object to a dictionary if necessary
+        order_data_dict = convert_products_to_dicts([order])[0]
+
+        # Debug: Print the structure to understand what we're getting
+        print(f"Order response structure: {dumps(order_data_dict, indent=2)}")
+
+        # Try different possible response structures
+        order_id = None
+        if 'response' in order_data_dict and 'order_id' in order_data_dict['response']:
+            order_id = order_data_dict['response']['order_id']
+        elif 'order_id' in order_data_dict:
+            order_id = order_data_dict['order_id']
+        elif 'success_response' in order_data_dict and 'order_id' in order_data_dict['success_response']:
+            order_id = order_data_dict['success_response']['order_id']
+
+        if order_id:
+            print(f"LIMIT BUY ORDER placed successfully at ${limit_price}. Order ID: {order_id}")
+
+            # Save the placeholder order data until we can lookup the completed transaction
+            save_order_data_to_local_json_ledger(symbol, order_data_dict)
+
+            send_email_notification(
+                subject="Limit Buy Order Placed",
+                text_content=f"LIMIT BUY ORDER placed for {symbol} at ${limit_price}. Order ID: {order_id}",
+                html_content=f"<h3>LIMIT BUY ORDER placed for {symbol} at ${limit_price}. Order ID: {order_id}</h3>"
+            )
+        else:
+            print(f"Unexpected response structure - could not find order_id: {dumps(order_data_dict)}")
+    except Exception as e:
+        print(f"Error placing LIMIT BUY order for {symbol}: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+def place_limit_sell_order(client, symbol, base_size, limit_price, potential_profit, potential_profit_percentage):
+    """
+    Place a limit sell order at the specified limit price.
+
+    Args:
+        client: Coinbase client instance
+        symbol: Trading pair (e.g., 'BTC-USD')
+        base_size: Amount of base currency to sell
+        limit_price: Minimum price willing to accept
+        potential_profit: Expected profit in USD
+        potential_profit_percentage: Expected profit percentage
+    """
+    try:
+        order = client.limit_order_gtc_sell(
+            client_order_id=generate_client_order_id(symbol, 'sell'),
+            product_id=symbol,
+            base_size=str(base_size),
+            limit_price=str(limit_price)
+        )
+
+        # Convert the order object to a dictionary if necessary
+        order_data_dict = convert_products_to_dicts([order])[0]
+
+        # Debug: Print the structure to understand what we're getting
+        print(f"Order response structure: {dumps(order_data_dict, indent=2)}")
+
+        # Try different possible response structures
+        order_id = None
+        if 'response' in order_data_dict and 'order_id' in order_data_dict['response']:
+            order_id = order_data_dict['response']['order_id']
+        elif 'order_id' in order_data_dict:
+            order_id = order_data_dict['order_id']
+        elif 'success_response' in order_data_dict and 'order_id' in order_data_dict['success_response']:
+            order_id = order_data_dict['success_response']['order_id']
+
+        if order_id:
+            print(f"LIMIT SELL ORDER placed successfully at ${limit_price}. Order ID: {order_id}")
+            print(f"Expected profit: ${potential_profit:.2f} ({potential_profit_percentage:.2f}%)")
+
+            # Save the placeholder order data until we can lookup the completed transaction
+            save_order_data_to_local_json_ledger(symbol, order_data_dict)
+
+            send_email_notification(
+                subject="Limit Sell Order Placed",
+                text_content=f"LIMIT SELL ORDER placed for {symbol} at ${limit_price}. Expected profit: ${potential_profit:.2f} ({potential_profit_percentage:.2f}%). Order ID: {order_id}",
+                html_content=f"<h3>LIMIT SELL ORDER placed for {symbol} at ${limit_price}</h3><p>Expected profit: ${potential_profit:.2f} ({potential_profit_percentage:.2f}%)</p><p>Order ID: {order_id}</p>"
+            )
+        else:
+            print(f"Unexpected response structure - could not find order_id: {dumps(order_data_dict)}")
+    except Exception as e:
+        print(f"Error placing LIMIT SELL order for {symbol}: {e}")
+        import traceback
+        traceback.print_exc()
+
+
 def place_market_sell_order(client, symbol, base_size, potential_profit, potential_profit_percentage):
     try:
         order = client.market_order_sell(
@@ -276,8 +439,19 @@ def place_market_sell_order(client, symbol, base_size, potential_profit, potenti
         # Convert the order object to a dictionary if necessary
         order_data_dict = convert_products_to_dicts([order])[0]
 
-        if 'order_id' in order_data_dict['response']:
+        # Debug: Print the structure to understand what we're getting
+        print(f"Order response structure: {dumps(order_data_dict, indent=2)}")
+
+        # Try different possible response structures
+        order_id = None
+        if 'response' in order_data_dict and 'order_id' in order_data_dict['response']:
             order_id = order_data_dict['response']['order_id']
+        elif 'order_id' in order_data_dict:
+            order_id = order_data_dict['order_id']
+        elif 'success_response' in order_data_dict and 'order_id' in order_data_dict['success_response']:
+            order_id = order_data_dict['success_response']['order_id']
+
+        if order_id:
             print(f"SELL ORDER placed successfully. Order ID: {order_id}")
 
             # Clear out existing ledger since there is no need to wait and confirm a sell transaction as long as we got programmatic confirmation
@@ -289,9 +463,11 @@ def place_market_sell_order(client, symbol, base_size, potential_profit, potenti
                 html_content=f"<h3>SELL ORDER placed successfully for {symbol}. Order ID: {order_id}</h3>"
             )
         else:
-            print(f"Unexpected response: {dumps(order_data_dict)}")
+            print(f"Unexpected response structure - could not find order_id: {dumps(order_data_dict)}")
     except Exception as e:
         print(f"Error placing SELL order for {symbol}: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 #

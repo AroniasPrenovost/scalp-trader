@@ -709,23 +709,9 @@ def should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours=1, l
         return True
 
     # If we're holding a position (last order was 'buy'), keep existing analysis
-    # Don't refresh while we're in a position UNLESS dynamic conditions warrant it
+    # Don't refresh while we're in a position - maintain the original stop loss and profit targets
+    # that were used to enter the trade. We're just waiting for sell conditions to be met.
     if last_order_type == 'buy':
-        # Check if dynamic refresh conditions are met even while holding
-        if coin_data and config:
-            from utils.dynamic_refresh import should_trigger_dynamic_refresh
-            should_refresh, reason = should_trigger_dynamic_refresh(
-                symbol=symbol,
-                current_price=coin_data.get('current_price'),
-                price_history=coin_data.get('coin_prices_list', []),
-                volume_history=coin_data.get('coin_volume_24h_LIST', []),
-                current_volume=coin_data.get('current_volume_24h'),
-                analysis=existing_analysis,
-                config=config
-            )
-            if should_refresh:
-                print(f"Dynamic refresh triggered while holding position: {reason}")
-                return True
         return False
 
     # For 'placeholder' (pending orders), don't refresh

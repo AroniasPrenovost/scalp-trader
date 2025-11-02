@@ -153,48 +153,58 @@ class CorrelationManager:
         """Store individual asset sentiment."""
         self.asset_sentiments[symbol] = sentiment
 
-    def get_portfolio_state(self, transaction_log_path: str = 'transaction_log.json') -> Dict:
+    def get_portfolio_state(self, transaction_log_path: str = None) -> Dict:
         """
-        Analyze current portfolio state across all assets.
+        Analyze current portfolio state by reading open positions from *_orders.json ledger files.
+
+        Each *_orders.json file contains at most 1 open position at a time.
+        When a position is closed (sold), the file is cleared and the completed trade
+        is saved to transactions/data.json.
 
         Returns:
             Dict with portfolio-level metrics
         """
-        # Load transaction log
-        if not os.path.exists(transaction_log_path):
-            return {
-                'total_positions': 0,
-                'long_positions': [],
-                'short_positions': [],
-                'total_exposure_usd': 0.0,
-                'correlation_adjusted_risk': 0.0
-            }
+        import glob
+        from utils.coinbase import detect_stored_coinbase_order_type, get_last_order_from_local_json_ledger
 
-        with open(transaction_log_path, 'r') as f:
-            transaction_log = json.load(f)
-
-        # Analyze current positions
+        # Analyze current positions from order ledger files
         long_positions = []
         short_positions = []
         total_exposure_usd = 0.0
 
-        for symbol, transactions in transaction_log.items():
-            if not transactions:
+        # Find all *_orders.json files
+        order_files = glob.glob('*_orders.json')
+
+        for order_file in order_files:
+            # Extract symbol from filename (e.g., "BTC-USD_orders.json" -> "BTC-USD")
+            symbol = order_file.replace('_orders.json', '')
+
+            # Get the last order for this symbol
+            last_order = get_last_order_from_local_json_ledger(symbol)
+            if not last_order:
                 continue
 
-            last_transaction = transactions[-1]
-            last_order_type = last_transaction.get('type', 'none')
+            # Check if this is an open position (last order type is 'buy')
+            last_order_type = detect_stored_coinbase_order_type(last_order)
 
             if last_order_type == 'buy':
-                position = {
-                    'symbol': symbol,
-                    'entry_price': last_transaction.get('fill_price', 0.0),
-                    'shares': last_transaction.get('number_of_shares', 0.0),
-                    'usd_value': last_transaction.get('usd_value', 0.0),
-                    'entry_time': last_transaction.get('datetime', '')
-                }
-                long_positions.append(position)
-                total_exposure_usd += position['usd_value']
+                # Extract order details from the filled order
+                order_data = last_order.get('order', {})
+                entry_price = float(order_data.get('average_filled_price', 0.0))
+                shares = float(order_data.get('filled_size', 0.0))
+                usd_value = float(order_data.get('total_value_after_fees', 0.0))
+                entry_time = order_data.get('created_time', '')
+
+                if shares > 0 and usd_value > 0:
+                    position = {
+                        'symbol': symbol,
+                        'entry_price': entry_price,
+                        'shares': shares,
+                        'usd_value': usd_value,
+                        'entry_time': entry_time
+                    }
+                    long_positions.append(position)
+                    total_exposure_usd += usd_value
 
         # Calculate correlation-adjusted risk
         # If holding multiple correlated longs, aggregate risk increases

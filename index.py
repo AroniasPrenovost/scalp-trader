@@ -23,7 +23,7 @@ from utils.coingecko_live import fetch_coingecko_current_data, should_update_coi
 
 # Coinbase-related
 # Coinbase helpers and define client
-from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order, get_asset_price, calculate_exchange_fee, save_order_data_to_local_json_ledger, get_last_order_from_local_json_ledger, reset_json_ledger_file, detect_stored_coinbase_order_type, save_transaction_record, get_current_fee_rates
+from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order, place_limit_buy_order, place_limit_sell_order, get_asset_price, calculate_exchange_fee, save_order_data_to_local_json_ledger, get_last_order_from_local_json_ledger, reset_json_ledger_file, detect_stored_coinbase_order_type, save_transaction_record, get_current_fee_rates, cancel_order, clear_order_ledger
 coinbase_client = get_coinbase_client()
 # custom coinbase listings check
 from utils.new_coinbase_listings import check_for_new_coinbase_listings
@@ -150,7 +150,7 @@ def get_hours_since_last_sell(symbol):
     Get the number of hours since the last sell for this asset.
     Returns None if no previous sells found.
     """
-    from datetime import datetime
+    from datetime import datetime, timezone
     from utils.trade_context import load_transaction_history
 
     try:
@@ -168,7 +168,7 @@ def get_hours_since_last_sell(symbol):
 
         # Parse timestamp and calculate hours elapsed
         last_sell_time = datetime.fromisoformat(last_sell_timestamp_str)
-        current_time = datetime.now()
+        current_time = datetime.now(timezone.utc)
         time_elapsed = current_time - last_sell_time
 
         return time_elapsed.total_seconds() / 3600
@@ -214,6 +214,7 @@ def iterate_wallets(interval_seconds):
         cooldown_hours_after_sell = config.get('cooldown_hours_after_sell', 0)
         low_confidence_wait_hours = config.get('low_confidence_wait_hours', 2.0)
         medium_confidence_wait_hours = config.get('medium_confidence_wait_hours', 1.0)
+        limit_order_timeout_minutes = config.get('limit_order_timeout_minutes', 60)
 
         # Volatility filter configuration
         volatility_config = config.get('volatility_filters', {})
@@ -636,16 +637,78 @@ def iterate_wallets(interval_seconds):
                     # Pending BUY / SELL order
                     if last_order_type == 'placeholder':
                         print('STATUS: Processing pending order, please standby...')
-                        last_order_id = ''
-                        last_order_id = last_order['order_id']
+                        # Extract order_id from different possible locations
+                        last_order_id = None
+                        if 'order_id' in last_order:
+                            last_order_id = last_order['order_id']
+                        elif 'success_response' in last_order and 'order_id' in last_order['success_response']:
+                            last_order_id = last_order['success_response']['order_id']
+                        elif 'response' in last_order and 'order_id' in last_order['response']:
+                            last_order_id = last_order['response']['order_id']
+
+                        if not last_order_id:
+                            print('ERROR: Could not find order_id in pending order')
+                            print('\n')
+                            continue
 
                         fulfilled_order_data = get_coinbase_order_by_order_id(coinbase_client, last_order_id)
                         print(fulfilled_order_data);
 
                         if fulfilled_order_data:
                             full_order_dict = fulfilled_order_data['order'] if isinstance(fulfilled_order_data, dict) else fulfilled_order_data.to_dict()
-                            save_order_data_to_local_json_ledger(symbol, full_order_dict)
-                            print('STATUS: Updated ledger with processed order data')
+                            order_status = full_order_dict.get('status', 'UNKNOWN')
+
+                            # Check if order is filled
+                            if order_status == 'FILLED':
+                                save_order_data_to_local_json_ledger(symbol, full_order_dict)
+                                print('STATUS: Updated ledger with processed order data')
+                            # Check if order has expired or is still pending
+                            elif order_status in ['OPEN', 'PENDING', 'QUEUED']:
+                                # Check order age against timeout
+                                from datetime import datetime, timezone
+                                order_created_time = full_order_dict.get('created_time')
+                                if order_created_time:
+                                    try:
+                                        # Parse ISO format timestamp
+                                        order_time = datetime.fromisoformat(order_created_time.replace('Z', '+00:00'))
+                                        current_time = datetime.now(timezone.utc)
+                                        age_minutes = (current_time - order_time).total_seconds() / 60
+
+                                        print(f"Order age: {age_minutes:.1f} minutes (timeout: {limit_order_timeout_minutes} minutes)")
+
+                                        if age_minutes >= limit_order_timeout_minutes:
+                                            print(f"⏰ LIMIT ORDER EXPIRED - Order has been pending for {age_minutes:.1f} minutes")
+                                            print(f"   Cancelling order {last_order_id} and restarting with fresh analysis...")
+
+                                            # Cancel the order
+                                            cancel_success = cancel_order(coinbase_client, last_order_id)
+
+                                            if cancel_success:
+                                                # Clear the ledger to restart trading
+                                                clear_order_ledger(symbol)
+
+                                                # Delete analysis file to force new analysis
+                                                delete_analysis_file(symbol)
+
+                                                print(f"✓ Order cancelled and ledger cleared. Will generate new analysis on next iteration.")
+                                            else:
+                                                print(f"⚠️  Failed to cancel order - will retry on next iteration")
+                                        else:
+                                            print(f'STATUS: Order still pending ({age_minutes:.1f}/{limit_order_timeout_minutes} min)')
+                                    except Exception as e:
+                                        print(f"Error parsing order timestamp: {e}")
+                                        print('STATUS: Still processing pending order')
+                                else:
+                                    print('STATUS: Still processing pending order (no timestamp found)')
+                            # Order was cancelled or failed
+                            elif order_status in ['CANCELLED', 'EXPIRED', 'FAILED', 'REJECTED']:
+                                print(f"⚠️  Order status: {order_status}")
+                                print("   Clearing ledger and restarting with fresh analysis...")
+                                clear_order_ledger(symbol)
+                                delete_analysis_file(symbol)
+                                print("✓ Ledger cleared. Will generate new analysis on next iteration.")
+                            else:
+                                print(f"Unknown order status: {order_status}")
                         else:
                             print('STATUS: Still processing pending order')
 
@@ -745,10 +808,19 @@ def iterate_wallets(interval_seconds):
                                                 print(f"   (scaling down due to {len(portfolio_state['long_positions'])} existing correlated positions)")
                                                 buy_amount = adjusted_buy_amount
 
-                                        shares_to_buy = math.floor(buy_amount / current_price) # Calculate whole shares (rounded down)
-                                        print(f"Calculated shares to buy: {shares_to_buy} (${buy_amount} / ${current_price})")
+                                        # Calculate shares: use whole shares if we can afford at least 1, otherwise use fractional
+                                        shares_calculation = buy_amount / current_price
+                                        if shares_calculation >= 1:
+                                            shares_to_buy = math.floor(shares_calculation)  # Round down to whole shares
+                                            print(f"Calculated shares to buy: {shares_to_buy} whole shares (${buy_amount} / ${current_price})")
+                                        else:
+                                            # Round fractional shares to 8 decimal places (satoshi precision)
+                                            shares_to_buy = round(shares_calculation, 8)
+                                            print(f"Calculated shares to buy: {shares_to_buy} fractional shares (${buy_amount} / ${current_price})")
+
                                         if shares_to_buy > 0:
-                                            place_market_buy_order(coinbase_client, symbol, shares_to_buy)
+                                            # Use limit order at the AI's recommended buy price
+                                            place_limit_buy_order(coinbase_client, symbol, shares_to_buy, BUY_AT_PRICE)
                                             # Store screenshot path for later use in transaction record
                                             # This will be retrieved from the ledger when we sell
                                             last_order = get_last_order_from_local_json_ledger(symbol)
@@ -761,7 +833,7 @@ def iterate_wallets(interval_seconds):
                                                     json.dump([last_order], file, indent=4)
 
                                         else:
-                                            print(f"STATUS: Buy amount ${buy_amount} is too small to buy whole shares at ${current_price}")
+                                            print(f"STATUS: Buy amount ${buy_amount} must be greater than 0")
                                     else:
                                         print("STATUS: No buy_amount_usd in analysis - skipping trade")
                                 else:
@@ -828,7 +900,9 @@ def iterate_wallets(interval_seconds):
                             )
 
                             if READY_TO_TRADE:
-                                place_market_sell_order(coinbase_client, symbol, number_of_shares, potential_profit, potential_profit_percentage)
+                                # Use limit order at stop loss price (with small buffer to ensure fill)
+                                limit_price = STOP_LOSS_PRICE * 0.995  # 0.5% below stop loss to ensure execution
+                                place_limit_sell_order(coinbase_client, symbol, number_of_shares, limit_price, potential_profit, potential_profit_percentage)
                                 # Save transaction record
                                 buy_timestamp = last_order['order'].get('created_time')
                                 buy_screenshot_path = last_order.get('buy_screenshot_path')  # Get screenshot path from ledger
@@ -896,7 +970,8 @@ def iterate_wallets(interval_seconds):
                             )
 
                             if READY_TO_TRADE:
-                                place_market_sell_order(coinbase_client, symbol, number_of_shares, potential_profit, potential_profit_percentage)
+                                # Use limit order at current price to lock in profit
+                                place_limit_sell_order(coinbase_client, symbol, number_of_shares, current_price, potential_profit, potential_profit_percentage)
                                 # Save transaction record
                                 buy_timestamp = last_order['order'].get('created_time')
                                 buy_screenshot_path = last_order.get('buy_screenshot_path')  # Get screenshot path from ledger
