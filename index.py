@@ -40,6 +40,9 @@ from utils.trade_context import build_trading_context, calculate_wallet_metrics
 # correlation manager for multi-asset portfolio risk
 from utils.correlation_manager import load_correlation_manager
 
+# daily summary email
+from utils.daily_summary import should_send_daily_summary, send_daily_summary_email
+
 # Terminal colors for output formatting
 class Colors:
     HEADER = '\033[95m'
@@ -203,8 +206,11 @@ def iterate_wallets(interval_seconds):
         # Get taxes and Coinbase fees
         federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
         fee_rates = get_current_fee_rates(coinbase_client)
-        coinbase_spot_taker_fee = fee_rates['taker_fee'] if fee_rates else 1.2 # Tier: 'Intro 1' fee
-        coinbase_spot_maker_fee = fee_rates['maker_fee'] if fee_rates else 0.6 # Tier: 'Intro 1' fee
+        # NOTE: Using MAKER fees because we place LIMIT orders (not market orders)
+        # Maker = adds liquidity to order book (lower fee, e.g., 0.4%)
+        # Taker = takes liquidity from order book (higher fee, e.g., 0.6%)
+        coinbase_spot_taker_fee = fee_rates['taker_fee'] if fee_rates else 1.2 # Tier: 'Intro 1' taker fee
+        coinbase_spot_maker_fee = fee_rates['maker_fee'] if fee_rates else 0.6 # Tier: 'Intro 1' maker fee
 
         # load config
         config = load_config('config.json')
@@ -557,7 +563,7 @@ def iterate_wallets(interval_seconds):
                             analysis = analyze_market_with_openai(
                                 symbol,
                                 coin_data,
-                                taker_fee_percentage=coinbase_spot_taker_fee,
+                                maker_fee_percentage=coinbase_spot_maker_fee,
                                 tax_rate_percentage=federal_tax_rate,
                                 min_profit_target_percentage=min_profit_target_percentage,
                                 chart_paths=chart_paths,
@@ -620,6 +626,16 @@ def iterate_wallets(interval_seconds):
                             print(f"   {symbol}: {relative_strength['asset_change_pct']:+.2f}% | BTC: {relative_strength['btc_change_pct']:+.2f}%")
                             print(f"   Outperformance: {relative_strength['outperformance']:+.2f}% ({relative_strength['strength_category']})")
 
+                    # If we have a pending order or open position, use the ORIGINAL analysis from ledger
+                    # This ensures the recommendation stays locked while in a trade
+                    if last_order_type in ['placeholder', 'buy']:
+                        original_analysis = last_order.get('original_analysis')
+                        if original_analysis:
+                            print(f"✓ Using LOCKED original analysis from buy decision (generated at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(original_analysis.get('analyzed_at', 0)))})")
+                            analysis = original_analysis
+                        else:
+                            print(f"⚠️  No original analysis found in ledger - using current analysis file")
+
                     # Set trading parameters from analysis
                     BUY_AT_PRICE = analysis.get('buy_in_price')
                     PROFIT_PERCENTAGE = analysis.get('profit_target_percentage')
@@ -660,8 +676,22 @@ def iterate_wallets(interval_seconds):
 
                             # Check if order is filled
                             if order_status == 'FILLED':
-                                save_order_data_to_local_json_ledger(symbol, full_order_dict)
-                                print('STATUS: Updated ledger with processed order data')
+                                # Preserve the original analysis and screenshot from the placeholder before replacing
+                                # These need to persist until the sell transaction is recorded
+                                if 'original_analysis' in last_order:
+                                    full_order_dict['original_analysis'] = last_order['original_analysis']
+                                    print('✓ Preserved original analysis from placeholder order')
+                                if 'buy_screenshot_path' in last_order:
+                                    full_order_dict['buy_screenshot_path'] = last_order['buy_screenshot_path']
+                                    print('✓ Preserved buy screenshot path from placeholder order')
+
+                                # Now replace the entire ledger with the filled order (including preserved data)
+                                # This prevents the ledger from accumulating multiple entries
+                                import json
+                                file_name = f"{symbol}_orders.json"
+                                with open(file_name, 'w') as file:
+                                    json.dump([full_order_dict], file, indent=4)
+                                print('STATUS: Updated ledger with filled order data (analysis preserved until sell)')
                             # Check if order has expired or is still pending
                             elif order_status in ['OPEN', 'PENDING', 'QUEUED']:
                                 # Check order age against timeout
@@ -820,18 +850,22 @@ def iterate_wallets(interval_seconds):
 
                                         if shares_to_buy > 0:
                                             # Use limit order at the AI's recommended buy price
-                                            place_limit_buy_order(coinbase_client, symbol, shares_to_buy, BUY_AT_PRICE)
-                                            # Store screenshot path for later use in transaction record
+                                            limit_price = round(BUY_AT_PRICE, 2)  # Round to 2 decimals for API precision requirements
+                                            place_limit_buy_order(coinbase_client, symbol, shares_to_buy, limit_price)
+
+                                            # Store screenshot path AND original analysis for later use in transaction record
                                             # This will be retrieved from the ledger when we sell
+                                            # IMPORTANT: Store the original analysis NOW to prevent it from being overwritten
                                             last_order = get_last_order_from_local_json_ledger(symbol)
                                             if last_order:
                                                 last_order['buy_screenshot_path'] = buy_screenshot_path
-                                                # Re-save the ledger with the screenshot path
+                                                last_order['original_analysis'] = analysis.copy()  # Store the analysis that drove this buy decision
+                                                # Re-save the ledger with both the screenshot path and analysis
                                                 import json
                                                 file_name = f"{symbol}_orders.json"
                                                 with open(file_name, 'w') as file:
                                                     json.dump([last_order], file, indent=4)
-
+                                                print(f"✓ Stored buy screenshot and original AI analysis in ledger (to preserve buy reasoning)")
                                         else:
                                             print(f"STATUS: Buy amount ${buy_amount} must be greater than 0")
                                     else:
@@ -853,13 +887,17 @@ def iterate_wallets(interval_seconds):
                         entry_position_value_after_fees = float(last_order['order']['total_value_after_fees'])
                         print(f"entry_position_value_after_fees: {entry_position_value_after_fees}")
 
+                        # Note: Original analysis is already loaded earlier (at line 629-637) for both 'buy' and 'placeholder'
+                        # So we're guaranteed to be using the locked analysis that drove the buy decision
+
                         number_of_shares = float(last_order['order']['filled_size'])
                         print('number_of_shares: ', number_of_shares)
 
                         # calculate profits if we were going to sell now
                         pre_tax_profit = (current_price - entry_price) * number_of_shares
 
-                        sell_now_exchange_fee = calculate_exchange_fee(current_price, number_of_shares, coinbase_spot_taker_fee)
+                        # Use maker fee since we're placing limit sell orders
+                        sell_now_exchange_fee = calculate_exchange_fee(current_price, number_of_shares, coinbase_spot_maker_fee)
                         print(f"sell_now_exchange_fee: {sell_now_exchange_fee}")
 
                         sell_now_tax_owed = (federal_tax_rate / 100) * pre_tax_profit
@@ -901,7 +939,7 @@ def iterate_wallets(interval_seconds):
 
                             if READY_TO_TRADE:
                                 # Use limit order at stop loss price (with small buffer to ensure fill)
-                                limit_price = STOP_LOSS_PRICE * 0.995  # 0.5% below stop loss to ensure execution
+                                limit_price = round(STOP_LOSS_PRICE * 0.995, 2)  # 0.5% below stop loss to ensure execution, rounded to 2 decimals
                                 place_limit_sell_order(coinbase_client, symbol, number_of_shares, limit_price, potential_profit, potential_profit_percentage)
                                 # Save transaction record
                                 buy_timestamp = last_order['order'].get('created_time')
@@ -971,7 +1009,8 @@ def iterate_wallets(interval_seconds):
 
                             if READY_TO_TRADE:
                                 # Use limit order at current price to lock in profit
-                                place_limit_sell_order(coinbase_client, symbol, number_of_shares, current_price, potential_profit, potential_profit_percentage)
+                                limit_price = round(current_price, 2)  # Round to 2 decimals for API precision requirements
+                                place_limit_sell_order(coinbase_client, symbol, number_of_shares, limit_price, potential_profit, potential_profit_percentage)
                                 # Save transaction record
                                 buy_timestamp = last_order['order'].get('created_time')
                                 buy_screenshot_path = last_order.get('buy_screenshot_path')  # Get screenshot path from ledger
@@ -1033,6 +1072,21 @@ def iterate_wallets(interval_seconds):
                     sol_prices_for_correlation,
                     eth_prices_for_correlation
                 )
+
+        #
+        # Daily Summary Email: Check if it's time to send daily summary
+        #
+        try:
+            daily_summary_enabled = config.get('daily_summary', {}).get('enabled', True)
+            daily_summary_hour = config.get('daily_summary', {}).get('send_hour', 8)
+
+            if daily_summary_enabled and should_send_daily_summary(target_hour=daily_summary_hour):
+                print(f"\n{Colors.BOLD}{Colors.CYAN}{'='*60}")
+                print(f"  📧 Sending Daily Summary Email")
+                print(f"{'='*60}{Colors.ENDC}\n")
+                send_daily_summary_email(config['wallets'])
+        except Exception as e:
+            print(f"{Colors.RED}Error sending daily summary email: {e}{Colors.ENDC}")
 
         #
         #

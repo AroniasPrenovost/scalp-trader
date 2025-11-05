@@ -5,7 +5,7 @@ import base64
 from openai import OpenAI
 from io import BytesIO
 
-def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_rate_percentage=0, min_profit_target_percentage=3.0, chart_paths=None, trading_context=None, graph_image_path=None, range_percentage_from_min=None, config=None, btc_context=None):
+def analyze_market_with_openai(symbol, coin_data, maker_fee_percentage=0, tax_rate_percentage=0, min_profit_target_percentage=3.0, chart_paths=None, trading_context=None, graph_image_path=None, range_percentage_from_min=None, config=None, btc_context=None):
     """
     Analyzes market data using OpenAI's API to determine key support/resistance levels
     and trading recommendations.
@@ -19,7 +19,7 @@ def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_ra
             - coin_volume_24h_LIST
             - current_volume_percentage_change_24h
             - coin_price_percentage_change_24h_LIST
-        taker_fee_percentage: Exchange taker fee as a percentage (e.g., 0.6 for 0.6%)
+        maker_fee_percentage: Exchange maker fee as a percentage (e.g., 0.4 for 0.4%) - used for limit orders
         tax_rate_percentage: Federal tax rate as a percentage (e.g., 37 for 37%)
         min_profit_target_percentage: Minimum profit target percentage (e.g., 3.0 for 3%)
         chart_paths: Optional dictionary with paths to multi-timeframe charts {'short_term': path, 'medium_term': path, 'long_term': path}
@@ -49,7 +49,8 @@ def analyze_market_with_openai(symbol, coin_data, taker_fee_percentage=0, tax_ra
     avg_price = sum(prices) / len(prices) if prices else 0
 
     # Calculate total cost burden (fees on both buy and sell, plus taxes on profit)
-    total_fee_percentage = taker_fee_percentage * 2  # Buy fee + Sell fee
+    # Using maker fees since we use limit orders that sit on the order book
+    total_fee_percentage = maker_fee_percentage * 2  # Buy fee + Sell fee
     total_cost_burden = total_fee_percentage + tax_rate_percentage
 
     # Build historical context section if provided
@@ -282,7 +283,8 @@ VOLUME ANALYSIS GUIDELINES (Limited by rolling 24h snapshot data):
 - Include "volume_trend" field: "increasing", "decreasing", or "stable" based on the snapshot chart
 
 Trading Costs (IMPORTANT - Factor these into your recommendations):
-- Exchange Taker Fee: {taker_fee_percentage}% per trade ({total_fee_percentage}% total for buy + sell)
+- Exchange Maker Fee: {maker_fee_percentage}% per trade ({total_fee_percentage}% total for buy + sell)
+  NOTE: Maker fees apply because we use LIMIT ORDERS that sit on the order book
 - Tax Rate on Profits: {tax_rate_percentage}%
 - Minimum Profitable Trade: Must exceed ~{total_cost_burden:.2f}% to break even after all costs
 - Minimum Required Profit Target: {min_profit_target_percentage}% (NET profit after all costs)
