@@ -643,9 +643,9 @@ def iterate_wallets(interval_seconds):
                     TRADE_RECOMMENDATION = analysis.get('trade_recommendation', 'buy')
                     CONFIDENCE_LEVEL = analysis.get('confidence_level', 'low')
                     STOP_LOSS_PRICE = analysis.get('stop_loss')
-                    print('<< AI STRATEGY >>')
+                    print('--- AI STRATEGY ---')
                     print(f"buy_at: ${BUY_AT_PRICE}, stop_loss: ${STOP_LOSS_PRICE if STOP_LOSS_PRICE else 'N/A'}, target_profit_%: {PROFIT_PERCENTAGE}%")
-                    print(f"support: ${analysis.get('major_support', 'N/A')}, resistance: ${analysis.get('major_resistance', 'N/A')}")
+                    print(f"current_price: ${current_price}, support: ${analysis.get('major_support', 'N/A')}, resistance: ${analysis.get('major_resistance', 'N/A')}")
                     print(f"market_trend: {analysis.get('market_trend', 'N/A')}, confidence: {CONFIDENCE_LEVEL}")
 
                     #
@@ -901,7 +901,7 @@ def iterate_wallets(interval_seconds):
                     #
                     # SELL logic
                     elif last_order_type == 'buy':
-                        print('<< OPEN POSITION >>')
+                        print('--- OPEN POSITION ---')
 
                         # Handle both possible order structures: last_order['order']['field'] or last_order['field']
                         order_data = last_order.get('order', last_order)
@@ -922,7 +922,7 @@ def iterate_wallets(interval_seconds):
                             continue
 
                         entry_price = float(order_data['average_filled_price'])
-                        print(f"entry_price: {entry_price}")
+                        print(f"entry_price: ${entry_price}")
 
                         # Try multiple field names for total value
                         entry_position_value_after_fees = None
@@ -954,49 +954,50 @@ def iterate_wallets(interval_seconds):
                         # STEP 1: Calculate current market value of your position
                         current_position_value_usd = current_price * number_of_shares
                         print(f"\n--- PROFIT CALCULATION ---")
-                        print(f"Current market value: ${current_position_value_usd:.2f}")
+                        print(f"current_market_value: ${current_position_value_usd:.2f}")
                         print(f"  ({number_of_shares:.8f} shares × ${current_price:.2f}/share)")
 
                         # STEP 2: Calculate what you originally paid (including entry fees)
                         total_cost_basis_usd = entry_position_value_after_fees
-                        print(f"\nYour total cost basis: ${total_cost_basis_usd:.2f}")
+                        print(f"total_cost_basis: ${total_cost_basis_usd:.2f}")
                         print(f"  (Original purchase price + entry fees)")
 
                         # STEP 3: Calculate gross profit (before exit fees and taxes)
                         gross_profit_before_exit_costs = current_position_value_usd - total_cost_basis_usd
-                        print(f"\nGross profit (before exit costs): ${gross_profit_before_exit_costs:.2f}")
+                        print(f"gross_profit (before exit costs): ${gross_profit_before_exit_costs:.2f}")
                         print(f"  (${current_position_value_usd:.2f} - ${total_cost_basis_usd:.2f})")
 
                         # STEP 4: Calculate exit/sell exchange fee (using maker fee for limit orders)
                         exit_exchange_fee_usd = calculate_exchange_fee(current_price, number_of_shares, coinbase_spot_maker_fee)
-                        print(f"\nExit exchange fee: ${exit_exchange_fee_usd:.2f}")
+                        print(f"exit_exchange_fee: ${exit_exchange_fee_usd:.2f}")
                         print(f"  ({coinbase_spot_maker_fee}% maker fee on ${current_position_value_usd:.2f})")
 
-                        # STEP 5: Calculate price difference (for tax purposes)
-                        price_gain_per_share = current_price - entry_price
-                        unrealized_gain_usd = price_gain_per_share * number_of_shares
-                        print(f"\nUnrealized capital gain: ${unrealized_gain_usd:.2f}")
-                        print(f"  (${current_price:.2f} - ${entry_price:.2f}) × {number_of_shares:.8f} shares")
+                        # STEP 5: Calculate capital gain (for tax purposes)
+                        # Capital gain = current value - total cost basis (including entry fees)
+                        # This is the same as gross profit before exit costs
+                        unrealized_gain_usd = current_position_value_usd - total_cost_basis_usd
+                        print(f"unrealized_capital_gain: ${unrealized_gain_usd:.2f}")
+                        print(f"  (${current_position_value_usd:.2f} - ${total_cost_basis_usd:.2f})")
 
                         # STEP 6: Calculate taxes owed on capital gains
                         capital_gains_tax_usd = (federal_tax_rate / 100) * unrealized_gain_usd
-                        print(f"\nCapital gains tax owed: ${capital_gains_tax_usd:.2f}")
+                        print(f"capital_gains_tax_owed: ${capital_gains_tax_usd:.2f}")
                         print(f"  ({federal_tax_rate}% tax rate on ${unrealized_gain_usd:.2f} gain)")
 
                         # STEP 7: Calculate NET PROFIT (your actual take-home after ALL costs)
                         net_profit_after_all_costs_usd = current_position_value_usd - total_cost_basis_usd - exit_exchange_fee_usd - capital_gains_tax_usd
-                        print(f"\nNET PROFIT (take-home): ${net_profit_after_all_costs_usd:.2f}")
+                        print(f"NET_PROFIT (take-home): ${net_profit_after_all_costs_usd:.2f}")
                         print(f"  Formula: Current Value - Cost Basis - Exit Fee - Taxes")
                         print(f"  ${current_position_value_usd:.2f} - ${total_cost_basis_usd:.2f} - ${exit_exchange_fee_usd:.2f} - ${capital_gains_tax_usd:.2f}")
 
                         # STEP 8: Calculate percentage return on investment
                         net_profit_percentage = (net_profit_after_all_costs_usd / total_cost_basis_usd) * 100
-                        print(f"\nNET PROFIT %: {net_profit_percentage:.4f}%")
+                        print(f"NET_PROFIT %: {net_profit_percentage:.4f}%")
                         print(f"  (${net_profit_after_all_costs_usd:.2f} ÷ ${total_cost_basis_usd:.2f} × 100)")
 
                         # Use the maximum of AI's target and configured minimum
                         effective_profit_target = max(PROFIT_PERCENTAGE, min_profit_target_percentage)
-                        print(f"Effective profit target: {effective_profit_target}% (AI: {PROFIT_PERCENTAGE}%, Min: {min_profit_target_percentage}%)")
+                        print(f"effective_profit_target: {effective_profit_target}% (AI: {PROFIT_PERCENTAGE}%, Min: {min_profit_target_percentage}%)")
 
                         # Check for stop loss trigger
                         if STOP_LOSS_PRICE and current_price <= STOP_LOSS_PRICE:
