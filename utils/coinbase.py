@@ -85,7 +85,6 @@ def detect_stored_coinbase_order_type(last_order):
     order_data = last_order.get('order', last_order)
     has_filled_data = 'average_filled_price' in order_data or 'filled_size' in order_data
 
-    print(f"[DEBUG] Checking order type: has_filled_data={has_filled_data}")
     if not has_filled_data:
         print(f"[DEBUG] Order has no filled data - Available keys: {list(order_data.keys())[:10]}")  # Show first 10 keys
 
@@ -122,10 +121,8 @@ def detect_stored_coinbase_order_type(last_order):
 
     if order_side:
         detected_type = order_side.lower()
-        print(f"[DEBUG] Detected order type: {detected_type}")
         return detected_type
     else:
-        print(f"[DEBUG] No order side found, returning 'placeholder'")
         return 'placeholder'
 
 #

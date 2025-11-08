@@ -473,7 +473,7 @@ def iterate_wallets(interval_seconds):
                     entry_price = 0
                     last_order = get_last_order_from_local_json_ledger(symbol)
                     last_order_type = detect_stored_coinbase_order_type(last_order)
-                    print(f"[MAIN] Last order type detected: '{last_order_type}'")
+                    # print(f"[MAIN] Last order type detected: '{last_order_type}'")
 
                     #
                     #
@@ -643,11 +643,10 @@ def iterate_wallets(interval_seconds):
                     TRADE_RECOMMENDATION = analysis.get('trade_recommendation', 'buy')
                     CONFIDENCE_LEVEL = analysis.get('confidence_level', 'low')
                     STOP_LOSS_PRICE = analysis.get('stop_loss')
-                    print(f"AI Strategy: Buy at ${BUY_AT_PRICE}, Target profit {PROFIT_PERCENTAGE}%")
-                    print(f"Support: ${analysis.get('major_support', 'N/A')} | Resistance: ${analysis.get('major_resistance', 'N/A')}")
-                    print(f"Market Trend: {analysis.get('market_trend', 'N/A')} | Confidence: {CONFIDENCE_LEVEL}")
-                    print(f"Stop Loss: ${STOP_LOSS_PRICE if STOP_LOSS_PRICE else 'N/A'}")
-                    print(f"Trade Recommendation: {TRADE_RECOMMENDATION}")
+                    print('<< AI STRATEGY >>')
+                    print(f"buy_at: ${BUY_AT_PRICE}, stop_loss: ${STOP_LOSS_PRICE if STOP_LOSS_PRICE else 'N/A'}, target_profit_%: {PROFIT_PERCENTAGE}%")
+                    print(f"support: ${analysis.get('major_support', 'N/A')}, resistance: ${analysis.get('major_resistance', 'N/A')}")
+                    print(f"market_trend: {analysis.get('market_trend', 'N/A')}, confidence: {CONFIDENCE_LEVEL}")
 
                     #
                     #
@@ -671,10 +670,6 @@ def iterate_wallets(interval_seconds):
                         fulfilled_order_data = get_coinbase_order_by_order_id(coinbase_client, last_order_id)
 
                         if fulfilled_order_data:
-                            # Debug: Check what type and structure we got
-                            # print(f"[DEBUG] fulfilled_order_data type: {type(fulfilled_order_data)}")
-                            if isinstance(fulfilled_order_data, dict):
-
                             # Convert to dict if it's an object
                             if isinstance(fulfilled_order_data, dict):
                                 full_order_dict = fulfilled_order_data
@@ -684,15 +679,10 @@ def iterate_wallets(interval_seconds):
                             # Now check if we need to extract nested 'order' key (this is common with Coinbase responses)
                             if 'order' in full_order_dict and isinstance(full_order_dict['order'], dict):
                                 full_order_dict = full_order_dict['order']
-                                print(f"[DEBUG] Extracted nested 'order' structure")
-
-                            # Debug: Print what fields are available
-                            print(f"Order fields available: {list(full_order_dict.keys())}")
 
                             # If there are not many fields, print the full structure (redacted)
                             if len(full_order_dict.keys()) <= 20:
                                 import json
-                                print(f"Full order structure:\n{json.dumps(full_order_dict, indent=2, default=str)}")
 
                             order_status = full_order_dict.get('status', 'UNKNOWN')
                             print(f"Order status: {order_status}")
@@ -911,7 +901,7 @@ def iterate_wallets(interval_seconds):
                     #
                     # SELL logic
                     elif last_order_type == 'buy':
-                        print('STATUS: Looking to SELL')
+                        print('<< OPEN POSITION >>')
 
                         # Handle both possible order structures: last_order['order']['field'] or last_order['field']
                         order_data = last_order.get('order', last_order)
