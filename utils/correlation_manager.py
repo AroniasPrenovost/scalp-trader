@@ -189,7 +189,8 @@ class CorrelationManager:
 
             if last_order_type == 'buy':
                 # Extract order details from the filled order
-                order_data = last_order.get('order', {})
+                # Handle both structures: with nested 'order' key or direct fields
+                order_data = last_order.get('order', last_order)
                 entry_price = float(order_data.get('average_filled_price', 0.0))
                 shares = float(order_data.get('filled_size', 0.0))
                 usd_value = float(order_data.get('total_value_after_fees', 0.0))

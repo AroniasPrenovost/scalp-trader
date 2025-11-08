@@ -73,13 +73,59 @@ def reset_json_ledger_file(symbol):
 
 
 def detect_stored_coinbase_order_type(last_order):
+    """
+    Detect order type from various possible object structures.
+    Returns: 'buy', 'sell', 'placeholder', or 'none'
+    """
     if last_order is None:
         return 'none'
-    if 'order' in last_order: # if 'order' key exists, it's a finalized order
-        if 'side' in last_order['order']:
-            type = last_order['order']['side']
-            return type.lower()
+
+    # First, check if this order has been filled by looking for filled order fields
+    # An order is only considered a completed buy/sell if it has these fields
+    order_data = last_order.get('order', last_order)
+    has_filled_data = 'average_filled_price' in order_data or 'filled_size' in order_data
+
+    print(f"[DEBUG] Checking order type: has_filled_data={has_filled_data}")
+    if not has_filled_data:
+        print(f"[DEBUG] Order has no filled data - Available keys: {list(order_data.keys())[:10]}")  # Show first 10 keys
+
+    # If it doesn't have filled data, it's still a placeholder regardless of 'side'
+    if not has_filled_data:
+        return 'placeholder'
+
+    # Check different possible locations for order side/type
+    order_side = None
+
+    # Location 1: last_order['order']['side']
+    if 'order' in last_order and 'side' in last_order['order']:
+        order_side = last_order['order']['side']
+
+    # Location 2: last_order['success_response']['side']
+    elif 'success_response' in last_order and 'side' in last_order['success_response']:
+        order_side = last_order['success_response']['side']
+
+    # Location 3: last_order['response']['side']
+    elif 'response' in last_order and 'side' in last_order['response']:
+        order_side = last_order['response']['side']
+
+    # Location 4: last_order['side'] (direct property)
+    elif 'side' in last_order:
+        order_side = last_order['side']
+
+    # Location 5: last_order['order_configuration']['side'] (for advanced orders)
+    elif 'order_configuration' in last_order and isinstance(last_order['order_configuration'], dict):
+        # Check nested order configuration structures
+        for key in last_order['order_configuration']:
+            if isinstance(last_order['order_configuration'][key], dict) and 'side' in last_order['order_configuration'][key]:
+                order_side = last_order['order_configuration'][key]['side']
+                break
+
+    if order_side:
+        detected_type = order_side.lower()
+        print(f"[DEBUG] Detected order type: {detected_type}")
+        return detected_type
     else:
+        print(f"[DEBUG] No order side found, returning 'placeholder'")
         return 'placeholder'
 
 #
@@ -179,6 +225,8 @@ def get_coinbase_order_by_order_id(client, order_id):
     try:
         order = client.get_order(order_id=order_id)
         if order:
+            print(f"[DEBUG get_order] Fetched order type: {type(order)}")
+            print(f"[DEBUG get_order] Order object attributes: {dir(order)[:20] if hasattr(order, '__dict__') else 'No __dict__'}")
             return order
         else:
             print(f"No order found with ID: {order_id}.")

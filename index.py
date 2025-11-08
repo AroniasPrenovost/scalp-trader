@@ -473,6 +473,7 @@ def iterate_wallets(interval_seconds):
                     entry_price = 0
                     last_order = get_last_order_from_local_json_ledger(symbol)
                     last_order_type = detect_stored_coinbase_order_type(last_order)
+                    print(f"[MAIN] Last order type detected: '{last_order_type}'")
 
                     #
                     #
@@ -668,11 +669,33 @@ def iterate_wallets(interval_seconds):
                             continue
 
                         fulfilled_order_data = get_coinbase_order_by_order_id(coinbase_client, last_order_id)
-                        print(fulfilled_order_data);
 
                         if fulfilled_order_data:
-                            full_order_dict = fulfilled_order_data['order'] if isinstance(fulfilled_order_data, dict) else fulfilled_order_data.to_dict()
+                            # Debug: Check what type and structure we got
+                            # print(f"[DEBUG] fulfilled_order_data type: {type(fulfilled_order_data)}")
+                            if isinstance(fulfilled_order_data, dict):
+
+                            # Convert to dict if it's an object
+                            if isinstance(fulfilled_order_data, dict):
+                                full_order_dict = fulfilled_order_data
+                            else:
+                                full_order_dict = fulfilled_order_data.to_dict()
+
+                            # Now check if we need to extract nested 'order' key (this is common with Coinbase responses)
+                            if 'order' in full_order_dict and isinstance(full_order_dict['order'], dict):
+                                full_order_dict = full_order_dict['order']
+                                print(f"[DEBUG] Extracted nested 'order' structure")
+
+                            # Debug: Print what fields are available
+                            print(f"Order fields available: {list(full_order_dict.keys())}")
+
+                            # If there are not many fields, print the full structure (redacted)
+                            if len(full_order_dict.keys()) <= 20:
+                                import json
+                                print(f"Full order structure:\n{json.dumps(full_order_dict, indent=2, default=str)}")
+
                             order_status = full_order_dict.get('status', 'UNKNOWN')
+                            print(f"Order status: {order_status}")
 
                             # Check if order is filled
                             if order_status == 'FILLED':
@@ -738,7 +761,16 @@ def iterate_wallets(interval_seconds):
                                 delete_analysis_file(symbol)
                                 print("✓ Ledger cleared. Will generate new analysis on next iteration.")
                             else:
-                                print(f"Unknown order status: {order_status}")
+                                print(f"⚠️  Unknown order status: {order_status}")
+                                print(f"   Available order fields: {list(full_order_dict.keys())}")
+                                if 'order' in full_order_dict:
+                                    print(f"   Nested 'order' detected - fields inside: {list(full_order_dict['order'].keys()) if isinstance(full_order_dict['order'], dict) else 'Not a dict'}")
+                                    # If there's a nested order structure, try to extract status from it
+                                    nested_order = full_order_dict.get('order', {})
+                                    if isinstance(nested_order, dict) and 'status' in nested_order:
+                                        nested_status = nested_order.get('status')
+                                        print(f"   Found nested status: {nested_status}")
+                                print("   Will retry on next iteration...")
                         else:
                             print('STATUS: Still processing pending order')
 
@@ -881,16 +913,46 @@ def iterate_wallets(interval_seconds):
                     elif last_order_type == 'buy':
                         print('STATUS: Looking to SELL')
 
-                        entry_price = float(last_order['order']['average_filled_price'])
+                        # Handle both possible order structures: last_order['order']['field'] or last_order['field']
+                        order_data = last_order.get('order', last_order)
+
+                        # Check if this order has been filled and has the necessary data
+                        order_status = order_data.get('status', 'UNKNOWN')
+                        if order_status not in ['FILLED', 'UNKNOWN']:
+                            print(f'WARNING: Order status is {order_status}, not FILLED. Skipping sell logic.')
+                            print('\n')
+                            continue
+
+                        # Safely extract order fields with fallbacks
+                        if 'average_filled_price' not in order_data:
+                            print('ERROR: Order data missing required fields for sell logic')
+                            print(f'Available fields: {list(order_data.keys())}')
+                            print('This may indicate the order has not been fully filled/updated yet')
+                            print('\n')
+                            continue
+
+                        entry_price = float(order_data['average_filled_price'])
                         print(f"entry_price: {entry_price}")
 
-                        entry_position_value_after_fees = float(last_order['order']['total_value_after_fees'])
+                        # Try multiple field names for total value
+                        entry_position_value_after_fees = None
+                        if 'total_value_after_fees' in order_data:
+                            entry_position_value_after_fees = float(order_data['total_value_after_fees'])
+                        elif 'filled_value' in order_data and 'total_fees' in order_data:
+                            entry_position_value_after_fees = float(order_data['filled_value']) + float(order_data['total_fees'])
+                        elif 'filled_value' in order_data:
+                            entry_position_value_after_fees = float(order_data['filled_value'])
+                        else:
+                            print('ERROR: Cannot find total value field in order data')
+                            print(f'Available fields: {list(order_data.keys())}')
+                            print('\n')
+                            continue
                         print(f"entry_position_value_after_fees: {entry_position_value_after_fees}")
 
                         # Note: Original analysis is already loaded earlier (at line 629-637) for both 'buy' and 'placeholder'
                         # So we're guaranteed to be using the locked analysis that drove the buy decision
 
-                        number_of_shares = float(last_order['order']['filled_size'])
+                        number_of_shares = float(order_data['filled_size'])
                         print('number_of_shares: ', number_of_shares)
 
                         # calculate profits if we were going to sell now
@@ -942,7 +1004,7 @@ def iterate_wallets(interval_seconds):
                                 limit_price = round(STOP_LOSS_PRICE * 0.995, 2)  # 0.5% below stop loss to ensure execution, rounded to 2 decimals
                                 place_limit_sell_order(coinbase_client, symbol, number_of_shares, limit_price, potential_profit, potential_profit_percentage)
                                 # Save transaction record
-                                buy_timestamp = last_order['order'].get('created_time')
+                                buy_timestamp = order_data.get('created_time')
                                 buy_screenshot_path = last_order.get('buy_screenshot_path')  # Get screenshot path from ledger
 
                                 # Build market context at entry
@@ -1012,7 +1074,7 @@ def iterate_wallets(interval_seconds):
                                 limit_price = round(current_price, 2)  # Round to 2 decimals for API precision requirements
                                 place_limit_sell_order(coinbase_client, symbol, number_of_shares, limit_price, potential_profit, potential_profit_percentage)
                                 # Save transaction record
-                                buy_timestamp = last_order['order'].get('created_time')
+                                buy_timestamp = order_data.get('created_time')
                                 buy_screenshot_path = last_order.get('buy_screenshot_path')  # Get screenshot path from ledger
 
                                 # Build market context at entry
