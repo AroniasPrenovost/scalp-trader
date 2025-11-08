@@ -937,7 +937,7 @@ def iterate_wallets(interval_seconds):
                             print(f'Available fields: {list(order_data.keys())}')
                             print('\n')
                             continue
-                        print(f"entry_position_value_after_fees: {entry_position_value_after_fees}")
+                        print(f"entry_position_value_after_fees: ${entry_position_value_after_fees}")
 
                         # Note: Original analysis is already loaded earlier (at line 629-637) for both 'buy' and 'placeholder'
                         # So we're guaranteed to be using the locked analysis that drove the buy decision
@@ -945,21 +945,54 @@ def iterate_wallets(interval_seconds):
                         number_of_shares = float(order_data['filled_size'])
                         print('number_of_shares: ', number_of_shares)
 
-                        # calculate profits if we were going to sell now
-                        pre_tax_profit = (current_price - entry_price) * number_of_shares
+                        # ============================================================
+                        # PROFIT CALCULATION BREAKDOWN (Step-by-Step)
+                        # ============================================================
+                        # This calculates your actual take-home profit if you sold right now.
+                        # All costs (entry fees, exit fees, taxes) are accounted for.
 
-                        # Use maker fee since we're placing limit sell orders
-                        sell_now_exchange_fee = calculate_exchange_fee(current_price, number_of_shares, coinbase_spot_maker_fee)
-                        print(f"sell_now_exchange_fee: {sell_now_exchange_fee}")
+                        # STEP 1: Calculate current market value of your position
+                        current_position_value_usd = current_price * number_of_shares
+                        print(f"\n--- PROFIT CALCULATION ---")
+                        print(f"Current market value: ${current_position_value_usd:.2f}")
+                        print(f"  ({number_of_shares:.8f} shares × ${current_price:.2f}/share)")
 
-                        sell_now_tax_owed = (federal_tax_rate / 100) * pre_tax_profit
-                        print(f"sell_now_taxes_owed: {sell_now_tax_owed}")
+                        # STEP 2: Calculate what you originally paid (including entry fees)
+                        total_cost_basis_usd = entry_position_value_after_fees
+                        print(f"\nYour total cost basis: ${total_cost_basis_usd:.2f}")
+                        print(f"  (Original purchase price + entry fees)")
 
-                        potential_profit = (current_price * number_of_shares) - entry_position_value_after_fees - sell_now_exchange_fee - sell_now_tax_owed
-                        print(f"potential_profit_USD: {potential_profit}")
+                        # STEP 3: Calculate gross profit (before exit fees and taxes)
+                        gross_profit_before_exit_costs = current_position_value_usd - total_cost_basis_usd
+                        print(f"\nGross profit (before exit costs): ${gross_profit_before_exit_costs:.2f}")
+                        print(f"  (${current_position_value_usd:.2f} - ${total_cost_basis_usd:.2f})")
 
-                        potential_profit_percentage = (potential_profit / entry_position_value_after_fees) * 100
-                        print(f"potential_profit_percentage: {potential_profit_percentage:.4f}%")
+                        # STEP 4: Calculate exit/sell exchange fee (using maker fee for limit orders)
+                        exit_exchange_fee_usd = calculate_exchange_fee(current_price, number_of_shares, coinbase_spot_maker_fee)
+                        print(f"\nExit exchange fee: ${exit_exchange_fee_usd:.2f}")
+                        print(f"  ({coinbase_spot_maker_fee}% maker fee on ${current_position_value_usd:.2f})")
+
+                        # STEP 5: Calculate price difference (for tax purposes)
+                        price_gain_per_share = current_price - entry_price
+                        unrealized_gain_usd = price_gain_per_share * number_of_shares
+                        print(f"\nUnrealized capital gain: ${unrealized_gain_usd:.2f}")
+                        print(f"  (${current_price:.2f} - ${entry_price:.2f}) × {number_of_shares:.8f} shares")
+
+                        # STEP 6: Calculate taxes owed on capital gains
+                        capital_gains_tax_usd = (federal_tax_rate / 100) * unrealized_gain_usd
+                        print(f"\nCapital gains tax owed: ${capital_gains_tax_usd:.2f}")
+                        print(f"  ({federal_tax_rate}% tax rate on ${unrealized_gain_usd:.2f} gain)")
+
+                        # STEP 7: Calculate NET PROFIT (your actual take-home after ALL costs)
+                        net_profit_after_all_costs_usd = current_position_value_usd - total_cost_basis_usd - exit_exchange_fee_usd - capital_gains_tax_usd
+                        print(f"\nNET PROFIT (take-home): ${net_profit_after_all_costs_usd:.2f}")
+                        print(f"  Formula: Current Value - Cost Basis - Exit Fee - Taxes")
+                        print(f"  ${current_position_value_usd:.2f} - ${total_cost_basis_usd:.2f} - ${exit_exchange_fee_usd:.2f} - ${capital_gains_tax_usd:.2f}")
+
+                        # STEP 8: Calculate percentage return on investment
+                        net_profit_percentage = (net_profit_after_all_costs_usd / total_cost_basis_usd) * 100
+                        print(f"\nNET PROFIT %: {net_profit_percentage:.4f}%")
+                        print(f"  (${net_profit_after_all_costs_usd:.2f} ÷ ${total_cost_basis_usd:.2f} × 100)")
 
                         # Use the maximum of AI's target and configured minimum
                         effective_profit_target = max(PROFIT_PERCENTAGE, min_profit_target_percentage)
@@ -992,7 +1025,7 @@ def iterate_wallets(interval_seconds):
                             if READY_TO_TRADE:
                                 # Use limit order at stop loss price (with small buffer to ensure fill)
                                 limit_price = round(STOP_LOSS_PRICE * 0.995, 2)  # 0.5% below stop loss to ensure execution, rounded to 2 decimals
-                                place_limit_sell_order(coinbase_client, symbol, number_of_shares, limit_price, potential_profit, potential_profit_percentage)
+                                place_limit_sell_order(coinbase_client, symbol, number_of_shares, limit_price, net_profit_after_all_costs_usd, net_profit_percentage)
                                 # Save transaction record
                                 buy_timestamp = order_data.get('created_time')
                                 buy_screenshot_path = last_order.get('buy_screenshot_path')  # Get screenshot path from ledger
@@ -1018,11 +1051,11 @@ def iterate_wallets(interval_seconds):
                                     symbol=symbol,
                                     buy_price=entry_price,
                                     sell_price=current_price,
-                                    potential_profit_percentage=potential_profit_percentage,
-                                    gross_profit=pre_tax_profit,
-                                    taxes=sell_now_tax_owed,
-                                    exchange_fees=sell_now_exchange_fee,
-                                    total_profit=potential_profit,
+                                    potential_profit_percentage=net_profit_percentage,
+                                    gross_profit=unrealized_gain_usd,
+                                    taxes=capital_gains_tax_usd,
+                                    exchange_fees=exit_exchange_fee_usd,
+                                    total_profit=net_profit_after_all_costs_usd,
                                     buy_timestamp=buy_timestamp,
                                     buy_screenshot_path=buy_screenshot_path,
                                     analysis=analysis,
@@ -1036,7 +1069,7 @@ def iterate_wallets(interval_seconds):
                                 print('STATUS: Trading disabled')
 
                         # Check for profit target
-                        elif potential_profit_percentage >= effective_profit_target:
+                        elif net_profit_percentage >= effective_profit_target:
                             print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
                             # Filter data to match snapshot chart (3 months = 2160 hours)
                             sell_chart_hours = 2160  # 90 days
@@ -1062,7 +1095,7 @@ def iterate_wallets(interval_seconds):
                             if READY_TO_TRADE:
                                 # Use limit order at current price to lock in profit
                                 limit_price = round(current_price, 2)  # Round to 2 decimals for API precision requirements
-                                place_limit_sell_order(coinbase_client, symbol, number_of_shares, limit_price, potential_profit, potential_profit_percentage)
+                                place_limit_sell_order(coinbase_client, symbol, number_of_shares, limit_price, net_profit_after_all_costs_usd, net_profit_percentage)
                                 # Save transaction record
                                 buy_timestamp = order_data.get('created_time')
                                 buy_screenshot_path = last_order.get('buy_screenshot_path')  # Get screenshot path from ledger
@@ -1088,11 +1121,11 @@ def iterate_wallets(interval_seconds):
                                     symbol=symbol,
                                     buy_price=entry_price,
                                     sell_price=current_price,
-                                    potential_profit_percentage=potential_profit_percentage,
-                                    gross_profit=pre_tax_profit,
-                                    taxes=sell_now_tax_owed,
-                                    exchange_fees=sell_now_exchange_fee,
-                                    total_profit=potential_profit,
+                                    potential_profit_percentage=net_profit_percentage,
+                                    gross_profit=unrealized_gain_usd,
+                                    taxes=capital_gains_tax_usd,
+                                    exchange_fees=exit_exchange_fee_usd,
+                                    total_profit=net_profit_after_all_costs_usd,
                                     buy_timestamp=buy_timestamp,
                                     buy_screenshot_path=buy_screenshot_path,
                                     analysis=analysis,
