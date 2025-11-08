@@ -953,7 +953,6 @@ def iterate_wallets(interval_seconds):
 
                         # STEP 1: Calculate current market value of your position
                         current_position_value_usd = current_price * number_of_shares
-                        print(f"\n--- PROFIT CALCULATION ---")
                         print(f"current_market_value: ${current_position_value_usd:.2f}")
                         print(f"  ({number_of_shares:.8f} shares × ${current_price:.2f}/share)")
 
