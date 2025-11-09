@@ -993,6 +993,7 @@ def iterate_wallets(interval_seconds):
                         net_profit_percentage = (net_profit_after_all_costs_usd / total_cost_basis_usd) * 100
                         print(f"NET_PROFIT %: {net_profit_percentage:.4f}%")
                         print(f"  (${net_profit_after_all_costs_usd:.2f} ÷ ${total_cost_basis_usd:.2f} × 100)")
+                        print(f"  net_profit_usd: ${net_profit_after_all_costs_usd:.2f}")
 
                         # Use the maximum of AI's target and configured minimum
                         effective_profit_target = max(PROFIT_PERCENTAGE, min_profit_target_percentage)
