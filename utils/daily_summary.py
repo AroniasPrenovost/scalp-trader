@@ -19,7 +19,6 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from utils.trade_context import load_transaction_history, calculate_wallet_metrics
 from utils.email import send_email_notification
-from utils.correlation_manager import CorrelationManager
 
 
 def get_daily_transactions(symbol: str, date: Optional[datetime] = None) -> List[Dict]:
