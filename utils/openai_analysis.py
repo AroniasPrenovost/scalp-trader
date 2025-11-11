@@ -5,7 +5,7 @@ import base64
 from openai import OpenAI
 from io import BytesIO
 
-def analyze_market_with_openai(symbol, coin_data, maker_fee_percentage=0, tax_rate_percentage=0, min_profit_target_percentage=3.0, chart_paths=None, trading_context=None, graph_image_path=None, range_percentage_from_min=None, config=None):
+def analyze_market_with_openai(symbol, coin_data, exchange_fee_percentage=0, tax_rate_percentage=0, min_profit_target_percentage=3.0, chart_paths=None, trading_context=None, graph_image_path=None, range_percentage_from_min=None, config=None):
     """
     Analyzes market data using OpenAI's API to determine key support/resistance levels
     and trading recommendations.
@@ -19,7 +19,7 @@ def analyze_market_with_openai(symbol, coin_data, maker_fee_percentage=0, tax_ra
             - coin_volume_24h_LIST
             - current_volume_percentage_change_24h
             - coin_price_percentage_change_24h_LIST
-        maker_fee_percentage: Exchange maker fee as a percentage (e.g., 0.4 for 0.4%) - used for limit orders
+        exchange_fee_percentage: Exchange fee as a percentage (e.g., 1.2 for 1.2% taker fee on market orders)
         tax_rate_percentage: Federal tax rate as a percentage (e.g., 37 for 37%)
         min_profit_target_percentage: Minimum profit target percentage (e.g., 3.0 for 3%)
         chart_paths: Optional dictionary with paths to multi-timeframe charts {'short_term': path, 'medium_term': path, 'long_term': path}
@@ -49,8 +49,8 @@ def analyze_market_with_openai(symbol, coin_data, maker_fee_percentage=0, tax_ra
     avg_price = sum(prices) / len(prices) if prices else 0
 
     # Calculate total cost burden (fees on both buy and sell, plus taxes on profit)
-    # Using maker fees since we use limit orders that sit on the order book
-    total_fee_percentage = maker_fee_percentage * 2  # Buy fee + Sell fee
+    # Using exchange fees (taker fees for market orders)
+    total_fee_percentage = exchange_fee_percentage * 2  # Buy fee + Sell fee
     total_cost_burden = total_fee_percentage + tax_rate_percentage
 
     # Build historical context section if provided
@@ -563,6 +563,184 @@ def delete_analysis_file(symbol):
     except Exception as e:
         print(f"ERROR: Failed to delete analysis file for {symbol}: {e}")
         return False
+
+
+def adjust_analysis_for_actual_fill(symbol, original_analysis, actual_fill_price, current_price, chart_paths=None, exchange_fee_percentage=0, tax_rate_percentage=0):
+    """
+    Asks AI to re-analyze and adjust stop loss and profit targets based on actual fill price.
+    Called when there's a significant delta (>3%) between AI's recommended price and actual fill.
+
+    Args:
+        symbol: The trading pair symbol
+        original_analysis: The original AI analysis dictionary
+        actual_fill_price: The actual price the order was filled at
+        current_price: Current market price
+        chart_paths: Dictionary with chart paths (uses 72h, 14d, 30d for context)
+        exchange_fee_percentage: Exchange fee percentage (taker fee for market orders)
+        tax_rate_percentage: Federal tax rate percentage
+
+    Returns:
+        Adjusted analysis dictionary with updated stop_loss, sell_price, and profit_target_percentage
+    """
+    api_key = os.environ.get('OPENAI_API_KEY')
+    if not api_key:
+        print("ERROR: OPENAI_API_KEY not found in environment variables")
+        return None
+
+    client = OpenAI(api_key=api_key)
+
+    # Extract key data from original analysis
+    recommended_buy_price = original_analysis.get('buy_in_price')
+    original_stop_loss = original_analysis.get('stop_loss')
+    original_sell_price = original_analysis.get('sell_price')
+    original_profit_pct = original_analysis.get('profit_target_percentage')
+
+    # Calculate the delta
+    fill_delta_pct = ((actual_fill_price - recommended_buy_price) / recommended_buy_price) * 100
+
+    # Calculate original risk/reward percentages for reference
+    original_risk_pct = ((recommended_buy_price - original_stop_loss) / recommended_buy_price) * 100
+    original_reward_pct = ((original_sell_price - recommended_buy_price) / recommended_buy_price) * 100
+
+    prompt = f"""POST-FILL ADJUSTMENT ANALYSIS for {symbol}
+
+SITUATION:
+- Original AI recommended buy price: ${recommended_buy_price}
+- Actual fill price: ${actual_fill_price}
+- Fill delta: {fill_delta_pct:+.2f}% ({'better' if fill_delta_pct < 0 else 'worse'} than expected)
+- Current market price: ${current_price}
+
+ORIGINAL ANALYSIS:
+- Stop loss: ${original_stop_loss} ({original_risk_pct:.2f}% risk from recommended entry)
+- Sell target: ${original_sell_price} ({original_reward_pct:.2f}% reward from recommended entry)
+- Profit target: {original_profit_pct}% NET after fees/taxes
+- Risk/Reward ratio: {original_analysis.get('risk_reward_ratio', 'N/A')}
+- Confidence: {original_analysis.get('confidence_level', 'N/A')}
+- Reasoning: {original_analysis.get('reasoning', 'N/A')}
+
+SUPPORT/RESISTANCE LEVELS (from original analysis):
+- Major support: ${original_analysis.get('major_support', 'N/A')}
+- Minor support: ${original_analysis.get('minor_support', 'N/A')}
+- Major resistance: ${original_analysis.get('major_resistance', 'N/A')}
+- Minor resistance: ${original_analysis.get('minor_resistance', 'N/A')}
+
+CHARTS PROVIDED:
+- 72-hour chart: Shows immediate market context around the fill
+- 14-day chart: Shows current swing structure and key levels
+- 30-day chart: Validates support/resistance levels are still relevant
+
+TASK:
+Adjust the stop loss and profit targets based on the ACTUAL fill price of ${actual_fill_price}.
+Review the charts to ensure adjusted levels respect current market structure.
+
+REQUIREMENTS:
+1. Maintain similar risk/reward ratio (~{original_analysis.get('risk_reward_ratio', 3.0)})
+2. Ensure stop loss is BELOW actual entry (${actual_fill_price})
+3. Respect support/resistance levels visible in the charts
+4. Account for trading costs: {exchange_fee_percentage * 2}% fees + {tax_rate_percentage}% tax
+5. If fill was better than expected, tighten stop loss proportionally while maintaining R/R
+6. If fill was worse than expected, consider if trade thesis is still valid given current chart structure
+
+Respond with ONLY valid JSON (no markdown):
+{{
+    "adjusted_stop_loss": <new stop loss price below ${actual_fill_price}>,
+    "adjusted_sell_price": <new sell target price>,
+    "adjusted_profit_target_percentage": <new NET profit % after costs>,
+    "adjusted_risk_reward_ratio": <calculated as (sell - entry) / (entry - stop)>,
+    "adjustment_reasoning": <brief explanation of changes, max 150 chars>
+}}
+
+VALIDATION:
+- adjusted_stop_loss MUST be < ${actual_fill_price}
+- adjusted_sell_price MUST be > ${actual_fill_price}
+- adjusted_risk_reward_ratio MUST be >= 2.0"""
+
+    try:
+        # Prepare messages with charts
+        messages = [
+            {
+                "role": "system",
+                "content": "You are a technical analyst adjusting trade parameters based on actual fill prices. Output ONLY valid JSON with no markdown formatting."
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ]
+
+        # Add charts if available (72h, 14d, 30d for context)
+        if chart_paths and isinstance(chart_paths, dict):
+            content_array = [{"type": "text", "text": prompt}]
+
+            # Priority order: 72h (immediate), 14d (swing), 30d (trend validation)
+            timeframe_order = ['72_hour', '14_day', '30_day']
+
+            for timeframe in timeframe_order:
+                if timeframe in chart_paths and chart_paths[timeframe] and os.path.exists(chart_paths[timeframe]):
+                    with open(chart_paths[timeframe], "rb") as image_file:
+                        base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+                        content_array.append({
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/png;base64,{base64_image}",
+                                "detail": "high"
+                            }
+                        })
+                        print(f"  Added {timeframe} chart for post-fill adjustment")
+
+            messages[1]["content"] = content_array
+
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=messages,
+            temperature=0.2,
+            max_tokens=300
+        )
+
+        response_text = response.choices[0].message.content.strip()
+
+        # Remove markdown code blocks if present
+        if response_text.startswith("```json"):
+            response_text = response_text[7:]
+        if response_text.startswith("```"):
+            response_text = response_text[3:]
+        if response_text.endswith("```"):
+            response_text = response_text[:-3]
+        response_text = response_text.strip()
+
+        adjustment_result = json.loads(response_text)
+
+        # Create updated analysis by copying original and updating key fields
+        adjusted_analysis = original_analysis.copy()
+        adjusted_analysis['stop_loss'] = adjustment_result['adjusted_stop_loss']
+        adjusted_analysis['sell_price'] = adjustment_result['adjusted_sell_price']
+        adjusted_analysis['profit_target_percentage'] = adjustment_result['adjusted_profit_target_percentage']
+        adjusted_analysis['risk_reward_ratio'] = adjustment_result['adjusted_risk_reward_ratio']
+        adjusted_analysis['buy_in_price'] = actual_fill_price  # Update to actual fill price
+
+        # Add metadata about the adjustment
+        adjusted_analysis['fill_adjustment'] = {
+            'original_recommended_price': recommended_buy_price,
+            'actual_fill_price': actual_fill_price,
+            'fill_delta_percentage': fill_delta_pct,
+            'adjustment_reasoning': adjustment_result['adjustment_reasoning'],
+            'adjusted_at': time.time()
+        }
+
+        print(f"✓ AI post-fill adjustment completed:")
+        print(f"  Original stop: ${original_stop_loss:.2f} → Adjusted: ${adjustment_result['adjusted_stop_loss']:.2f}")
+        print(f"  Original target: ${original_sell_price:.2f} → Adjusted: ${adjustment_result['adjusted_sell_price']:.2f}")
+        print(f"  Reasoning: {adjustment_result['adjustment_reasoning']}")
+
+        return adjusted_analysis
+
+    except json.JSONDecodeError as e:
+        print(f"ERROR: Failed to parse AI adjustment response: {e}")
+        print(f"Response text: {response_text}")
+        return None
+    except Exception as e:
+        print(f"ERROR: AI post-fill adjustment failed: {e}")
+        return None
 
 
 def should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours=1, low_confidence_wait_hours=2, medium_confidence_wait_hours=1, coin_data=None, config=None):

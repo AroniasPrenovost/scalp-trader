@@ -203,11 +203,11 @@ def iterate_wallets(interval_seconds):
         # Get taxes and Coinbase fees
         federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
         fee_rates = get_current_fee_rates(coinbase_client)
-        # NOTE: Using MAKER fees because we place LIMIT orders (not market orders)
-        # Maker = adds liquidity to order book (lower fee, e.g., 0.4%)
-        # Taker = takes liquidity from order book (higher fee, e.g., 0.6%)
+        # NOTE: Using TAKER fees because we place MARKET orders (not limit orders)
+        # Maker = adds liquidity to order book (lower fee, e.g., 0.4%) - used for limit orders
+        # Taker = takes liquidity from order book (higher fee, e.g., 1.2%) - used for market orders
         coinbase_spot_taker_fee = fee_rates['taker_fee'] if fee_rates else 1.2 # Tier: 'Intro 1' taker fee
-        coinbase_spot_maker_fee = fee_rates['maker_fee'] if fee_rates else 0.6 # Tier: 'Intro 1' maker fee
+        coinbase_spot_maker_fee = fee_rates['maker_fee'] if fee_rates else 0.6 # Tier: 'Intro 1' maker fee (not used)
 
         # load config
         config = load_config('config.json')
@@ -391,8 +391,14 @@ def iterate_wallets(interval_seconds):
                     # Ensure all values are floats (safety check)
                     coin_prices_LIST = [float(p) for p in coin_prices_LIST]
 
-                    min_price = min(coin_prices_LIST)
-                    max_price = max(coin_prices_LIST)
+                    # Calculate volatility using only last 24 hours of data (not full retention period)
+                    # Each data point is 1 hour apart, so last 24 points = last 24 hours
+                    volatility_window_hours = 24
+                    volatility_data_points = int(volatility_window_hours / (INTERVAL_SECONDS / 3600))
+                    recent_prices = coin_prices_LIST[-volatility_data_points:] if len(coin_prices_LIST) >= volatility_data_points else coin_prices_LIST
+
+                    min_price = min(recent_prices)
+                    max_price = max(recent_prices)
                     range_percentage_from_min = calculate_percentage_from_min(min_price, max_price)
 
                     #
@@ -418,8 +424,14 @@ def iterate_wallets(interval_seconds):
                         else:
                             print(f"Warning: No snapshot charts generated (insufficient data)")
 
-                    # Volatility check - skip trading if outside acceptable range
-                    if enable_volatility_checks:
+                    # Check for open or pending positions BEFORE applying volatility filter
+                    # This ensures we can sell existing positions even when volatility is low
+                    last_order = get_last_order_from_local_json_ledger(symbol)
+                    last_order_type = detect_stored_coinbase_order_type(last_order)
+                    has_open_position = last_order_type in ['placeholder', 'buy']
+
+                    # Volatility check - skip trading if outside acceptable range (but NOT if we have an open position)
+                    if enable_volatility_checks and not has_open_position:
                         if range_percentage_from_min < min_range_percentage:
                             print(f"STATUS: Volatility too low ({range_percentage_from_min:.2f}% < {min_range_percentage}%) - skipping trade analysis")
                             print(f"Market is too flat for profitable trading (not enough price movement)")
@@ -432,6 +444,8 @@ def iterate_wallets(interval_seconds):
                             continue
                         else:
                             print(f"Volatility: {range_percentage_from_min:.2f}% (within acceptable range {min_range_percentage}-{max_range_percentage}%)")
+                    elif enable_volatility_checks and has_open_position:
+                        print(f"Volatility: {range_percentage_from_min:.2f}% (outside range, but allowing trade management for open position)")
 
                     coin_data = {
                         'current_price': current_price,
@@ -444,9 +458,8 @@ def iterate_wallets(interval_seconds):
                     #
                     #
                     # Manage order data (order types, order info, etc.) in local ledger files
+                    # Note: last_order and last_order_type already retrieved above (before volatility check)
                     entry_price = 0
-                    last_order = get_last_order_from_local_json_ledger(symbol)
-                    last_order_type = detect_stored_coinbase_order_type(last_order)
                     # print(f"[MAIN] Last order type detected: '{last_order_type}'")
 
                     #
@@ -513,7 +526,7 @@ def iterate_wallets(interval_seconds):
                             analysis = analyze_market_with_openai(
                                 symbol,
                                 coin_data,
-                                maker_fee_percentage=coinbase_spot_maker_fee,
+                                exchange_fee_percentage=coinbase_spot_taker_fee,  # Using taker fee for market orders
                                 tax_rate_percentage=federal_tax_rate,
                                 min_profit_target_percentage=min_profit_target_percentage,
                                 chart_paths=chart_paths,
@@ -607,6 +620,74 @@ def iterate_wallets(interval_seconds):
                                     full_order_dict['buy_screenshot_path'] = last_order['buy_screenshot_path']
                                     print('✓ Preserved buy screenshot path from placeholder order')
 
+                                # POST-FILL ADJUSTMENT: Check if actual fill price differs significantly from AI recommendation
+                                if 'original_analysis' in full_order_dict:
+                                    original_analysis = full_order_dict['original_analysis']
+                                    ai_recommended_price = original_analysis.get('buy_in_price')
+                                    actual_fill_price = float(full_order_dict.get('average_filled_price', 0))
+
+                                    if ai_recommended_price and actual_fill_price > 0:
+                                        fill_delta_pct = abs((actual_fill_price - ai_recommended_price) / ai_recommended_price) * 100
+
+                                        print(f"Fill price check: AI recommended ${ai_recommended_price:.2f}, filled at ${actual_fill_price:.2f} (delta: {fill_delta_pct:.2f}%)")
+
+                                        # Threshold: 3% delta triggers AI re-analysis
+                                        if fill_delta_pct >= 3.0:
+                                            print(f"⚠️  Significant fill delta detected ({fill_delta_pct:.2f}%) - triggering AI post-fill adjustment...")
+
+                                            # Generate fresh charts for AI analysis
+                                            chart_paths = plot_multi_timeframe_charts(
+                                                current_timestamp=time.time(),
+                                                interval=INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                                                symbol=symbol,
+                                                price_data=coin_prices_LIST,
+                                                volume_data=coin_volume_24h_LIST,
+                                                analysis=original_analysis
+                                            )
+
+                                            # Call AI to adjust analysis based on actual fill
+                                            from utils.openai_analysis import adjust_analysis_for_actual_fill
+                                            adjusted_analysis = adjust_analysis_for_actual_fill(
+                                                symbol=symbol,
+                                                original_analysis=original_analysis,
+                                                actual_fill_price=actual_fill_price,
+                                                current_price=current_price,
+                                                chart_paths=chart_paths,
+                                                exchange_fee_percentage=coinbase_spot_taker_fee,  # Using taker fee for market orders
+                                                tax_rate_percentage=federal_tax_rate
+                                            )
+
+                                            if adjusted_analysis:
+                                                full_order_dict['original_analysis'] = adjusted_analysis
+                                                print('✓ Updated analysis with AI-adjusted targets based on actual fill price')
+                                            else:
+                                                print('⚠️  AI adjustment failed - keeping original analysis')
+
+                                        elif fill_delta_pct >= 0.5:  # Small delta: use percentage-based adjustment
+                                            print(f"Small fill delta ({fill_delta_pct:.2f}%) - applying percentage-based adjustment...")
+
+                                            # Calculate original risk/reward percentages
+                                            original_stop_loss = original_analysis.get('stop_loss')
+                                            original_sell_price = original_analysis.get('sell_price')
+
+                                            if original_stop_loss and original_sell_price:
+                                                # Calculate percentage distances from AI's recommended entry
+                                                stop_loss_pct = ((ai_recommended_price - original_stop_loss) / ai_recommended_price)
+                                                profit_target_pct = ((original_sell_price - ai_recommended_price) / ai_recommended_price)
+
+                                                # Apply same percentages to actual fill price
+                                                adjusted_stop_loss = actual_fill_price * (1 - stop_loss_pct)
+                                                adjusted_sell_price = actual_fill_price * (1 + profit_target_pct)
+
+                                                # Update analysis with adjusted values
+                                                full_order_dict['original_analysis']['buy_in_price'] = actual_fill_price
+                                                full_order_dict['original_analysis']['stop_loss'] = adjusted_stop_loss
+                                                full_order_dict['original_analysis']['sell_price'] = adjusted_sell_price
+
+                                                print(f"  Stop loss: ${original_stop_loss:.2f} → ${adjusted_stop_loss:.2f}")
+                                                print(f"  Sell price: ${original_sell_price:.2f} → ${adjusted_sell_price:.2f}")
+                                                print('✓ Applied percentage-based adjustment (maintained R/R ratio)')
+
                                 # Now replace the entire ledger with the filled order (including preserved data)
                                 # This prevents the ledger from accumulating multiple entries
                                 import json
@@ -686,70 +767,66 @@ def iterate_wallets(interval_seconds):
                         elif MARKET_TREND == 'bearish':
                             print(f"STATUS: Market trend is BEARISH - not executing buy orders in bearish markets")
                         else:
-                            print(f"STATUS: Looking to BUY at ${BUY_AT_PRICE} (Confidence: {CONFIDENCE_LEVEL})")
-                            if current_price <= BUY_AT_PRICE:
-                                # Filter data to match snapshot chart (3 months = 2160 hours)
-                                buy_chart_hours = 2160  # 90 days
-                                buy_chart_data_points = int((buy_chart_hours * 60) / INTERVAL_SAVE_DATA_EVERY_X_MINUTES)
-                                buy_chart_prices = coin_prices_LIST[-buy_chart_data_points:] if len(coin_prices_LIST) > buy_chart_data_points else coin_prices_LIST
-                                buy_chart_min = min(buy_chart_prices)
-                                buy_chart_max = max(buy_chart_prices)
-                                buy_chart_range_pct = calculate_percentage_from_min(buy_chart_min, buy_chart_max)
+                            print(f"STATUS: Executing BUY at market price ~${current_price} (AI target was ${BUY_AT_PRICE}, Confidence: {CONFIDENCE_LEVEL})")
+                            # Filter data to match snapshot chart (3 months = 2160 hours)
+                            buy_chart_hours = 2160  # 90 days
+                            buy_chart_data_points = int((buy_chart_hours * 60) / INTERVAL_SAVE_DATA_EVERY_X_MINUTES)
+                            buy_chart_prices = coin_prices_LIST[-buy_chart_data_points:] if len(coin_prices_LIST) > buy_chart_data_points else coin_prices_LIST
+                            buy_chart_min = min(buy_chart_prices)
+                            buy_chart_max = max(buy_chart_prices)
+                            buy_chart_range_pct = calculate_percentage_from_min(buy_chart_min, buy_chart_max)
 
-                                buy_screenshot_path = plot_graph(
-                                    time.time(),
-                                    INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
-                                    symbol,
-                                    buy_chart_prices,
-                                    buy_chart_min,
-                                    buy_chart_max,
-                                    buy_chart_range_pct,
-                                    entry_price,
-                                    analysis=analysis,
-                                    buy_event=True
-                                )
-                                if READY_TO_TRADE:
-                                    # Get buy amount from LLM analysis - required
-                                    if analysis and 'buy_amount_usd' in analysis:
-                                        buy_amount = analysis.get('buy_amount_usd')
-                                        print(f"Using buy amount: ${buy_amount} (from LLM analysis)")
+                            buy_screenshot_path = plot_graph(
+                                time.time(),
+                                INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                                symbol,
+                                buy_chart_prices,
+                                buy_chart_min,
+                                buy_chart_max,
+                                buy_chart_range_pct,
+                                entry_price,
+                                analysis=analysis,
+                                buy_event=True
+                            )
+                            if READY_TO_TRADE:
+                                # Get buy amount from LLM analysis - required
+                                if analysis and 'buy_amount_usd' in analysis:
+                                    buy_amount = analysis.get('buy_amount_usd')
+                                    print(f"Using buy amount: ${buy_amount} (from LLM analysis)")
 
-                                        # Calculate shares: use whole shares if we can afford at least 1, otherwise use fractional
-                                        shares_calculation = buy_amount / current_price
-                                        if shares_calculation >= 1:
-                                            shares_to_buy = math.floor(shares_calculation)  # Round down to whole shares
-                                            print(f"Calculated shares to buy: {shares_to_buy} whole shares (${buy_amount} / ${current_price})")
-                                        else:
-                                            # Round fractional shares to 8 decimal places (satoshi precision)
-                                            shares_to_buy = round(shares_calculation, 8)
-                                            print(f"Calculated shares to buy: {shares_to_buy} fractional shares (${buy_amount} / ${current_price})")
-
-                                        if shares_to_buy > 0:
-                                            # Use limit order at the AI's recommended buy price
-                                            limit_price = round(BUY_AT_PRICE, 2)  # Round to 2 decimals for API precision requirements
-                                            place_limit_buy_order(coinbase_client, symbol, shares_to_buy, limit_price)
-
-                                            # Store screenshot path AND original analysis for later use in transaction record
-                                            # This will be retrieved from the ledger when we sell
-                                            # IMPORTANT: Store the original analysis NOW to prevent it from being overwritten
-                                            last_order = get_last_order_from_local_json_ledger(symbol)
-                                            if last_order:
-                                                last_order['buy_screenshot_path'] = buy_screenshot_path
-                                                last_order['original_analysis'] = analysis.copy()  # Store the analysis that drove this buy decision
-                                                # Re-save the ledger with both the screenshot path and analysis
-                                                import json
-                                                file_name = f"{symbol}_orders.json"
-                                                with open(file_name, 'w') as file:
-                                                    json.dump([last_order], file, indent=4)
-                                                print(f"✓ Stored buy screenshot and original AI analysis in ledger (to preserve buy reasoning)")
-                                        else:
-                                            print(f"STATUS: Buy amount ${buy_amount} must be greater than 0")
+                                    # Calculate shares: use whole shares if we can afford at least 1, otherwise use fractional
+                                    shares_calculation = buy_amount / current_price
+                                    if shares_calculation >= 1:
+                                        shares_to_buy = math.floor(shares_calculation)  # Round down to whole shares
+                                        print(f"Calculated shares to buy: {shares_to_buy} whole shares (${buy_amount} / ${current_price})")
                                     else:
-                                        print("STATUS: No buy_amount_usd in analysis - skipping trade")
+                                        # Round fractional shares to 8 decimal places (satoshi precision)
+                                        shares_to_buy = round(shares_calculation, 8)
+                                        print(f"Calculated shares to buy: {shares_to_buy} fractional shares (${buy_amount} / ${current_price})")
+
+                                    if shares_to_buy > 0:
+                                        # Use market order for guaranteed execution
+                                        place_market_buy_order(coinbase_client, symbol, shares_to_buy)
+
+                                        # Store screenshot path AND original analysis for later use in transaction record
+                                        # This will be retrieved from the ledger when we sell
+                                        # IMPORTANT: Store the original analysis NOW to prevent it from being overwritten
+                                        last_order = get_last_order_from_local_json_ledger(symbol)
+                                        if last_order:
+                                            last_order['buy_screenshot_path'] = buy_screenshot_path
+                                            last_order['original_analysis'] = analysis.copy()  # Store the analysis that drove this buy decision
+                                            # Re-save the ledger with both the screenshot path and analysis
+                                            import json
+                                            file_name = f"{symbol}_orders.json"
+                                            with open(file_name, 'w') as file:
+                                                json.dump([last_order], file, indent=4)
+                                            print(f"✓ Stored buy screenshot and original AI analysis in ledger (to preserve buy reasoning)")
+                                    else:
+                                        print(f"STATUS: Buy amount ${buy_amount} must be greater than 0")
                                 else:
-                                    print('STATUS: Trading disabled')
+                                    print("STATUS: No buy_amount_usd in analysis - skipping trade")
                             else:
-                                print(f"Current price ${current_price} is above buy target ${BUY_AT_PRICE}")
+                                print('STATUS: Trading disabled')
 
                     #
                     #
@@ -820,10 +897,10 @@ def iterate_wallets(interval_seconds):
                         print(f"gross_profit (before exit costs): ${gross_profit_before_exit_costs:.2f}")
                         print(f"  (${current_position_value_usd:.2f} - ${total_cost_basis_usd:.2f})")
 
-                        # STEP 4: Calculate exit/sell exchange fee (using maker fee for limit orders)
-                        exit_exchange_fee_usd = calculate_exchange_fee(current_price, number_of_shares, coinbase_spot_maker_fee)
+                        # STEP 4: Calculate exit/sell exchange fee (using taker fee for market orders)
+                        exit_exchange_fee_usd = calculate_exchange_fee(current_price, number_of_shares, coinbase_spot_taker_fee)
                         print(f"exit_exchange_fee: ${exit_exchange_fee_usd:.2f}")
-                        print(f"  ({coinbase_spot_maker_fee}% maker fee on ${current_position_value_usd:.2f})")
+                        print(f"  ({coinbase_spot_taker_fee}% taker fee on ${current_position_value_usd:.2f})")
 
                         # STEP 5: Calculate capital gain (for tax purposes)
                         # Capital gain = current value - total cost basis (including entry fees)
@@ -878,9 +955,8 @@ def iterate_wallets(interval_seconds):
                             )
 
                             if READY_TO_TRADE:
-                                # Use limit order at stop loss price (with small buffer to ensure fill)
-                                limit_price = round(STOP_LOSS_PRICE * 0.995, 2)  # 0.5% below stop loss to ensure execution, rounded to 2 decimals
-                                place_limit_sell_order(coinbase_client, symbol, number_of_shares, limit_price, net_profit_after_all_costs_usd, net_profit_percentage)
+                                # Use market order for guaranteed execution on stop loss
+                                place_market_sell_order(coinbase_client, symbol, number_of_shares, net_profit_after_all_costs_usd, net_profit_percentage)
                                 # Save transaction record
                                 buy_timestamp = order_data.get('created_time')
                                 buy_screenshot_path = last_order.get('buy_screenshot_path')  # Get screenshot path from ledger
@@ -948,9 +1024,8 @@ def iterate_wallets(interval_seconds):
                             )
 
                             if READY_TO_TRADE:
-                                # Use limit order at current price to lock in profit
-                                limit_price = round(current_price, 2)  # Round to 2 decimals for API precision requirements
-                                place_limit_sell_order(coinbase_client, symbol, number_of_shares, limit_price, net_profit_after_all_costs_usd, net_profit_percentage)
+                                # Use market order for guaranteed execution on profit target
+                                place_market_sell_order(coinbase_client, symbol, number_of_shares, net_profit_after_all_costs_usd, net_profit_percentage)
                                 # Save transaction record
                                 buy_timestamp = order_data.get('created_time')
                                 buy_screenshot_path = last_order.get('buy_screenshot_path')  # Get screenshot path from ledger

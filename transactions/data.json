@@ -1,1 +1,116 @@
-[]
+[
+  {
+    "symbol": "ZEC-USD",
+    "buy_price": 569.2070261427,
+    "sell_price": 563.4,
+    "potential_profit_percentage": -1.7651468458741726,
+    "timestamp": "2025-11-10T21:02:16.251874+00:00",
+    "gross_profit": -10.36068235184166,
+    "taxes": -2.4865637644419984,
+    "exchange_fees": 2.2536,
+    "total_profit": -10.127718587399663,
+    "time_held_position": "4.01 hours",
+    "time_held_seconds": 14430.191233,
+    "buy_timestamp": "2025-11-10T17:01:46.060664Z",
+    "buy_screenshot_path": "./screenshots/ZEC-USD_1h-candles_buy_20251110090140.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 19.71090670170828,
+      "current_trend": "bullish",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $596.47, sell $663.28 = 11.2% gross, 3.5% net after costs. Strong support at $596.47, volume increasing, RSI neutral."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 546.06725452,
+      "minor_support": 596.47024479,
+      "major_resistance": 723.43114624,
+      "minor_resistance": 663.27711805,
+      "buy_in_price_target": 596.47024479,
+      "actual_entry_price": 569.2070261427,
+      "stop_loss_set": 576.07064485,
+      "profit_target_percentage": 3.5,
+      "actual_profit_percentage": -1.7651468458741726,
+      "risk_reward_ratio": 3.34,
+      "price_vs_support": "4.24% above major support",
+      "price_vs_resistance": "27.09% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1762729316.8163788,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "bullish",
+      "volume_confirmation": null,
+      "reasoning": "Buy $596.47, sell $663.28 = 11.2% gross, 3.5% net after costs. Strong support at $596.47, volume increasing, RSI neutral.",
+      "trade_invalidation_price": 573.0
+    },
+    "exit_analysis": {
+      "exit_trigger": "stop_loss",
+      "profit_target_percentage": 3.5,
+      "actual_profit_percentage": -1.7651468458741726
+    },
+    "position_sizing": {
+      "buy_amount_usd": 828.75,
+      "actual_shares": 1.0,
+      "entry_position_value": 573.7606823518416,
+      "starting_capital": 1300,
+      "wallet_allocation_pct": 44.13543710398782
+    }
+  },
+  {
+    "symbol": "BTC-USD",
+    "buy_price": 100497.80926350487,
+    "sell_price": 106624.54,
+    "potential_profit_percentage": 3.5722867852006006,
+    "timestamp": "2025-11-11T03:03:57.067309+00:00",
+    "gross_profit": 33.57147815807991,
+    "taxes": 8.057154757939179,
+    "exchange_fees": 2.6899963998072,
+    "total_profit": 22.824327000333533,
+    "time_held_position": "106.24 hours",
+    "time_held_seconds": 382452.650783,
+    "buy_timestamp": "2025-11-06T16:49:44.416550Z",
+    "buy_screenshot_path": "./screenshots/BTC-USD_1h-candles_buy_20251106084941.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 1.7153348250615645,
+      "current_trend": "bullish",
+      "confidence_level": "high",
+      "entry_reasoning": "6mo uptrend, 90d uptrend, 30d consolidation, 14d breakout, 72h momentum, R/R 3.0, net profit 7.8%"
+    },
+    "technical_signals_at_entry": {
+      "major_support": 96148.75712187,
+      "minor_support": 100260.24,
+      "major_resistance": 126079.88702928,
+      "minor_resistance": 111514.31647234,
+      "buy_in_price_target": 101050.51,
+      "actual_entry_price": 100497.80926350487,
+      "stop_loss_set": 99143.31,
+      "profit_target_percentage": 3.2,
+      "actual_profit_percentage": 3.5722867852006006,
+      "risk_reward_ratio": 3.0,
+      "price_vs_support": "4.52% above major support",
+      "price_vs_resistance": "25.46% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1762346875.15696,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "bullish",
+      "volume_confirmation": null,
+      "reasoning": "6mo uptrend, 90d uptrend, 30d consolidation, 14d breakout, 72h momentum, R/R 3.0, net profit 7.8%",
+      "trade_invalidation_price": 98143.31
+    },
+    "exit_analysis": {
+      "exit_trigger": "profit_target",
+      "profit_target_percentage": 3.2,
+      "actual_profit_percentage": 3.5722867852006006
+    },
+    "position_sizing": {
+      "buy_amount_usd": 633.75,
+      "actual_shares": 0.00630717,
+      "entry_position_value": 638.92762179372,
+      "starting_capital": 1300,
+      "wallet_allocation_pct": 49.14827859951693
+    }
+  }
+]
