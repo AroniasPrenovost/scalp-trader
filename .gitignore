@@ -12,4 +12,6 @@ config.json
 
 /screenshots
 
+last_hourly_operation.json
+
 .DS_Store

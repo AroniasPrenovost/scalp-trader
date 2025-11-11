@@ -103,6 +103,7 @@ def load_config(file_path):
 config = load_config('config.json')
 
 INTERVAL_SECONDS = config['data_retention']['interval_seconds'] # 3600 1 hour
+CHECK_INTERVAL_SECONDS = config['data_retention'].get('check_interval_seconds', 300) # 300 = 5 minutes
 INTERVAL_SAVE_DATA_EVERY_X_MINUTES = (INTERVAL_SECONDS / 60)
 DATA_RETENTION_HOURS = config['data_retention']['max_hours'] # 730 # 1 month #
 
@@ -116,6 +117,9 @@ EXPECTED_DATA_POINTS = int((DATA_RETENTION_HOURS * 60) / INTERVAL_SAVE_DATA_EVER
 LAST_EXCEPTION_ERROR = None
 LAST_EXCEPTION_ERROR_COUNT = 0
 MAX_LAST_EXCEPTION_ERROR_COUNT = 5
+
+# Track when hourly operations were last run (will be loaded from file below)
+LAST_HOURLY_OPERATION_TIME = 0
 
 #
 #
@@ -134,6 +138,32 @@ def save_dictionary_data_to_local_file(data, directory, file_name):
     with open(file_path, 'w') as file:
         json.dump(data, file, indent=4)
     print(f"Data saved to '{file_path}'")
+
+#
+# Hourly operation timestamp persistence
+#
+HOURLY_TIMESTAMP_FILE = 'last_hourly_operation.json'
+
+def save_last_hourly_operation_time(timestamp):
+    """Save the last hourly operation timestamp to a file"""
+    try:
+        with open(HOURLY_TIMESTAMP_FILE, 'w') as file:
+            json.dump({'last_hourly_operation': timestamp}, file, indent=4)
+    except Exception as e:
+        print(f"Warning: Failed to save hourly operation timestamp: {e}")
+
+def load_last_hourly_operation_time():
+    """Load the last hourly operation timestamp from file, return 0 if file doesn't exist"""
+    try:
+        if os.path.exists(HOURLY_TIMESTAMP_FILE):
+            with open(HOURLY_TIMESTAMP_FILE, 'r') as file:
+                data = json.load(file)
+                return data.get('last_hourly_operation', 0)
+        else:
+            return 0
+    except Exception as e:
+        print(f"Warning: Failed to load hourly operation timestamp: {e}")
+        return 0
 
 #
 #
@@ -185,7 +215,13 @@ def get_hours_since_last_sell(symbol):
 
 print_local_time()
 
-def iterate_wallets(interval_seconds):
+# Load last hourly operation time from file (for crash recovery)
+LAST_HOURLY_OPERATION_TIME = load_last_hourly_operation_time()
+if LAST_HOURLY_OPERATION_TIME > 0:
+    hours_since = (time.time() - LAST_HOURLY_OPERATION_TIME) / 3600
+    print(f"Loaded last hourly operation timestamp: {hours_since:.2f} hours ago\n")
+
+def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
     while True:
 
         # send_email_notification(
@@ -199,6 +235,15 @@ def iterate_wallets(interval_seconds):
         # ERROR TRACKING
         global LAST_EXCEPTION_ERROR
         global LAST_EXCEPTION_ERROR_COUNT
+        global LAST_HOURLY_OPERATION_TIME
+
+        # Check if it's time to run hourly operations (data collection, CoinGecko, etc.)
+        current_time = time.time()
+        time_since_last_hourly = current_time - LAST_HOURLY_OPERATION_TIME
+        should_run_hourly_operations = time_since_last_hourly >= hourly_interval_seconds
+
+        if should_run_hourly_operations:
+            print(f"{Colors.BOLD}{Colors.CYAN}⏰ Running hourly operations (last run: {time_since_last_hourly/3600:.2f} hours ago){Colors.ENDC}\n")
 
         # Get taxes and Coinbase fees
         federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
@@ -261,53 +306,50 @@ def iterate_wallets(interval_seconds):
 
         #
         #
-        # STORE COINBASE DATA AND ANALYZE
-        enable_all_coin_scanning = True
-        if enable_all_coin_scanning:
-            coinbase_data_directory = 'coinbase-data'
+        # HOURLY OPERATIONS: Store price/volume data and collect CoinGecko data
+        # This runs every hour to build historical dataset
+        if should_run_hourly_operations:
+            enable_all_coin_scanning = True
+            if enable_all_coin_scanning:
+                coinbase_data_directory = 'coinbase-data'
 
-            # NEW STORAGE APPROACH: Append each crypto's data to its own file
-            # Store data for each enabled crypto
-            for coin in coinbase_data_dictionary:
-                product_id = coin['product_id']
-                # Create entry with only the 4 required properties
-                data_entry = {
-                    'timestamp': time.time(),
-                    'product_id': product_id,
-                    'price': coin.get('price'),
-                    'volume_24h': coin.get('volume_24h')
-                }
-                append_crypto_data_to_file(coinbase_data_directory, product_id, data_entry)
-            print(f"Appended data for {len(coinbase_data_dictionary)} cryptos\n")
+                # NEW STORAGE APPROACH: Append each crypto's data to its own file
+                # Store data for each enabled crypto
+                for coin in coinbase_data_dictionary:
+                    product_id = coin['product_id']
+                    # Create entry with only the 4 required properties
+                    data_entry = {
+                        'timestamp': time.time(),
+                        'product_id': product_id,
+                        'price': coin.get('price'),
+                        'volume_24h': coin.get('volume_24h')
+                    }
+                    append_crypto_data_to_file(coinbase_data_directory, product_id, data_entry)
+                print(f"Appended data for {len(coinbase_data_dictionary)} cryptos\n")
 
-            #
-            # COLLECT GLOBAL VOLUME DATA FROM COINGECKO
-            # This maintains consistency with backfilled historical data
-            # CoinGecko returns global volume across all exchanges (not just Coinbase)
-            # Uses the same interval as Coinbase data collection (from data_retention.interval_seconds)
-            #
-            coingecko_config = config.get('coingecko', {})
-            enable_coingecko_live_collection = coingecko_config.get('enable_live_collection', True)
-            coingecko_update_interval_seconds = INTERVAL_SECONDS  # Use same interval as data_retention setting
+                #
+                # COLLECT GLOBAL VOLUME DATA FROM COINGECKO
+                # This maintains consistency with backfilled historical data
+                # CoinGecko returns global volume across all exchanges (not just Coinbase)
+                # Uses the same interval as Coinbase data collection (from data_retention.interval_seconds)
+                #
+                coingecko_config = config.get('coingecko', {})
+                enable_coingecko_live_collection = coingecko_config.get('enable_live_collection', True)
+                coingecko_update_interval_seconds = INTERVAL_SECONDS  # Use same interval as data_retention setting
 
-            if enable_coingecko_live_collection:
-                global_volume_directory = 'coingecko-global-volume'
+                if enable_coingecko_live_collection:
+                    global_volume_directory = 'coingecko-global-volume'
 
-                for wallet in config['wallets']:
-                    if not wallet.get('enabled', False):
-                        continue
+                    for wallet in config['wallets']:
+                        if not wallet.get('enabled', False):
+                            continue
 
-                    symbol = wallet['symbol']
-                    coingecko_id = wallet.get('coingecko_id')
+                        symbol = wallet['symbol']
+                        coingecko_id = wallet.get('coingecko_id')
 
-                    if not coingecko_id:
-                        continue
+                        if not coingecko_id:
+                            continue
 
-                    # Check if it's time to update (uses data_retention.interval_seconds)
-                    data_file = f"{global_volume_directory}/{symbol}.json"
-                    last_update = get_last_coingecko_update_time(data_file)
-
-                    if should_update_coingecko_data(last_update, coingecko_update_interval_seconds):
                         print(f"Fetching global volume data from CoinGecko for {symbol}...")
 
                         coingecko_data = fetch_coingecko_current_data(coingecko_id, 'usd')
@@ -325,12 +367,24 @@ def iterate_wallets(interval_seconds):
                             print(f"  ✓ Appended global volume: {float(coingecko_data['volume_24h']):,.0f} BTC (${float(coingecko_data['volume_24h_usd']):,.0f} USD)")
                         else:
                             print(f"  ✗ Failed to fetch global volume for {symbol}")
-                    else:
-                        time_until_next = coingecko_update_interval_seconds - (time.time() - last_update)
-                        interval_minutes = coingecko_update_interval_seconds / 60
-                        print(f"Skipping CoinGecko update for {symbol} (next update in {time_until_next/60:.1f} of {interval_minutes:.0f} minutes)")
 
-                print()  # Blank line for readability
+                    print()  # Blank line for readability
+
+            # Update the last hourly operation timestamp and save to file
+            LAST_HOURLY_OPERATION_TIME = time.time()
+            save_last_hourly_operation_time(LAST_HOURLY_OPERATION_TIME)
+            print(f"{Colors.BOLD}{Colors.GREEN}✓ Hourly operations completed{Colors.ENDC}\n")
+        else:
+            time_until_next_hourly = hourly_interval_seconds - time_since_last_hourly
+            print(f"{Colors.CYAN}⏭  Skipping hourly operations (next run in {time_until_next_hourly/60:.1f} minutes){Colors.ENDC}\n")
+
+        #
+        #
+        # 5-MINUTE OPERATIONS: Check prices and execute trades
+        # This runs every 5 minutes to catch market movements
+        enable_all_coin_scanning = True
+        if enable_all_coin_scanning:
+            coinbase_data_directory = 'coinbase-data'
 
             if count_files_in_directory(coinbase_data_directory) < 1:
                 print('waiting for more data...\n')
@@ -1095,12 +1149,12 @@ def iterate_wallets(interval_seconds):
         #
         #
         # End of iteration function
-        time.sleep(interval_seconds)
+        time.sleep(check_interval_seconds)
 
 if __name__ == "__main__":
     while True:
         try:
-            iterate_wallets(INTERVAL_SECONDS)
+            iterate_wallets(CHECK_INTERVAL_SECONDS, INTERVAL_SECONDS)
         except Exception as e:
             current_exception_error = str(e)
             print(f"An error occurred: {current_exception_error}. Restarting the program...")
