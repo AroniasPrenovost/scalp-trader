@@ -984,8 +984,125 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                         effective_profit_target = max(PROFIT_PERCENTAGE, min_profit_target_percentage)
                         print(f"effective_profit_target: {effective_profit_target}% (AI: {PROFIT_PERCENTAGE}%, Min: {min_profit_target_percentage}%)")
 
+                        # PROFIT PROTECTION: Detect rapid price drop when in profit zone
+                        # This prevents profitable trades from going negative
+                        # Optimized for scalping strategy with 2.5% profit targets
+                        should_protect_profit = False
+                        if net_profit_after_all_costs_usd > 0:  # Only check if we're currently profitable
+                            # Use last 3 data points (3 hours) - shorter window for scalping
+                            # Crypto moves fast, so we focus on recent action
+                            lookback_periods = 3
+                            if len(coin_prices_LIST) >= lookback_periods:
+                                recent_prices = coin_prices_LIST[-lookback_periods:]
+
+                                # Calculate percentage drop from recent high
+                                recent_high = max(recent_prices)
+                                price_drop_from_recent_high = ((recent_high - current_price) / recent_high) * 100
+
+                                # Calculate rate of decline (price change per hour)
+                                price_change_rate = (recent_prices[-1] - recent_prices[0]) / len(recent_prices)
+                                price_change_rate_pct = (price_change_rate / recent_prices[0]) * 100
+
+                                # Calculate how close we are to break-even
+                                # Break-even price = entry price + all fees + taxes
+                                break_even_price = entry_price * (1 + (coinbase_spot_taker_fee * 2 / 100) + (federal_tax_rate / 100))
+                                distance_to_break_even_pct = ((current_price - break_even_price) / break_even_price) * 100
+
+                                print(f"--- PROFIT PROTECTION CHECK ---")
+                                print(f"Current profit: ${net_profit_after_all_costs_usd:.2f} ({net_profit_percentage:.4f}%)")
+                                print(f"Recent high (3h): ${recent_high:.2f}, Current: ${current_price:.2f}")
+                                print(f"Drop from recent high: {price_drop_from_recent_high:.2f}%")
+                                print(f"Price change rate: {price_change_rate_pct:.2f}% per hour")
+                                print(f"Distance to break-even: {distance_to_break_even_pct:.2f}%")
+
+                                # TRIGGER CONDITIONS (optimized for 2.5% profit target):
+                                # 1. Price dropped more than 1% from recent 3-hour high
+                                # 2. Price is declining (negative rate)
+                                # 3. We're within 0.75% of break-even
+                                rapid_drop_threshold = 1.0  # % drop from recent high (tighter for scalping)
+                                break_even_buffer = 0.75  # % buffer above break-even (accept small profit vs loss)
+
+                                if (price_drop_from_recent_high > rapid_drop_threshold and
+                                    price_change_rate_pct < 0 and
+                                    distance_to_break_even_pct < break_even_buffer):
+                                    should_protect_profit = True
+                                    print(f"⚠️  RAPID DROP DETECTED while in profit - triggering protective sell")
+                                    print(f"   Price dropped {price_drop_from_recent_high:.2f}% from recent high")
+                                    print(f"   Only {distance_to_break_even_pct:.2f}% above break-even")
+                                else:
+                                    print(f"✓ No rapid drop threat detected")
+
+                        # Execute profit protection sell
+                        if should_protect_profit:
+                            print('~ PROFIT PROTECTION TRIGGERED - Selling to preserve gains ~')
+                            # Filter data to match snapshot chart (3 months = 2160 hours)
+                            sell_chart_hours = 2160  # 90 days
+                            sell_chart_data_points = int((sell_chart_hours * 60) / INTERVAL_SAVE_DATA_EVERY_X_MINUTES)
+                            sell_chart_prices = coin_prices_LIST[-sell_chart_data_points:] if len(coin_prices_LIST) > sell_chart_data_points else coin_prices_LIST
+                            sell_chart_min = min(sell_chart_prices)
+                            sell_chart_max = max(sell_chart_prices)
+                            sell_chart_range_pct = calculate_percentage_from_min(sell_chart_min, sell_chart_max)
+
+                            plot_graph(
+                                time.time(),
+                                INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                                symbol,
+                                sell_chart_prices,
+                                sell_chart_min,
+                                sell_chart_max,
+                                sell_chart_range_pct,
+                                entry_price,
+                                analysis=analysis,
+                                buy_event=False
+                            )
+
+                            if READY_TO_TRADE:
+                                # Use market order for immediate execution
+                                place_market_sell_order(coinbase_client, symbol, number_of_shares, net_profit_after_all_costs_usd, net_profit_percentage)
+                                # Save transaction record
+                                buy_timestamp = order_data.get('created_time')
+                                buy_screenshot_path = last_order.get('buy_screenshot_path')
+
+                                # Build market context at entry
+                                entry_market_conditions = {
+                                    "volatility_range_pct": range_percentage_from_min,
+                                    "current_trend": analysis.get('market_trend') if analysis else None,
+                                    "confidence_level": analysis.get('confidence_level') if analysis else None,
+                                    "entry_reasoning": analysis.get('reasoning') if analysis else None,
+                                }
+
+                                # Build position sizing data
+                                position_sizing_data = {
+                                    "buy_amount_usd": analysis.get('buy_amount_usd') if analysis else None,
+                                    "actual_shares": number_of_shares,
+                                    "entry_position_value": entry_position_value_after_fees,
+                                    "starting_capital": STARTING_CAPITAL_USD,
+                                    "wallet_allocation_pct": (entry_position_value_after_fees / STARTING_CAPITAL_USD * 100) if STARTING_CAPITAL_USD > 0 else None,
+                                }
+
+                                save_transaction_record(
+                                    symbol=symbol,
+                                    buy_price=entry_price,
+                                    sell_price=current_price,
+                                    potential_profit_percentage=net_profit_percentage,
+                                    gross_profit=unrealized_gain_usd,
+                                    taxes=capital_gains_tax_usd,
+                                    exchange_fees=exit_exchange_fee_usd,
+                                    total_profit=net_profit_after_all_costs_usd,
+                                    buy_timestamp=buy_timestamp,
+                                    buy_screenshot_path=buy_screenshot_path,
+                                    analysis=analysis,
+                                    entry_market_conditions=entry_market_conditions,
+                                    exit_trigger='profit_protection',
+                                    position_sizing_data=position_sizing_data
+                                )
+
+                                delete_analysis_file(symbol)
+                            else:
+                                print('STATUS: Trading disabled')
+
                         # Check for stop loss trigger
-                        if STOP_LOSS_PRICE and current_price <= STOP_LOSS_PRICE:
+                        elif STOP_LOSS_PRICE and current_price <= STOP_LOSS_PRICE:
                             print('~ STOP LOSS TRIGGERED - Selling to limit losses ~')
                             # Filter data to match snapshot chart (3 months = 2160 hours)
                             sell_chart_hours = 2160  # 90 days

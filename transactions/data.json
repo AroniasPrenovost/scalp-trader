@@ -112,5 +112,119 @@
       "starting_capital": 1300,
       "wallet_allocation_pct": 49.14827859951693
     }
+  },
+  {
+    "symbol": "ZEC-USD",
+    "buy_price": 492.3370445044,
+    "sell_price": 482.28,
+    "potential_profit_percentage": -2.920755914604962,
+    "timestamp": "2025-11-11T19:58:30.251829+00:00",
+    "gross_profit": -13.995740860435205,
+    "taxes": -3.3589778065044493,
+    "exchange_fees": 3.85824,
+    "total_profit": -14.495003053930755,
+    "time_held_position": "5.42 hours",
+    "time_held_seconds": 19496.741508,
+    "buy_timestamp": "2025-11-11T14:33:33.510343Z",
+    "buy_screenshot_path": "./screenshots/ZEC-USD_1h-candles_buy_20251111063330.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 22.468808183705356,
+      "current_trend": "sideways",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $495, sell $531 = 7.27% gross, 3.5% net after costs. Risk/reward 3.6. Aligned timeframes, volume decreasing."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 467.27,
+      "minor_support": 485.18,
+      "major_resistance": 723.43114624,
+      "minor_resistance": 572.26,
+      "buy_in_price_target": 492.3370445044,
+      "actual_entry_price": 492.3370445044,
+      "stop_loss_set": 482.3908415851192,
+      "profit_target_percentage": 3.5,
+      "actual_profit_percentage": -2.920755914604962,
+      "risk_reward_ratio": 3.6,
+      "price_vs_support": "5.36% above major support",
+      "price_vs_resistance": "46.94% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1762871610.880876,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "sideways",
+      "volume_confirmation": null,
+      "reasoning": "Buy $495, sell $531 = 7.27% gross, 3.5% net after costs. Risk/reward 3.6. Aligned timeframes, volume decreasing.",
+      "trade_invalidation_price": 483.0
+    },
+    "exit_analysis": {
+      "exit_trigger": "stop_loss",
+      "profit_target_percentage": 3.5,
+      "actual_profit_percentage": -2.920755914604962
+    },
+    "position_sizing": {
+      "buy_amount_usd": 628.8127371886427,
+      "actual_shares": 1.0,
+      "entry_position_value": 496.2757408604352,
+      "starting_capital": 1300,
+      "wallet_allocation_pct": 38.17505698926424
+    }
+  },
+  {
+    "symbol": "ZEC-USD",
+    "buy_price": 492.3370445044,
+    "sell_price": 473.35,
+    "potential_profit_percentage": -4.273906884337428,
+    "timestamp": "2025-11-11T21:06:23.068699+00:00",
+    "gross_profit": -22.925740860435155,
+    "taxes": -5.502177806504437,
+    "exchange_fees": 3.7868000000000004,
+    "total_profit": -21.210363053930717,
+    "time_held_position": "6.55 hours",
+    "time_held_seconds": 23569.55839,
+    "buy_timestamp": "2025-11-11T14:33:33.510343Z",
+    "buy_screenshot_path": "./screenshots/ZEC-USD_1h-candles_buy_20251111063330.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 23.066666666666666,
+      "current_trend": "sideways",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $495, sell $531 = 7.27% gross, 3.5% net after costs. Risk/reward 3.6. Aligned timeframes, volume decreasing."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 467.27,
+      "minor_support": 485.18,
+      "major_resistance": 723.43114624,
+      "minor_resistance": 572.26,
+      "buy_in_price_target": 492.3370445044,
+      "actual_entry_price": 492.3370445044,
+      "stop_loss_set": 482.3908415851192,
+      "profit_target_percentage": 3.5,
+      "actual_profit_percentage": -4.273906884337428,
+      "risk_reward_ratio": 3.6,
+      "price_vs_support": "5.36% above major support",
+      "price_vs_resistance": "46.94% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1762871610.880876,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "sideways",
+      "volume_confirmation": null,
+      "reasoning": "Buy $495, sell $531 = 7.27% gross, 3.5% net after costs. Risk/reward 3.6. Aligned timeframes, volume decreasing.",
+      "trade_invalidation_price": 483.0
+    },
+    "exit_analysis": {
+      "exit_trigger": "stop_loss",
+      "profit_target_percentage": 3.5,
+      "actual_profit_percentage": -4.273906884337428
+    },
+    "position_sizing": {
+      "buy_amount_usd": 628.8127371886427,
+      "actual_shares": 1.0,
+      "entry_position_value": 496.2757408604352,
+      "starting_capital": 1300,
+      "wallet_allocation_pct": 38.17505698926424
+    }
   }
 ]

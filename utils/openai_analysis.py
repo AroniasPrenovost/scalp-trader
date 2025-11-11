@@ -180,8 +180,8 @@ VOLUME ANALYSIS GUIDELINES (Limited by rolling 24h snapshot data):
 - Include "volume_trend" field: "increasing", "decreasing", or "stable" based on the snapshot chart
 
 Trading Costs (IMPORTANT - Factor these into your recommendations):
-- Exchange Maker Fee: {maker_fee_percentage}% per trade ({total_fee_percentage}% total for buy + sell)
-  NOTE: Maker fees apply because we use LIMIT ORDERS that sit on the order book
+- Exchange Taker Fee: {exchange_fee_percentage}% per trade ({total_fee_percentage}% total for buy + sell)
+  NOTE: Taker fees apply because we use MARKET ORDERS for guaranteed execution
 - Tax Rate on Profits: {tax_rate_percentage}%
 - Minimum Profitable Trade: Must exceed ~{total_cost_burden:.2f}% to break even after all costs
 - Minimum Required Profit Target: {min_profit_target_percentage}% (NET profit after all costs)
