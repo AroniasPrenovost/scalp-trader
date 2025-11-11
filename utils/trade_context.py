@@ -3,6 +3,7 @@ import json
 import base64
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
+from utils.core_learnings import load_core_learnings, format_learnings_for_llm
 
 def load_transaction_history(symbol: str) -> List[Dict]:
     """
@@ -467,6 +468,11 @@ Recent Trade History (Last {context['trades_included']} trades):
    - Time Held: {trade['time_held']}
    - Screenshot: {'Available' if trade['screenshot_available'] else 'Not available'}
 """
+
+    # Add core learnings section (hard rules, blacklists, calibrations)
+    core_learnings = load_core_learnings(context['symbol'])
+    if core_learnings:
+        output += format_learnings_for_llm(core_learnings)
 
     # Build data-driven learning directives based on actual patterns
     learning_directives = f"""

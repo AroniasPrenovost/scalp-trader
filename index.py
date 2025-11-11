@@ -36,6 +36,12 @@ from utils.matplotlib import plot_graph, plot_simple_snapshot, plot_multi_timefr
 from utils.openai_analysis import analyze_market_with_openai, save_analysis_to_file, load_analysis_from_file, should_refresh_analysis, delete_analysis_file
 # trading context for LLM learning
 from utils.trade_context import build_trading_context, calculate_wallet_metrics
+# core learnings system for persistent pattern avoidance
+from utils.core_learnings import (
+    load_core_learnings, save_core_learnings, evaluate_hard_rules,
+    check_pattern_blacklist, apply_calibrations, get_position_size_multiplier,
+    update_learnings_from_trade, format_learnings_for_display
+)
 
 # daily summary email
 from utils.daily_summary import should_send_daily_summary, send_daily_summary_email
@@ -577,6 +583,15 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                             else:
                                 print("LLM learning disabled in config")
 
+                            # Load and display core learnings (persistent rules and patterns)
+                            core_learnings = load_core_learnings(symbol)
+                            if core_learnings and (
+                                core_learnings.get('hard_rules') or
+                                core_learnings.get('pattern_blacklist') or
+                                core_learnings.get('loss_streaks', {}).get('current_streak', 0) > 0
+                            ):
+                                print(format_learnings_for_display(core_learnings))
+
                             analysis = analyze_market_with_openai(
                                 symbol,
                                 coin_data,
@@ -612,6 +627,44 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                             analysis = original_analysis
                         else:
                             print(f"⚠️  No original analysis found in ledger - using current analysis file")
+
+                    # Apply core learnings guardrails (only for new trades, not locked positions)
+                    if last_order_type not in ['placeholder', 'buy']:
+                        # Apply calibrations (just adjustments, doesn't block)
+                        market_trend = analysis.get('market_trend', 'unknown')
+                        analysis = apply_calibrations(core_learnings, analysis, market_trend)
+
+                        # Check hard rules (only blocks if explicit rules exist from repeated failures)
+                        from datetime import datetime as dt
+                        current_conditions = {
+                            'market_trend': market_trend,
+                            'confidence_level': analysis.get('confidence_level', 'low')
+                        }
+                        should_trade, block_reason = evaluate_hard_rules(core_learnings, current_conditions)
+                        if not should_trade:
+                            print(block_reason)
+                            print('\n')
+                            continue
+
+                        # Check pattern blacklist (only 0% win rate patterns after 3+ attempts)
+                        pattern_description = f"{market_trend} {analysis.get('confidence_level', 'low')}"
+                        should_trade, block_reason = check_pattern_blacklist(
+                            core_learnings,
+                            pattern_description,
+                            market_trend,
+                            analysis.get('confidence_level', 'low')
+                        )
+                        if not should_trade:
+                            print(block_reason)
+                            print('\n')
+                            continue
+
+                        # Reduce position size if on loss streak (3+ losses)
+                        position_multiplier = get_position_size_multiplier(core_learnings)
+                        if position_multiplier < 1.0 and analysis.get('buy_amount_usd', 0) > 0:
+                            original_buy_amount = analysis['buy_amount_usd']
+                            analysis['buy_amount_usd'] = original_buy_amount * position_multiplier
+                            print(f"📉 Position reduced to {position_multiplier:.0%} due to loss streak (${original_buy_amount:.2f} → ${analysis['buy_amount_usd']:.2f})")
 
                     # Set trading parameters from analysis
                     BUY_AT_PRICE = analysis.get('buy_in_price')
@@ -1097,6 +1150,17 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                     position_sizing_data=position_sizing_data
                                 )
 
+                                # Update core learnings based on trade outcome
+                                from utils.trade_context import load_transaction_history
+                                trade_outcome = {
+                                    'profit': net_profit_after_all_costs_usd,
+                                    'exit_trigger': 'profit_protection',
+                                    'confidence_level': analysis.get('confidence_level', 'unknown'),
+                                    'market_trend': analysis.get('market_trend', 'unknown')
+                                }
+                                transactions = load_transaction_history(symbol)
+                                update_learnings_from_trade(symbol, trade_outcome, transactions)
+
                                 delete_analysis_file(symbol)
                             else:
                                 print('STATUS: Trading disabled')
@@ -1166,6 +1230,17 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                     position_sizing_data=position_sizing_data
                                 )
 
+                                # Update core learnings based on trade outcome
+                                from utils.trade_context import load_transaction_history
+                                trade_outcome = {
+                                    'profit': net_profit_after_all_costs_usd,
+                                    'exit_trigger': 'stop_loss',
+                                    'confidence_level': analysis.get('confidence_level', 'unknown'),
+                                    'market_trend': analysis.get('market_trend', 'unknown')
+                                }
+                                transactions = load_transaction_history(symbol)
+                                update_learnings_from_trade(symbol, trade_outcome, transactions)
+
                                 delete_analysis_file(symbol)
                             else:
                                 print('STATUS: Trading disabled')
@@ -1234,6 +1309,17 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                     exit_trigger='profit_target',
                                     position_sizing_data=position_sizing_data
                                 )
+
+                                # Update core learnings based on trade outcome
+                                from utils.trade_context import load_transaction_history
+                                trade_outcome = {
+                                    'profit': net_profit_after_all_costs_usd,
+                                    'exit_trigger': 'profit_target',
+                                    'confidence_level': analysis.get('confidence_level', 'unknown'),
+                                    'market_trend': analysis.get('market_trend', 'unknown')
+                                }
+                                transactions = load_transaction_history(symbol)
+                                update_learnings_from_trade(symbol, trade_outcome, transactions)
 
                                 delete_analysis_file(symbol)
                             else:
