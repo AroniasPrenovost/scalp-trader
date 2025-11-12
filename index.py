@@ -23,7 +23,7 @@ from utils.coingecko_live import fetch_coingecko_current_data, should_update_coi
 
 # Coinbase-related
 # Coinbase helpers and define client
-from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order, place_limit_buy_order, place_limit_sell_order, get_asset_price, calculate_exchange_fee, save_order_data_to_local_json_ledger, get_last_order_from_local_json_ledger, reset_json_ledger_file, detect_stored_coinbase_order_type, save_transaction_record, get_current_fee_rates, cancel_order, clear_order_ledger
+from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order, place_limit_buy_order, place_limit_sell_order, get_asset_price, get_asset_balance, calculate_exchange_fee, save_order_data_to_local_json_ledger, get_last_order_from_local_json_ledger, reset_json_ledger_file, detect_stored_coinbase_order_type, save_transaction_record, get_current_fee_rates, cancel_order, clear_order_ledger
 coinbase_client = get_coinbase_client()
 # custom coinbase listings check
 from utils.new_coinbase_listings import check_for_new_coinbase_listings
@@ -944,6 +944,21 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                         # Handle both possible order structures: last_order['order']['field'] or last_order['field']
                         order_data = last_order.get('order', last_order)
 
+                        # SAFETY CHECK: Verify we actually have the shares before attempting to sell
+                        # This prevents duplicate sell attempts if ledger wasn't cleared properly
+                        expected_shares = float(order_data.get('filled_size', 0))
+                        if expected_shares > 0:
+                            actual_balance = get_asset_balance(coinbase_client, symbol)
+                            # Allow small rounding differences (0.00000001 for crypto precision)
+                            if actual_balance < (expected_shares - 0.00000001):
+                                print(f"⚠️  LEDGER MISMATCH DETECTED")
+                                print(f"   Ledger shows {expected_shares} shares, but Coinbase balance is {actual_balance}")
+                                print(f"   Position likely already sold - clearing stale ledger entry")
+                                clear_order_ledger(symbol)
+                                delete_analysis_file(symbol)
+                                print()
+                                continue
+
                         # Check if this order has been filled and has the necessary data
                         order_status = order_data.get('status', 'UNKNOWN')
                         if order_status not in ['FILLED', 'UNKNOWN']:
@@ -1037,57 +1052,94 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                         effective_profit_target = max(PROFIT_PERCENTAGE, min_profit_target_percentage)
                         print(f"effective_profit_target: {effective_profit_target}% (AI: {PROFIT_PERCENTAGE}%, Min: {min_profit_target_percentage}%)")
 
-                        # PROFIT PROTECTION: Detect rapid price drop when in profit zone
-                        # This prevents profitable trades from going negative
-                        # Optimized for scalping strategy with 2.5% profit targets
-                        should_protect_profit = False
-                        if net_profit_after_all_costs_usd > 0:  # Only check if we're currently profitable
-                            # Use last 3 data points (3 hours) - shorter window for scalping
-                            # Crypto moves fast, so we focus on recent action
-                            lookback_periods = 3
-                            if len(coin_prices_LIST) >= lookback_periods:
-                                recent_prices = coin_prices_LIST[-lookback_periods:]
+                        # DYNAMIC TRAILING STOP: Adjust protection based on profit level
+                        # Tighter stops when barely profitable, looser when riding winners
+                        # This locks in gains early while letting big wins run
+                        trailing_stop_tiers = config.get('trailing_stop_tiers', [
+                            {"min_profit_pct": 0, "max_profit_pct": 2.0, "trailing_stop_pct": 1.5},
+                            {"min_profit_pct": 2.0, "max_profit_pct": 5.0, "trailing_stop_pct": 2.5},
+                            {"min_profit_pct": 5.0, "max_profit_pct": 999, "trailing_stop_pct": 4.0}
+                        ])
 
-                                # Calculate percentage drop from recent high
-                                recent_high = max(recent_prices)
-                                price_drop_from_recent_high = ((recent_high - current_price) / recent_high) * 100
+                        # Select trailing stop percentage based on current profit level
+                        trailing_stop_percentage = 4.0  # Default fallback
+                        active_tier = None
+                        for tier in trailing_stop_tiers:
+                            if tier['min_profit_pct'] <= net_profit_percentage < tier['max_profit_pct']:
+                                trailing_stop_percentage = tier['trailing_stop_pct']
+                                active_tier = tier
+                                break
 
-                                # Calculate rate of decline (price change per hour)
-                                price_change_rate = (recent_prices[-1] - recent_prices[0]) / len(recent_prices)
-                                price_change_rate_pct = (price_change_rate / recent_prices[0]) * 100
+                        should_trigger_trailing_stop = False
 
-                                # Calculate how close we are to break-even
-                                # Break-even price = entry price + all fees + taxes
-                                break_even_price = entry_price * (1 + (coinbase_spot_taker_fee * 2 / 100) + (federal_tax_rate / 100))
-                                distance_to_break_even_pct = ((current_price - break_even_price) / break_even_price) * 100
+                        # Find the peak price since entry using timestamps (not price comparison)
+                        # Get full data entries with timestamps to accurately filter prices after entry
+                        from datetime import datetime, timezone
+                        buy_timestamp = order_data.get('created_time')
 
-                                print(f"--- PROFIT PROTECTION CHECK ---")
-                                print(f"Current profit: ${net_profit_after_all_costs_usd:.2f} ({net_profit_percentage:.4f}%)")
-                                print(f"Recent high (3h): ${recent_high:.2f}, Current: ${current_price:.2f}")
-                                print(f"Drop from recent high: {price_drop_from_recent_high:.2f}%")
-                                print(f"Price change rate: {price_change_rate_pct:.2f}% per hour")
-                                print(f"Distance to break-even: {distance_to_break_even_pct:.2f}%")
+                        if buy_timestamp:
+                            try:
+                                # Parse buy timestamp
+                                buy_time = datetime.fromisoformat(buy_timestamp.replace('Z', '+00:00'))
+                                buy_time_unix = buy_time.timestamp()
 
-                                # TRIGGER CONDITIONS (optimized for 2.5% profit target):
-                                # 1. Price dropped more than 1% from recent 3-hour high
-                                # 2. Price is declining (negative rate)
-                                # 3. We're within 0.75% of break-even
-                                rapid_drop_threshold = 1.0  # % drop from recent high (tighter for scalping)
-                                break_even_buffer = 0.75  # % buffer above break-even (accept small profit vs loss)
+                                # Get full price data with timestamps
+                                from utils.file_helpers import get_crypto_data_from_file
+                                price_data_with_timestamps = get_crypto_data_from_file(
+                                    coinbase_data_directory,
+                                    symbol,
+                                    max_age_hours=DATA_RETENTION_HOURS
+                                )
 
-                                if (price_drop_from_recent_high > rapid_drop_threshold and
-                                    price_change_rate_pct < 0 and
-                                    distance_to_break_even_pct < break_even_buffer):
-                                    should_protect_profit = True
-                                    print(f"⚠️  RAPID DROP DETECTED while in profit - triggering protective sell")
-                                    print(f"   Price dropped {price_drop_from_recent_high:.2f}% from recent high")
-                                    print(f"   Only {distance_to_break_even_pct:.2f}% above break-even")
+                                # Filter prices that occurred AFTER our buy timestamp
+                                prices_since_entry = [
+                                    float(entry['price'])
+                                    for entry in price_data_with_timestamps
+                                    if entry.get('timestamp', 0) > buy_time_unix and entry.get('price')
+                                ]
+
+                                if prices_since_entry:
+                                    peak_price = max(prices_since_entry)
+                                    drop_from_peak_pct = ((peak_price - current_price) / peak_price) * 100
+
+                                    print(f"--- DYNAMIC TRAILING STOP CHECK ---")
+                                    print(f"Entry price: ${entry_price:.2f}")
+                                    print(f"Peak price since entry: ${peak_price:.2f}")
+                                    print(f"Current price: ${current_price:.2f}")
+                                    print(f"Current profit: ${net_profit_after_all_costs_usd:.2f} ({net_profit_percentage:.4f}%)")
+                                    if active_tier:
+                                        print(f"Active tier: {active_tier['min_profit_pct']:.1f}%-{active_tier['max_profit_pct']:.1f}% profit → {trailing_stop_percentage}% trailing stop")
+                                    else:
+                                        print(f"Using default trailing stop: {trailing_stop_percentage}%")
+                                    print(f"Drop from peak: {drop_from_peak_pct:.2f}%")
+
+                                    if drop_from_peak_pct >= trailing_stop_percentage:
+                                        should_trigger_trailing_stop = True
+                                        print(f"🛑 TRAILING STOP TRIGGERED - Price dropped {drop_from_peak_pct:.2f}% from peak ${peak_price:.2f}")
+                                        print(f"   Tier threshold: {trailing_stop_percentage}% (profit level: {net_profit_percentage:.2f}%)")
+                                        print(f"   Selling to protect profits/prevent further loss")
+                                    else:
+                                        remaining_buffer = trailing_stop_percentage - drop_from_peak_pct
+                                        print(f"✓ Trailing stop not triggered ({remaining_buffer:.2f}% buffer remaining)")
                                 else:
-                                    print(f"✓ No rapid drop threat detected")
+                                    print(f"--- DYNAMIC TRAILING STOP CHECK ---")
+                                    print(f"No price data found after entry timestamp (position recently opened)")
+                                    print(f"Trailing stop will activate once historical price data is available")
 
-                        # Execute profit protection sell
-                        if should_protect_profit:
-                            print('~ PROFIT PROTECTION TRIGGERED - Selling to preserve gains ~')
+                            except Exception as e:
+                                print(f"Error calculating peak price from timestamps: {e}")
+                                print(f"Falling back to current price as peak")
+                                # Fallback: don't trigger trailing stop if we can't calculate properly
+                                print(f"--- DYNAMIC TRAILING STOP CHECK ---")
+                                print(f"Unable to calculate peak price accurately - skipping trailing stop check")
+                        else:
+                            print(f"--- DYNAMIC TRAILING STOP CHECK ---")
+                            print(f"No buy timestamp found - cannot calculate peak price accurately")
+                            print(f"Skipping trailing stop check")
+
+                        # Execute trailing stop sell
+                        if should_trigger_trailing_stop:
+                            print('~ TRAILING STOP TRIGGERED - Selling to lock in gains ~')
                             # Filter data to match snapshot chart (3 months = 2160 hours)
                             sell_chart_hours = 2160  # 90 days
                             sell_chart_data_points = int((sell_chart_hours * 60) / INTERVAL_SAVE_DATA_EVERY_X_MINUTES)
@@ -1146,7 +1198,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                     buy_screenshot_path=buy_screenshot_path,
                                     analysis=analysis,
                                     entry_market_conditions=entry_market_conditions,
-                                    exit_trigger='profit_protection',
+                                    exit_trigger='trailing_stop',
                                     position_sizing_data=position_sizing_data
                                 )
 
@@ -1154,7 +1206,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 from utils.trade_context import load_transaction_history
                                 trade_outcome = {
                                     'profit': net_profit_after_all_costs_usd,
-                                    'exit_trigger': 'profit_protection',
+                                    'exit_trigger': 'trailing_stop',
                                     'confidence_level': analysis.get('confidence_level', 'unknown'),
                                     'market_trend': analysis.get('market_trend', 'unknown')
                                 }

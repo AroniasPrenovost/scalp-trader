@@ -58,13 +58,10 @@ def reset_json_ledger_file(symbol):
     # Construct the file name based on the symbol
     file_name = f"{symbol}_orders.json"
 
-    # Define the relative path to the root directory
-    file_path = f"../{file_name}"
-
-    print(f"Resetting file: {file_path}")
+    print(f"Resetting file: {file_name}")
 
     # Write an empty list to the file to reset it
-    with open(file_path, 'w') as file:
+    with open(file_name, 'w') as file:
         json.dump([], file)
 
 
@@ -169,6 +166,45 @@ def get_asset_price(client, symbol):
     except Exception as e:
         print(f"Error fetching product price for {symbol}: {e}")
         return None
+
+
+def get_asset_balance(client, symbol):
+    """
+    Get the available balance for a specific asset from Coinbase.
+
+    Args:
+        client: Coinbase client instance
+        symbol: Trading pair (e.g., 'BTC-USD', 'ETH-USD')
+
+    Returns:
+        float: Available balance of the base currency, or 0 if not found/error
+    """
+    try:
+        # Extract base currency from trading pair (e.g., 'BTC' from 'BTC-USD')
+        base_currency = symbol.split('-')[0]
+
+        # Get all accounts
+        accounts = client.get_accounts()
+
+        # Convert to dict if needed
+        if hasattr(accounts, 'to_dict'):
+            accounts = accounts.to_dict()
+
+        # Look for the account with matching currency
+        if 'accounts' in accounts:
+            for account in accounts['accounts']:
+                if account.get('currency') == base_currency:
+                    available_balance = float(account.get('available_balance', {}).get('value', 0))
+                    return available_balance
+
+        print(f"No account found for {base_currency}")
+        return 0
+
+    except Exception as e:
+        print(f"Error fetching balance for {symbol}: {e}")
+        import traceback
+        traceback.print_exc()
+        return 0
 
 
 def get_current_fee_rates(client):
