@@ -55,5 +55,62 @@
       "starting_capital": 1300,
       "wallet_allocation_pct": 49.14827859951693
     }
+  },
+  {
+    "symbol": "ETH-USD",
+    "buy_price": 3439.48,
+    "sell_price": 3393.05,
+    "potential_profit_percentage": -2.40390361702885,
+    "timestamp": "2025-11-12T19:15:28.176035+00:00",
+    "gross_profit": -20.97525439742151,
+    "taxes": -5.034061055381162,
+    "exchange_fees": 7.699698799356001,
+    "total_profit": -23.640892141396346,
+    "time_held_position": "0.93 hours",
+    "time_held_seconds": 3354.763547,
+    "buy_timestamp": "2025-11-12T18:19:33.412509Z",
+    "buy_screenshot_path": "./screenshots/ETH-USD_1h-candles_buy_20251112101930.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 5.402116292980754,
+      "current_trend": "bullish",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $3437.25, sell $3577.0 = 4.1% gross, 3.5% net after costs. Aligned timeframes, strong support at $3393.67."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 2177.46633393,
+      "minor_support": 3393.67,
+      "major_resistance": 4926.08975468,
+      "minor_resistance": 3560.31,
+      "buy_in_price_target": 3437.25,
+      "actual_entry_price": 3439.48,
+      "stop_loss_set": 3393.67,
+      "profit_target_percentage": 3.5,
+      "actual_profit_percentage": -2.40390361702885,
+      "risk_reward_ratio": 3.2,
+      "price_vs_support": "57.96% above major support",
+      "price_vs_resistance": "43.22% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1762971570.6687648,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "bullish",
+      "volume_confirmation": null,
+      "reasoning": "Buy $3437.25, sell $3577.0 = 4.1% gross, 3.5% net after costs. Aligned timeframes, strong support at $3393.67.",
+      "trade_invalidation_price": 3380.0
+    },
+    "exit_analysis": {
+      "exit_trigger": "stop_loss",
+      "profit_target_percentage": 3.5,
+      "actual_profit_percentage": -2.40390361702885
+    },
+    "position_sizing": {
+      "buy_amount_usd": 975.0,
+      "actual_shares": 0.28365699,
+      "entry_position_value": 983.4376043169216,
+      "starting_capital": 1300,
+      "wallet_allocation_pct": 75.64904648591705
+    }
   }
 ]

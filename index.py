@@ -944,21 +944,6 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                         # Handle both possible order structures: last_order['order']['field'] or last_order['field']
                         order_data = last_order.get('order', last_order)
 
-                        # SAFETY CHECK: Verify we actually have the shares before attempting to sell
-                        # This prevents duplicate sell attempts if ledger wasn't cleared properly
-                        expected_shares = float(order_data.get('filled_size', 0))
-                        if expected_shares > 0:
-                            actual_balance = get_asset_balance(coinbase_client, symbol)
-                            # Allow small rounding differences (0.00000001 for crypto precision)
-                            if actual_balance < (expected_shares - 0.00000001):
-                                print(f"⚠️  LEDGER MISMATCH DETECTED")
-                                print(f"   Ledger shows {expected_shares} shares, but Coinbase balance is {actual_balance}")
-                                print(f"   Position likely already sold - clearing stale ledger entry")
-                                clear_order_ledger(symbol)
-                                delete_analysis_file(symbol)
-                                print()
-                                continue
-
                         # Check if this order has been filled and has the necessary data
                         order_status = order_data.get('status', 'UNKNOWN')
                         if order_status not in ['FILLED', 'UNKNOWN']:
@@ -1099,7 +1084,8 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 ]
 
                                 if prices_since_entry:
-                                    peak_price = max(prices_since_entry)
+                                    # Peak price is the highest between historical data AND current price
+                                    peak_price = max(max(prices_since_entry), current_price)
                                     drop_from_peak_pct = ((peak_price - current_price) / peak_price) * 100
 
                                     print(f"--- DYNAMIC TRAILING STOP CHECK ---")
@@ -1113,11 +1099,19 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                         print(f"Using default trailing stop: {trailing_stop_percentage}%")
                                     print(f"Drop from peak: {drop_from_peak_pct:.2f}%")
 
+                                    # SAFEGUARD: Only trigger trailing stop if net profit % >= trailing stop %
+                                    # This guarantees you can NEVER trail into a loss (even if stop triggers, you exit green)
                                     if drop_from_peak_pct >= trailing_stop_percentage:
-                                        should_trigger_trailing_stop = True
-                                        print(f"🛑 TRAILING STOP TRIGGERED - Price dropped {drop_from_peak_pct:.2f}% from peak ${peak_price:.2f}")
-                                        print(f"   Tier threshold: {trailing_stop_percentage}% (profit level: {net_profit_percentage:.2f}%)")
-                                        print(f"   Selling to protect profits/prevent further loss")
+                                        if net_profit_percentage < trailing_stop_percentage:
+                                            print(f"⚠️  Trailing stop condition met BUT net profit ({net_profit_percentage:.2f}%) below trailing stop threshold ({trailing_stop_percentage}%)")
+                                            print(f"   Trailing stop DISABLED - need at least {trailing_stop_percentage}% profit to prevent trailing into red")
+                                            print(f"   Current profit: ${net_profit_after_all_costs_usd:.2f} - letting position run")
+                                        else:
+                                            should_trigger_trailing_stop = True
+                                            print(f"🛑 TRAILING STOP TRIGGERED - Price dropped {drop_from_peak_pct:.2f}% from peak ${peak_price:.2f}")
+                                            print(f"   Tier threshold: {trailing_stop_percentage}% (profit level: {net_profit_percentage:.2f}%)")
+                                            print(f"   Net profit: ${net_profit_after_all_costs_usd:.2f} ({net_profit_percentage:.2f}%)")
+                                            print(f"   Selling to protect profits - guaranteed green exit")
                                     else:
                                         remaining_buffer = trailing_stop_percentage - drop_from_peak_pct
                                         print(f"✓ Trailing stop not triggered ({remaining_buffer:.2f}% buffer remaining)")
