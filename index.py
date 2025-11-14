@@ -249,7 +249,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
         should_run_hourly_operations = time_since_last_hourly >= hourly_interval_seconds
 
         if should_run_hourly_operations:
-            print(f"{Colors.BOLD}{Colors.CYAN}⏰ Running hourly operations (last run: {time_since_last_hourly/3600:.2f} hours ago){Colors.ENDC}\n")
+            print(f"{Colors.BOLD}{Colors.CYAN}⏰ Running hourly operations - APPENDING NEW PRICE DATA (last run: {time_since_last_hourly/3600:.2f} hours ago){Colors.ENDC}\n")
 
         # Get taxes and Coinbase fees
         federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
@@ -331,7 +331,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                         'volume_24h': coin.get('volume_24h')
                     }
                     append_crypto_data_to_file(coinbase_data_directory, product_id, data_entry)
-                print(f"Appended data for {len(coinbase_data_dictionary)} cryptos\n")
+                print(f"✓ Appended 1 new data point for {len(coinbase_data_dictionary)} cryptos (next append in 1 hour)\n")
 
                 #
                 # COLLECT GLOBAL VOLUME DATA FROM COINGECKO
@@ -382,7 +382,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
             print(f"{Colors.BOLD}{Colors.GREEN}✓ Hourly operations completed{Colors.ENDC}\n")
         else:
             time_until_next_hourly = hourly_interval_seconds - time_since_last_hourly
-            print(f"{Colors.CYAN}⏭  Skipping hourly operations (next run in {time_until_next_hourly/60:.1f} minutes){Colors.ENDC}\n")
+            print(f"{Colors.CYAN}⏭  Skipping data collection - NOT appending (last collection: {time_since_last_hourly/60:.1f} min ago, next in {time_until_next_hourly/60:.1f} min){Colors.ENDC}\n")
 
         #
         #
@@ -529,6 +529,9 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                     actual_coin_prices_list_length = len(coin_prices_LIST) - 1 # account for offset
                     analysis = load_analysis_from_file(symbol)
 
+                    # Load core learnings early so it's always available
+                    core_learnings = load_core_learnings(symbol)
+
                     # Check if we need to generate new analysis
                     should_refresh = should_refresh_analysis(
                         symbol,
@@ -583,8 +586,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                             else:
                                 print("LLM learning disabled in config")
 
-                            # Load and display core learnings (persistent rules and patterns)
-                            core_learnings = load_core_learnings(symbol)
+                            # Display core learnings if present (already loaded earlier)
                             if core_learnings and (
                                 core_learnings.get('hard_rules') or
                                 core_learnings.get('pattern_blacklist') or
@@ -726,6 +728,12 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 if 'buy_screenshot_path' in last_order:
                                     full_order_dict['buy_screenshot_path'] = last_order['buy_screenshot_path']
                                     print('✓ Preserved buy screenshot path from placeholder order')
+
+                                # Initialize peak price tracking for trailing stop
+                                actual_fill_price = float(full_order_dict.get('average_filled_price', 0))
+                                if actual_fill_price > 0:
+                                    full_order_dict['peak_price_since_entry'] = actual_fill_price
+                                    print(f'✓ Initialized peak price tracking at ${actual_fill_price:.2f}')
 
                                 # POST-FILL ADJUSTMENT: Check if actual fill price differs significantly from AI recommendation
                                 if 'original_analysis' in full_order_dict:
@@ -871,8 +879,8 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                             print(f"STATUS: AI recommends '{TRADE_RECOMMENDATION}' - only executing buy orders when recommendation is 'buy'")
                         elif CONFIDENCE_LEVEL != 'high':
                             print(f"STATUS: AI confidence level is '{CONFIDENCE_LEVEL}' - only trading with HIGH confidence")
-                        elif MARKET_TREND == 'bearish':
-                            print(f"STATUS: Market trend is BEARISH - not executing buy orders in bearish markets")
+                        elif MARKET_TREND != 'bullish':
+                            print(f"STATUS: Market trend is {MARKET_TREND} - only executing buy orders in BULLISH markets")
                         else:
                             print(f"STATUS: Executing BUY at market price ~${current_price} (AI target was ${BUY_AT_PRICE}, Confidence: {CONFIDENCE_LEVEL})")
                             # Filter data to match snapshot chart (3 months = 2160 hours)
@@ -984,6 +992,25 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                         print('number_of_shares: ', number_of_shares)
 
                         # ============================================================
+                        # PEAK PRICE TRACKING: Update peak price for trailing stop
+                        # ============================================================
+                        # Get current peak from ledger, initialize to entry price if missing
+                        peak_price = last_order.get('peak_price_since_entry', entry_price)
+
+                        # Update peak if current price is higher
+                        if current_price > peak_price:
+                            peak_price = current_price
+                            last_order['peak_price_since_entry'] = peak_price
+                            # Save updated peak to ledger immediately
+                            import json
+                            file_name = f"{symbol}_orders.json"
+                            with open(file_name, 'w') as file:
+                                json.dump([last_order], file, indent=4)
+                            print(f"🔝 New peak price: ${peak_price:.2f} (updated in ledger)")
+                        else:
+                            print(f"Peak price since entry: ${peak_price:.2f}")
+
+                        # ============================================================
                         # PROFIT CALCULATION BREAKDOWN (Step-by-Step)
                         # ============================================================
                         # This calculates your actual take-home profit if you sold right now.
@@ -1057,79 +1084,37 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
 
                         should_trigger_trailing_stop = False
 
-                        # Find the peak price since entry using timestamps (not price comparison)
-                        # Get full data entries with timestamps to accurately filter prices after entry
-                        from datetime import datetime, timezone
-                        buy_timestamp = order_data.get('created_time')
+                        # Calculate drop from peak using ledger-tracked peak_price
+                        # (peak_price is already updated above every 5 minutes)
+                        drop_from_peak_pct = ((peak_price - current_price) / peak_price) * 100
 
-                        if buy_timestamp:
-                            try:
-                                # Parse buy timestamp
-                                buy_time = datetime.fromisoformat(buy_timestamp.replace('Z', '+00:00'))
-                                buy_time_unix = buy_time.timestamp()
-
-                                # Get full price data with timestamps
-                                from utils.file_helpers import get_crypto_data_from_file
-                                price_data_with_timestamps = get_crypto_data_from_file(
-                                    coinbase_data_directory,
-                                    symbol,
-                                    max_age_hours=DATA_RETENTION_HOURS
-                                )
-
-                                # Filter prices that occurred AFTER our buy timestamp
-                                prices_since_entry = [
-                                    float(entry['price'])
-                                    for entry in price_data_with_timestamps
-                                    if entry.get('timestamp', 0) > buy_time_unix and entry.get('price')
-                                ]
-
-                                if prices_since_entry:
-                                    # Peak price is the highest between historical data AND current price
-                                    peak_price = max(max(prices_since_entry), current_price)
-                                    drop_from_peak_pct = ((peak_price - current_price) / peak_price) * 100
-
-                                    print(f"--- DYNAMIC TRAILING STOP CHECK ---")
-                                    print(f"Entry price: ${entry_price:.2f}")
-                                    print(f"Peak price since entry: ${peak_price:.2f}")
-                                    print(f"Current price: ${current_price:.2f}")
-                                    print(f"Current profit: ${net_profit_after_all_costs_usd:.2f} ({net_profit_percentage:.4f}%)")
-                                    if active_tier:
-                                        print(f"Active tier: {active_tier['min_profit_pct']:.1f}%-{active_tier['max_profit_pct']:.1f}% profit → {trailing_stop_percentage}% trailing stop")
-                                    else:
-                                        print(f"Using default trailing stop: {trailing_stop_percentage}%")
-                                    print(f"Drop from peak: {drop_from_peak_pct:.2f}%")
-
-                                    # SAFEGUARD: Only trigger trailing stop if net profit % >= trailing stop %
-                                    # This guarantees you can NEVER trail into a loss (even if stop triggers, you exit green)
-                                    if drop_from_peak_pct >= trailing_stop_percentage:
-                                        if net_profit_percentage < trailing_stop_percentage:
-                                            print(f"⚠️  Trailing stop condition met BUT net profit ({net_profit_percentage:.2f}%) below trailing stop threshold ({trailing_stop_percentage}%)")
-                                            print(f"   Trailing stop DISABLED - need at least {trailing_stop_percentage}% profit to prevent trailing into red")
-                                            print(f"   Current profit: ${net_profit_after_all_costs_usd:.2f} - letting position run")
-                                        else:
-                                            should_trigger_trailing_stop = True
-                                            print(f"🛑 TRAILING STOP TRIGGERED - Price dropped {drop_from_peak_pct:.2f}% from peak ${peak_price:.2f}")
-                                            print(f"   Tier threshold: {trailing_stop_percentage}% (profit level: {net_profit_percentage:.2f}%)")
-                                            print(f"   Net profit: ${net_profit_after_all_costs_usd:.2f} ({net_profit_percentage:.2f}%)")
-                                            print(f"   Selling to protect profits - guaranteed green exit")
-                                    else:
-                                        remaining_buffer = trailing_stop_percentage - drop_from_peak_pct
-                                        print(f"✓ Trailing stop not triggered ({remaining_buffer:.2f}% buffer remaining)")
-                                else:
-                                    print(f"--- DYNAMIC TRAILING STOP CHECK ---")
-                                    print(f"No price data found after entry timestamp (position recently opened)")
-                                    print(f"Trailing stop will activate once historical price data is available")
-
-                            except Exception as e:
-                                print(f"Error calculating peak price from timestamps: {e}")
-                                print(f"Falling back to current price as peak")
-                                # Fallback: don't trigger trailing stop if we can't calculate properly
-                                print(f"--- DYNAMIC TRAILING STOP CHECK ---")
-                                print(f"Unable to calculate peak price accurately - skipping trailing stop check")
+                        print(f"--- DYNAMIC TRAILING STOP CHECK ---")
+                        print(f"Entry price: ${entry_price:.2f}")
+                        print(f"Peak price since entry: ${peak_price:.2f}")
+                        print(f"Current price: ${current_price:.2f}")
+                        print(f"Current profit: ${net_profit_after_all_costs_usd:.2f} ({net_profit_percentage:.4f}%)")
+                        if active_tier:
+                            print(f"Active tier: {active_tier['min_profit_pct']:.1f}%-{active_tier['max_profit_pct']:.1f}% profit → {trailing_stop_percentage}% trailing stop")
                         else:
-                            print(f"--- DYNAMIC TRAILING STOP CHECK ---")
-                            print(f"No buy timestamp found - cannot calculate peak price accurately")
-                            print(f"Skipping trailing stop check")
+                            print(f"Using default trailing stop: {trailing_stop_percentage}%")
+                        print(f"Drop from peak: {drop_from_peak_pct:.2f}%")
+
+                        # SAFEGUARD: Only trigger trailing stop if net profit % >= trailing stop %
+                        # This guarantees you can NEVER trail into a loss (even if stop triggers, you exit green)
+                        if drop_from_peak_pct >= trailing_stop_percentage:
+                            if net_profit_percentage < trailing_stop_percentage:
+                                print(f"⚠️  Trailing stop condition met BUT net profit ({net_profit_percentage:.2f}%) below trailing stop threshold ({trailing_stop_percentage}%)")
+                                print(f"   Trailing stop DISABLED - need at least {trailing_stop_percentage}% profit to prevent trailing into red")
+                                print(f"   Current profit: ${net_profit_after_all_costs_usd:.2f} - letting position run")
+                            else:
+                                should_trigger_trailing_stop = True
+                                print(f"🛑 TRAILING STOP TRIGGERED - Price dropped {drop_from_peak_pct:.2f}% from peak ${peak_price:.2f}")
+                                print(f"   Tier threshold: {trailing_stop_percentage}% (profit level: {net_profit_percentage:.2f}%)")
+                                print(f"   Net profit: ${net_profit_after_all_costs_usd:.2f} ({net_profit_percentage:.2f}%)")
+                                print(f"   Selling to protect profits - guaranteed green exit")
+                        else:
+                            remaining_buffer = trailing_stop_percentage - drop_from_peak_pct
+                            print(f"✓ Trailing stop not triggered ({remaining_buffer:.2f}% buffer remaining)")
 
                         # Execute trailing stop sell
                         if should_trigger_trailing_stop:
