@@ -454,5 +454,119 @@
       "starting_capital": 1300,
       "wallet_allocation_pct": 75.59921918769231
     }
+  },
+  {
+    "symbol": "XRP-USD",
+    "buy_price": 2.3018,
+    "sell_price": 2.26256,
+    "potential_profit_percentage": -2.1563068314695446,
+    "timestamp": "2025-11-14T04:40:47.692829+00:00",
+    "gross_profit": -20.95933699999989,
+    "taxes": -5.030240879999973,
+    "exchange_fees": 4.6721864,
+    "total_profit": -20.60128251999992,
+    "time_held_position": "8.58 hours",
+    "time_held_seconds": 30873.029801,
+    "buy_timestamp": "2025-11-13T20:06:14.663053Z",
+    "buy_screenshot_path": "./screenshots/XRP-USD_1h-candles_buy_20251113120611.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 9.659090909090914,
+      "current_trend": "sideways",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $2.31, sell $2.44 = 5.63% gross, 2.5% net after costs. Risk/reward 4.33, aligned timeframes."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 2.3,
+      "minor_support": 2.31,
+      "major_resistance": 2.5,
+      "minor_resistance": 2.44,
+      "buy_in_price_target": 2.31,
+      "actual_entry_price": 2.3018,
+      "stop_loss_set": 2.28,
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": -2.1563068314695446,
+      "risk_reward_ratio": 4.33,
+      "price_vs_support": "0.08% above major support",
+      "price_vs_resistance": "8.61% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1763064371.960414,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "sideways",
+      "volume_confirmation": null,
+      "reasoning": "Buy $2.31, sell $2.44 = 5.63% gross, 2.5% net after costs. Risk/reward 4.33, aligned timeframes.",
+      "trade_invalidation_price": 2.27
+    },
+    "exit_analysis": {
+      "exit_trigger": "stop_loss",
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": -2.1563068314695446
+    },
+    "position_sizing": {
+      "buy_amount_usd": 953.66532495,
+      "actual_shares": 413.0,
+      "entry_position_value": 955.396617,
+      "starting_capital": 1300,
+      "wallet_allocation_pct": 73.49204746153846
+    }
+  },
+  {
+    "symbol": "BTC-USD",
+    "buy_price": 98297.44391411723,
+    "sell_price": 95952.87,
+    "potential_profit_percentage": -2.6674757802943097,
+    "timestamp": "2025-11-14T11:42:46.674695+00:00",
+    "gross_profit": -28.617274869477,
+    "taxes": -6.86814596867448,
+    "exchange_fees": 4.841062173675,
+    "total_profit": -26.59019107447752,
+    "time_held_position": "16.77 hours",
+    "time_held_seconds": 60376.171552,
+    "buy_timestamp": "2025-11-13T18:56:30.503170Z",
+    "buy_screenshot_path": "./screenshots/BTC-USD_1h-candles_buy_20251113105625.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 7.028872597658355,
+      "current_trend": "bullish",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $105526.29, sell $111555.08 = 5.7% gross, 3.5% net after costs. Risk/reward 2.5, all timeframes bullish."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 98974.66955518,
+      "minor_support": 105000.0,
+      "major_resistance": 126079.88702928,
+      "minor_resistance": 111555.07692291,
+      "buy_in_price_target": 98297.44391411723,
+      "actual_entry_price": 98297.44391411723,
+      "stop_loss_set": 96000.0,
+      "profit_target_percentage": 3.5,
+      "actual_profit_percentage": -2.6674757802943097,
+      "risk_reward_ratio": 2.5,
+      "price_vs_support": "-0.68% above major support",
+      "price_vs_resistance": "28.26% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1762837497.324736,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "bullish",
+      "volume_confirmation": null,
+      "reasoning": "Buy $105526.29, sell $111555.08 = 5.7% gross, 3.5% net after costs. Risk/reward 2.5, all timeframes bullish.",
+      "trade_invalidation_price": 102500.0
+    },
+    "exit_analysis": {
+      "exit_trigger": "stop_loss",
+      "profit_target_percentage": 3.5,
+      "actual_profit_percentage": -2.6674757802943097
+    },
+    "position_sizing": {
+      "buy_amount_usd": 992.1182452502502,
+      "actual_shares": 0.0100905,
+      "entry_position_value": 996.829709604477,
+      "starting_capital": 1300,
+      "wallet_allocation_pct": 76.67920843111361
+    }
   }
 ]
