@@ -568,5 +568,62 @@
       "starting_capital": 1300,
       "wallet_allocation_pct": 76.67920843111361
     }
+  },
+  {
+    "symbol": "BTC-USD",
+    "buy_price": 90454.68,
+    "sell_price": 92111.94,
+    "potential_profit_percentage": 0.5007649018848369,
+    "timestamp": "2025-11-28T13:52:57.077525+00:00",
+    "gross_profit": 12.955076033652063,
+    "taxes": 3.1092182480764947,
+    "exchange_fees": 4.951578657834,
+    "total_profit": 4.894279127741568,
+    "time_held_position": "38.80 hours",
+    "time_held_seconds": 139685.413204,
+    "buy_timestamp": "2025-11-26T23:04:51.664343Z",
+    "buy_screenshot_path": "./screenshots/BTC-USD_1h-candles_buy_20251126150449.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 1.0266292899025113,
+      "current_trend": "bullish",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $87000, sell $106624.54 = 22.56% gross, 3.0% net after costs. Strong support at $87000, bullish across timeframes."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 82175.4035615,
+      "minor_support": 87000.0,
+      "major_resistance": 126079.88702928,
+      "minor_resistance": 106624.54,
+      "buy_in_price_target": 90454.68,
+      "actual_entry_price": 90454.68,
+      "stop_loss_set": 88000.0,
+      "profit_target_percentage": 3.0,
+      "actual_profit_percentage": 0.5007649018848369,
+      "risk_reward_ratio": 3.31,
+      "price_vs_support": "10.08% above major support",
+      "price_vs_resistance": "39.38% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1764198289.073869,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "bullish",
+      "volume_confirmation": null,
+      "reasoning": "Buy $87000, sell $106624.54 = 22.56% gross, 3.0% net after costs. Strong support at $87000, bullish across timeframes.",
+      "trade_invalidation_price": 84500.0
+    },
+    "exit_analysis": {
+      "exit_trigger": "trailing_stop",
+      "profit_target_percentage": 3.0,
+      "actual_profit_percentage": 0.5007649018848369
+    },
+    "position_sizing": {
+      "buy_amount_usd": 972.1756019443919,
+      "actual_shares": 0.01075122,
+      "entry_position_value": 977.360655533148,
+      "starting_capital": 1300,
+      "wallet_allocation_pct": 75.18158888716523
+    }
   }
 ]

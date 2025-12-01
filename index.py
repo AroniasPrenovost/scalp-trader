@@ -288,8 +288,9 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
         #
         # get crypto price data from coinbase
         coinbase_data = coinbase_client.get_products()['products']
-        coinbase_data_dictionary = {}
         coinbase_data_dictionary = convert_products_to_dicts(coinbase_data)
+        # Store the original full dictionary before filtering (needed for new listings alert and spike scanner)
+        coinbase_data_dictionary_all = coinbase_data_dictionary
         # filter out all crypto records except for those defined in enabled_wallets
         coinbase_data_dictionary = [coin for coin in coinbase_data_dictionary if coin['product_id'] in enabled_wallets]
 
@@ -299,7 +300,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
         enable_new_listings_alert = False
         if enable_new_listings_alert:
             coinbase_listed_coins_path = 'coinbase-listings/listed_coins.json'
-            new_coins = check_for_new_coinbase_listings(coinbase_listed_coins_path, coinbase_data_dictionary)
+            new_coins = check_for_new_coinbase_listings(coinbase_listed_coins_path, coinbase_data_dictionary_all)
             if new_coins:
                 for coin in new_coins:
                     print(f"NEW LISTING: {coin['product_id']}")
@@ -526,7 +527,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                     #
                     #
                     # Get or create AI analysis for trading parameters
-                    actual_coin_prices_list_length = len(coin_prices_LIST) - 1 # account for offset
+                    actual_coin_prices_list_length = len(coin_prices_LIST)
                     analysis = load_analysis_from_file(symbol)
 
                     # Load core learnings early so it's always available
@@ -1050,13 +1051,13 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
 
                         # STEP 7: Calculate NET PROFIT (your actual take-home after ALL costs)
                         net_profit_after_all_costs_usd = current_position_value_usd - total_cost_basis_usd - exit_exchange_fee_usd - capital_gains_tax_usd
-                        print(f"NET_PROFIT (take-home): ${net_profit_after_all_costs_usd:.2f}")
+                        print(f"{Colors.CYAN}NET_PROFIT (take-home): ${net_profit_after_all_costs_usd:.2f}{Colors.ENDC}")
                         print(f"  Formula: Current Value - Cost Basis - Exit Fee - Taxes")
                         print(f"  ${current_position_value_usd:.2f} - ${total_cost_basis_usd:.2f} - ${exit_exchange_fee_usd:.2f} - ${capital_gains_tax_usd:.2f}")
 
                         # STEP 8: Calculate percentage return on investment
                         net_profit_percentage = (net_profit_after_all_costs_usd / total_cost_basis_usd) * 100
-                        print(f"NET_PROFIT %: {net_profit_percentage:.4f}%")
+                        print(f"{Colors.CYAN}NET_PROFIT %: {net_profit_percentage:.4f}%{Colors.ENDC}")
                         print(f"  (${net_profit_after_all_costs_usd:.2f} ÷ ${total_cost_basis_usd:.2f} × 100)")
                         print(f"  net_profit_usd: ${net_profit_after_all_costs_usd:.2f}")
 
