@@ -399,3 +399,162 @@ def cleanup_old_crypto_data(directory, product_id, max_age_hours):
         json.dump(fresh_entries, file, indent=4)
 
     print(f"Cleaned up old data for {product_id}: kept {len(fresh_entries)} entries")
+
+
+def cleanup_old_screenshots(screenshots_dir, transactions_dir, config):
+    """
+    Cleans up old screenshots based on a tiered retention system:
+    - Analysis screenshots (multi-timeframe, volume, snapshot): Keep for X hours (default 24)
+    - Buy/Sell event screenshots: Keep for Y days (default 30) or until referenced in open positions
+
+    :param screenshots_dir: Path to the screenshots directory
+    :param transactions_dir: Path to the transactions directory
+    :param config: Config object with screenshot_retention settings
+    :return: Dictionary with cleanup statistics
+    """
+    if not os.path.exists(screenshots_dir):
+        print(f"Screenshots directory {screenshots_dir} does not exist.")
+        return {"deleted": 0, "kept": 0, "errors": 0}
+
+    # Get retention settings from config
+    retention_config = config.get('screenshot_retention', {})
+    analysis_retention_hours = retention_config.get('analysis_hours', 24)
+    event_retention_days = retention_config.get('event_days', 30)
+
+    # Calculate cutoff times
+    current_time = time.time()
+    analysis_cutoff = current_time - (analysis_retention_hours * 3600)
+    event_cutoff = current_time - (event_retention_days * 24 * 3600)
+
+    # Get list of screenshots referenced in active transactions
+    protected_screenshots = _get_protected_screenshots(transactions_dir)
+
+    stats = {"deleted": 0, "kept": 0, "errors": 0, "size_freed_mb": 0}
+
+    for filename in os.listdir(screenshots_dir):
+        if not filename.endswith('.png'):
+            continue
+
+        file_path = os.path.join(screenshots_dir, filename)
+
+        try:
+            # Get file creation time and size
+            file_creation_time = os.path.getctime(file_path)
+            file_size = os.path.getsize(file_path)
+
+            # Check if this screenshot is protected (referenced in open positions)
+            if file_path in protected_screenshots or filename in protected_screenshots:
+                stats["kept"] += 1
+                continue
+
+            # Determine screenshot type and apply appropriate retention policy
+            should_delete = False
+
+            if _is_analysis_screenshot(filename):
+                # Analysis screenshots (multi-timeframe, volume, snapshot)
+                if file_creation_time < analysis_cutoff:
+                    should_delete = True
+            elif _is_event_screenshot(filename):
+                # Buy/sell event screenshots
+                if file_creation_time < event_cutoff:
+                    should_delete = True
+
+            if should_delete:
+                os.remove(file_path)
+                stats["deleted"] += 1
+                stats["size_freed_mb"] += file_size / (1024 * 1024)
+            else:
+                stats["kept"] += 1
+
+        except Exception as e:
+            print(f"Error processing screenshot {filename}: {e}")
+            stats["errors"] += 1
+
+    if stats["deleted"] > 0:
+        print(f"Screenshot cleanup: Deleted {stats['deleted']} files, freed {stats['size_freed_mb']:.2f} MB, kept {stats['kept']} files")
+
+    return stats
+
+
+def _is_analysis_screenshot(filename):
+    """
+    Determines if a screenshot is an analysis screenshot (multi-timeframe, volume, or snapshot).
+
+    Analysis screenshot patterns:
+    - {symbol}_{timeframe}-window_{candle_label}-candles_{timestamp}.png
+    - {symbol}_volume-24h-snapshots_{timestamp}.png
+    - {symbol}_{candle_label}-candles_snapshot_{timestamp}.png
+
+    :param filename: Screenshot filename
+    :return: True if analysis screenshot
+    """
+    # Multi-timeframe analysis charts
+    if '-window_' in filename:
+        return True
+
+    # Volume trend charts
+    if 'volume-24h-snapshots' in filename:
+        return True
+
+    # Simple snapshot charts
+    if '_snapshot_' in filename:
+        return True
+
+    return False
+
+
+def _is_event_screenshot(filename):
+    """
+    Determines if a screenshot is a buy/sell event screenshot.
+
+    Event screenshot patterns:
+    - {symbol}_{candle_label}-candles_buy_{timestamp}.png
+    - {symbol}_{candle_label}-candles_sell_{timestamp}.png
+
+    :param filename: Screenshot filename
+    :return: True if event screenshot
+    """
+    return '_buy_' in filename or '_sell_' in filename
+
+
+def _get_protected_screenshots(transactions_dir):
+    """
+    Gets list of screenshot paths that should be protected from deletion.
+    These are screenshots referenced in open positions (transactions without sell_time).
+
+    :param transactions_dir: Path to the transactions directory
+    :return: Set of protected screenshot paths/filenames
+    """
+    protected = set()
+
+    if not os.path.exists(transactions_dir):
+        return protected
+
+    # Check all transaction files (symbol-specific JSON files)
+    for filename in os.listdir(transactions_dir):
+        if not filename.endswith('.json'):
+            continue
+
+        file_path = os.path.join(transactions_dir, filename)
+
+        try:
+            with open(file_path, 'r') as file:
+                transactions = json.load(file)
+
+                if not isinstance(transactions, list):
+                    continue
+
+                # Find open positions (no sell_time)
+                for transaction in transactions:
+                    if 'sell_time' not in transaction or transaction.get('sell_time') is None:
+                        # This is an open position, protect its screenshots
+                        if 'buy_screenshot_path' in transaction:
+                            screenshot_path = transaction['buy_screenshot_path']
+                            protected.add(screenshot_path)
+                            # Also add just the filename in case path formats differ
+                            protected.add(os.path.basename(screenshot_path))
+
+        except Exception as e:
+            print(f"Error reading transaction file {filename}: {e}")
+
+    return protected

@@ -16,7 +16,7 @@ import glob # related to price change % logic
 
 # custom imports
 from utils.email import send_email_notification
-from utils.file_helpers import save_obj_dict_to_file, count_files_in_directory, append_crypto_data_to_file, get_property_values_from_crypto_file, cleanup_old_crypto_data
+from utils.file_helpers import save_obj_dict_to_file, count_files_in_directory, append_crypto_data_to_file, get_property_values_from_crypto_file, cleanup_old_crypto_data, cleanup_old_screenshots
 from utils.price_helpers import calculate_percentage_from_min, calculate_offset_price, calculate_price_change_percentage
 from utils.time_helpers import print_local_time
 from utils.coingecko_live import fetch_coingecko_current_data, should_update_coingecko_data, get_last_coingecko_update_time
@@ -172,6 +172,32 @@ def load_last_hourly_operation_time():
         return 0
 
 #
+# Screenshot cleanup timestamp persistence
+#
+SCREENSHOT_CLEANUP_TIMESTAMP_FILE = 'last_screenshot_cleanup.json'
+
+def save_last_screenshot_cleanup_time(timestamp):
+    """Save the last screenshot cleanup timestamp to a file"""
+    try:
+        with open(SCREENSHOT_CLEANUP_TIMESTAMP_FILE, 'w') as file:
+            json.dump({'last_screenshot_cleanup': timestamp}, file, indent=4)
+    except Exception as e:
+        print(f"Warning: Failed to save screenshot cleanup timestamp: {e}")
+
+def load_last_screenshot_cleanup_time():
+    """Load the last screenshot cleanup timestamp from file, return 0 if file doesn't exist"""
+    try:
+        if os.path.exists(SCREENSHOT_CLEANUP_TIMESTAMP_FILE):
+            with open(SCREENSHOT_CLEANUP_TIMESTAMP_FILE, 'r') as file:
+                data = json.load(file)
+                return data.get('last_screenshot_cleanup', 0)
+        else:
+            return 0
+    except Exception as e:
+        print(f"Warning: Failed to load screenshot cleanup timestamp: {e}")
+        return 0
+
+#
 #
 #
 #
@@ -227,6 +253,12 @@ if LAST_HOURLY_OPERATION_TIME > 0:
     hours_since = (time.time() - LAST_HOURLY_OPERATION_TIME) / 3600
     print(f"Loaded last hourly operation timestamp: {hours_since:.2f} hours ago\n")
 
+# Load last screenshot cleanup time from file (for crash recovery)
+LAST_SCREENSHOT_CLEANUP_TIME = load_last_screenshot_cleanup_time()
+if LAST_SCREENSHOT_CLEANUP_TIME > 0:
+    hours_since = (time.time() - LAST_SCREENSHOT_CLEANUP_TIME) / 3600
+    print(f"Loaded last screenshot cleanup timestamp: {hours_since:.2f} hours ago\n")
+
 def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
     while True:
 
@@ -242,6 +274,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
         global LAST_EXCEPTION_ERROR
         global LAST_EXCEPTION_ERROR_COUNT
         global LAST_HOURLY_OPERATION_TIME
+        global LAST_SCREENSHOT_CLEANUP_TIME
 
         # Check if it's time to run hourly operations (data collection, CoinGecko, etc.)
         current_time = time.time()
@@ -384,6 +417,35 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
         else:
             time_until_next_hourly = hourly_interval_seconds - time_since_last_hourly
             print(f"{Colors.CYAN}⏭  Skipping data collection - NOT appending (last collection: {time_since_last_hourly/60:.1f} min ago, next in {time_until_next_hourly/60:.1f} min){Colors.ENDC}\n")
+
+        #
+        # SCREENSHOT CLEANUP: Run periodically based on config
+        #
+        screenshot_retention_config = config.get('screenshot_retention', {})
+        screenshot_cleanup_enabled = screenshot_retention_config.get('enabled', True)
+        screenshot_cleanup_interval_hours = screenshot_retention_config.get('cleanup_interval_hours', 6)
+
+        if screenshot_cleanup_enabled:
+            time_since_last_cleanup = current_time - LAST_SCREENSHOT_CLEANUP_TIME
+            should_run_screenshot_cleanup = time_since_last_cleanup >= (screenshot_cleanup_interval_hours * 3600)
+
+            if should_run_screenshot_cleanup:
+                print(f"{Colors.BOLD}{Colors.CYAN}🧹 Running screenshot cleanup (last run: {time_since_last_cleanup/3600:.2f} hours ago){Colors.ENDC}\n")
+                try:
+                    screenshots_dir = 'screenshots'
+                    transactions_dir = 'transactions'
+                    cleanup_stats = cleanup_old_screenshots(screenshots_dir, transactions_dir, config)
+
+                    # Update the last cleanup timestamp
+                    LAST_SCREENSHOT_CLEANUP_TIME = time.time()
+                    save_last_screenshot_cleanup_time(LAST_SCREENSHOT_CLEANUP_TIME)
+
+                    if cleanup_stats['deleted'] > 0:
+                        print(f"{Colors.GREEN}✓ Screenshot cleanup completed: Deleted {cleanup_stats['deleted']} files ({cleanup_stats['size_freed_mb']:.2f} MB freed){Colors.ENDC}\n")
+                    else:
+                        print(f"{Colors.GREEN}✓ Screenshot cleanup completed: No files to delete{Colors.ENDC}\n")
+                except Exception as e:
+                    print(f"{Colors.RED}Error during screenshot cleanup: {e}{Colors.ENDC}\n")
 
         #
         #

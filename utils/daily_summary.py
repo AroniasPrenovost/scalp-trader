@@ -846,6 +846,17 @@ def send_daily_summary_email(wallets_config: List[Dict]) -> bool:
         )
 
         print("✅ Daily summary email sent successfully!")
+
+        # Clean up chart files after email is sent
+        charts_to_delete = [portfolio_chart, pnl_chart, symbol_chart]
+        for chart_path in charts_to_delete:
+            if chart_path and os.path.exists(chart_path):
+                try:
+                    os.remove(chart_path)
+                    print(f"  ✓ Deleted chart: {os.path.basename(chart_path)}")
+                except Exception as e:
+                    print(f"  ⚠ Failed to delete {chart_path}: {e}")
+
         return True
 
     except Exception as e:
