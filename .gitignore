@@ -3,7 +3,7 @@
 config.json
 
 *_orders.json
-/transactions
+/transactions/data.json
 
 /coinbase-data
 /analysis
@@ -14,5 +14,6 @@ config.json
 /screenshots
 
 last_hourly_operation.json
+last_screenshot_cleanup.json
 
 .DS_Store

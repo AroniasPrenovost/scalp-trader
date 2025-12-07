@@ -625,5 +625,176 @@
       "starting_capital": 1300,
       "wallet_allocation_pct": 75.18158888716523
     }
+  },
+  {
+    "symbol": "BTC-USD",
+    "buy_price": 89984.02,
+    "sell_price": 91564.06,
+    "potential_profit_percentage": 0.4434959082358857,
+    "timestamp": "2025-12-02T17:49:40.502933+00:00",
+    "gross_profit": 12.249776439263883,
+    "taxes": 2.9399463454233317,
+    "exchange_fees": 4.962479047007999,
+    "total_profit": 4.347351046832552,
+    "time_held_position": "2.64 hours",
+    "time_held_seconds": 9512.354789,
+    "buy_timestamp": "2025-12-02T15:11:08.148169Z",
+    "buy_screenshot_path": "./screenshots/BTC-USD_1h-candles_buy_20251202071103.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 7.5414110520945155,
+      "current_trend": "bullish",
+      "confidence_level": "high",
+      "entry_reasoning": "All timeframes align bullish, price near minor support, risk/reward 4.0, volume stable."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 85000.0,
+      "minor_support": 87000.0,
+      "major_resistance": 100000.0,
+      "minor_resistance": 95000.0,
+      "buy_in_price_target": 89984.02,
+      "actual_entry_price": 89984.02,
+      "stop_loss_set": 88000.0,
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": 0.4434959082358857,
+      "risk_reward_ratio": 4.0,
+      "price_vs_support": "5.86% above major support",
+      "price_vs_resistance": "11.13% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1764688263.6228108,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "bullish",
+      "volume_confirmation": null,
+      "reasoning": "All timeframes align bullish, price near minor support, risk/reward 4.0, volume stable.",
+      "trade_invalidation_price": 85000.0
+    },
+    "exit_analysis": {
+      "exit_trigger": "trailing_stop",
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": 0.4434959082358857
+    },
+    "position_sizing": {
+      "buy_amount_usd": 975.8463112901982,
+      "actual_shares": 0.01083936,
+      "entry_position_value": 980.246032962336,
+      "starting_capital": 1300,
+      "wallet_allocation_pct": 75.40354099710277
+    }
+  },
+  {
+    "symbol": "BTC-USD",
+    "buy_price": 91939.37,
+    "sell_price": 93272.0,
+    "potential_profit_percentage": 0.21328050241018207,
+    "timestamp": "2025-12-03T05:19:33.083448+00:00",
+    "gross_profit": 9.291832163197,
+    "taxes": 2.23003971916728,
+    "exchange_fees": 4.9641130568000005,
+    "total_profit": 2.0976793872297197,
+    "time_held_position": "10.48 hours",
+    "time_held_seconds": 37740.842558,
+    "buy_timestamp": "2025-12-02T18:50:32.240915Z",
+    "buy_screenshot_path": "./screenshots/BTC-USD_1h-candles_buy_20251202105029.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 7.275097182010082,
+      "current_trend": "bullish",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $91000, sell $96000 = 5.5% gross, 3.5% net after costs. Aligned timeframes, volume stable, RSI neutral."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 85000.0,
+      "minor_support": 90000.0,
+      "major_resistance": 100500.0,
+      "minor_resistance": 95000.0,
+      "buy_in_price_target": 91939.37,
+      "actual_entry_price": 91939.37,
+      "stop_loss_set": 88908.40175824176,
+      "profit_target_percentage": 3.5,
+      "actual_profit_percentage": 0.21328050241018207,
+      "risk_reward_ratio": 3.33,
+      "price_vs_support": "8.16% above major support",
+      "price_vs_resistance": "9.31% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1764701428.880352,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "bullish",
+      "volume_confirmation": null,
+      "reasoning": "Buy $91000, sell $96000 = 5.5% gross, 3.5% net after costs. Aligned timeframes, volume stable, RSI neutral.",
+      "trade_invalidation_price": 87500.0
+    },
+    "exit_analysis": {
+      "exit_trigger": "trailing_stop",
+      "profit_target_percentage": 3.5,
+      "actual_profit_percentage": 0.21328050241018207
+    },
+    "position_sizing": {
+      "buy_amount_usd": 979.1068245753225,
+      "actual_shares": 0.01064438,
+      "entry_position_value": 983.530779196803,
+      "starting_capital": 1300,
+      "wallet_allocation_pct": 75.65621378436947
+    }
+  },
+  {
+    "symbol": "BTC-USD",
+    "buy_price": 93895.24,
+    "sell_price": 91947.0,
+    "potential_profit_percentage": -2.4343837448005776,
+    "timestamp": "2025-12-03T14:08:18.913626+00:00",
+    "gross_profit": -25.245623320265963,
+    "taxes": -6.058949596863831,
+    "exchange_fees": 4.800520688550001,
+    "total_profit": -23.98719441195213,
+    "time_held_position": "7.63 hours",
+    "time_held_seconds": 27452.837548,
+    "buy_timestamp": "2025-12-03T06:30:46.076101Z",
+    "buy_screenshot_path": "./screenshots/BTC-USD_1h-candles_buy_20251202223043.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 6.31378084276448,
+      "current_trend": "bullish",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $91943.92, sell $96941.64 = 5.44% gross, 2.5% net after costs. Risk/reward ratio 3.13."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 82175.404,
+      "minor_support": 91943.92,
+      "major_resistance": 126079.887,
+      "minor_resistance": 106624.54,
+      "buy_in_price_target": 93895.24,
+      "actual_entry_price": 93895.24,
+      "stop_loss_set": 92222.95680436076,
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": -2.4343837448005776,
+      "risk_reward_ratio": 3.13,
+      "price_vs_support": "14.26% above major support",
+      "price_vs_resistance": "34.28% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1764743443.5182562,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "bullish",
+      "volume_confirmation": null,
+      "reasoning": "Buy $91943.92, sell $96941.64 = 5.44% gross, 2.5% net after costs. Risk/reward ratio 3.13.",
+      "trade_invalidation_price": 90000.0
+    },
+    "exit_analysis": {
+      "exit_trigger": "stop_loss",
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": -2.4343837448005776
+    },
+    "position_sizing": {
+      "buy_amount_usd": 980.6800841157449,
+      "actual_shares": 0.01044193,
+      "entry_position_value": 985.349761030266,
+      "starting_capital": 1300,
+      "wallet_allocation_pct": 75.7961354638666
+    }
   }
 ]
