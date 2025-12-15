@@ -793,12 +793,6 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                     full_order_dict['buy_screenshot_path'] = last_order['buy_screenshot_path']
                                     print('✓ Preserved buy screenshot path from placeholder order')
 
-                                # Initialize peak price tracking for trailing stop
-                                actual_fill_price = float(full_order_dict.get('average_filled_price', 0))
-                                if actual_fill_price > 0:
-                                    full_order_dict['peak_price_since_entry'] = actual_fill_price
-                                    print(f'✓ Initialized peak price tracking at ${actual_fill_price:.2f}')
-
                                 # POST-FILL ADJUSTMENT: Check if actual fill price differs significantly from AI recommendation
                                 if 'original_analysis' in full_order_dict:
                                     original_analysis = full_order_dict['original_analysis']
@@ -1109,25 +1103,6 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                         print('number_of_shares: ', number_of_shares)
 
                         # ============================================================
-                        # PEAK PRICE TRACKING: Update peak price for trailing stop
-                        # ============================================================
-                        # Get current peak from ledger, initialize to entry price if missing
-                        peak_price = last_order.get('peak_price_since_entry', entry_price)
-
-                        # Update peak if current price is higher
-                        if current_price > peak_price:
-                            peak_price = current_price
-                            last_order['peak_price_since_entry'] = peak_price
-                            # Save updated peak to ledger immediately
-                            import json
-                            file_name = f"{symbol}_orders.json"
-                            with open(file_name, 'w') as file:
-                                json.dump([last_order], file, indent=4)
-                            print(f"🔝 New peak price: ${peak_price:.2f} (updated in ledger)")
-                        else:
-                            print(f"Peak price since entry: ${peak_price:.2f}")
-
-                        # ============================================================
                         # PROFIT CALCULATION BREAKDOWN (Step-by-Step)
                         # ============================================================
                         # This calculates your actual take-home profit if you sold right now.
@@ -1181,102 +1156,14 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                         effective_profit_target = max(PROFIT_PERCENTAGE, min_profit_target_percentage)
                         print(f"effective_profit_target: {effective_profit_target}% (AI: {PROFIT_PERCENTAGE}%, Min: {min_profit_target_percentage}%)")
 
-                        # TRAILING STOP DISABLED: Analysis showed it was causing premature exits
-                        # Trades were exiting at 0.4-1% profit when targeting 2.5-3.5%
-                        # Now using only stop loss + profit target (simpler and more effective)
-
                         print(f"--- POSITION STATUS ---")
                         print(f"Entry price: ${entry_price:.2f}")
-                        print(f"Peak price since entry: ${peak_price:.2f}")
                         print(f"Current price: ${current_price:.2f}")
                         print(f"Current profit: ${net_profit_after_all_costs_usd:.2f} ({net_profit_percentage:.4f}%)")
                         print(f"Stop loss: ${STOP_LOSS_PRICE:.2f} | Profit target: {effective_profit_target:.2f}%")
-                        print(f"Trailing stop: DISABLED (using stop loss + profit target only)")
-
-                        # Trailing stop is now disabled - skip this check
-                        should_trigger_trailing_stop = False
-
-                        if should_trigger_trailing_stop:
-                            print('~ TRAILING STOP TRIGGERED - Selling to lock in gains ~')
-                            # Filter data to match snapshot chart (3 months = 2160 hours)
-                            sell_chart_hours = 2160  # 90 days
-                            sell_chart_data_points = int((sell_chart_hours * 60) / INTERVAL_SAVE_DATA_EVERY_X_MINUTES)
-                            sell_chart_prices = coin_prices_LIST[-sell_chart_data_points:] if len(coin_prices_LIST) > sell_chart_data_points else coin_prices_LIST
-                            sell_chart_min = min(sell_chart_prices)
-                            sell_chart_max = max(sell_chart_prices)
-                            sell_chart_range_pct = calculate_percentage_from_min(sell_chart_min, sell_chart_max)
-
-                            plot_graph(
-                                time.time(),
-                                INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
-                                symbol,
-                                sell_chart_prices,
-                                sell_chart_min,
-                                sell_chart_max,
-                                sell_chart_range_pct,
-                                entry_price,
-                                analysis=analysis,
-                                buy_event=False
-                            )
-
-                            if READY_TO_TRADE:
-                                # Use market order for immediate execution
-                                place_market_sell_order(coinbase_client, symbol, number_of_shares, net_profit_after_all_costs_usd, net_profit_percentage)
-                                # Save transaction record
-                                buy_timestamp = order_data.get('created_time')
-                                buy_screenshot_path = last_order.get('buy_screenshot_path')
-
-                                # Build market context at entry
-                                entry_market_conditions = {
-                                    "volatility_range_pct": range_percentage_from_min,
-                                    "current_trend": analysis.get('market_trend') if analysis else None,
-                                    "confidence_level": analysis.get('confidence_level') if analysis else None,
-                                    "entry_reasoning": analysis.get('reasoning') if analysis else None,
-                                }
-
-                                # Build position sizing data
-                                position_sizing_data = {
-                                    "buy_amount_usd": analysis.get('buy_amount_usd') if analysis else None,
-                                    "actual_shares": number_of_shares,
-                                    "entry_position_value": entry_position_value_after_fees,
-                                    "starting_capital": STARTING_CAPITAL_USD,
-                                    "wallet_allocation_pct": (entry_position_value_after_fees / STARTING_CAPITAL_USD * 100) if STARTING_CAPITAL_USD > 0 else None,
-                                }
-
-                                save_transaction_record(
-                                    symbol=symbol,
-                                    buy_price=entry_price,
-                                    sell_price=current_price,
-                                    potential_profit_percentage=net_profit_percentage,
-                                    gross_profit=unrealized_gain_usd,
-                                    taxes=capital_gains_tax_usd,
-                                    exchange_fees=exit_exchange_fee_usd,
-                                    total_profit=net_profit_after_all_costs_usd,
-                                    buy_timestamp=buy_timestamp,
-                                    buy_screenshot_path=buy_screenshot_path,
-                                    analysis=analysis,
-                                    entry_market_conditions=entry_market_conditions,
-                                    exit_trigger='trailing_stop',
-                                    position_sizing_data=position_sizing_data
-                                )
-
-                                # Update core learnings based on trade outcome
-                                from utils.trade_context import load_transaction_history
-                                trade_outcome = {
-                                    'profit': net_profit_after_all_costs_usd,
-                                    'exit_trigger': 'trailing_stop',
-                                    'confidence_level': analysis.get('confidence_level', 'unknown'),
-                                    'market_trend': analysis.get('market_trend', 'unknown')
-                                }
-                                transactions = load_transaction_history(symbol)
-                                update_learnings_from_trade(symbol, trade_outcome, transactions)
-
-                                delete_analysis_file(symbol)
-                            else:
-                                print('STATUS: Trading disabled')
 
                         # Check for stop loss trigger
-                        elif STOP_LOSS_PRICE and current_price <= STOP_LOSS_PRICE:
+                        if STOP_LOSS_PRICE and current_price <= STOP_LOSS_PRICE:
                             print('~ STOP LOSS TRIGGERED - Selling to limit losses ~')
                             # Filter data to match snapshot chart (3 months = 2160 hours)
                             sell_chart_hours = 2160  # 90 days

@@ -312,7 +312,6 @@ def main():
     print("  - Exchange fees (not included)")
     print("  - Taxes (not included)")
     print("  - Slippage and execution delays")
-    print("  - Different exit strategies (trailing stops, etc.)")
     print("\n" + "=" * 80)
 
 
