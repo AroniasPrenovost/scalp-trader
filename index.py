@@ -20,6 +20,7 @@ from utils.file_helpers import save_obj_dict_to_file, count_files_in_directory, 
 from utils.price_helpers import calculate_percentage_from_min, calculate_offset_price, calculate_price_change_percentage
 from utils.time_helpers import print_local_time
 from utils.coingecko_live import fetch_coingecko_current_data, should_update_coingecko_data, get_last_coingecko_update_time
+from utils.range_support_strategy import check_range_support_buy_signal
 
 # Coinbase-related
 # Coinbase helpers and define client
@@ -938,14 +939,58 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                     elif last_order_type == 'none' or last_order_type == 'sell':
                         MARKET_TREND = analysis.get('market_trend', 'N/A')
 
-                        if TRADE_RECOMMENDATION != 'buy':
-                            print(f"STATUS: AI recommends '{TRADE_RECOMMENDATION}' - only executing buy orders when recommendation is 'buy'")
+                        # Load range support strategy configuration
+                        range_strategy_config = config.get('range_support_strategy', {})
+                        range_strategy_enabled = range_strategy_config.get('enabled', True)
+
+                        # Check range support strategy if enabled
+                        range_signal = None
+                        if range_strategy_enabled:
+                            print(f"\n{Colors.BOLD}{Colors.CYAN}--- RANGE SUPPORT STRATEGY CHECK ---{Colors.ENDC}")
+                            range_signal = check_range_support_buy_signal(
+                                prices=coin_prices_LIST,
+                                current_price=current_price,
+                                min_touches=range_strategy_config.get('min_touches', 2),
+                                zone_tolerance_percentage=range_strategy_config.get('zone_tolerance_percentage', 3.0),
+                                entry_tolerance_percentage=range_strategy_config.get('entry_tolerance_percentage', 1.5),
+                                extrema_order=range_strategy_config.get('extrema_order', 5),
+                                lookback_window=range_strategy_config.get('lookback_window_hours', 336)
+                            )
+
+                            if range_signal['signal'] == 'buy':
+                                zone = range_signal['zone']
+                                print(f"{Colors.GREEN}✓ RANGE SIGNAL: BUY{Colors.ENDC}")
+                                print(f"  Support zone: ${zone['zone_price_min']:.2f} - ${zone['zone_price_max']:.2f} (avg: ${zone['zone_price_avg']:.2f})")
+                                print(f"  Zone strength: {zone['touches']} touches")
+                                print(f"  Current price: ${current_price:.2f}")
+                                print(f"  Distance from zone avg: {range_signal['distance_from_zone_avg']:+.2f}%")
+                                print(f"  {range_signal['reasoning']}")
+                            else:
+                                print(f"{Colors.YELLOW}✗ RANGE SIGNAL: NO BUY{Colors.ENDC}")
+                                print(f"  {range_signal['reasoning']}")
+                                if range_signal['all_zones']:
+                                    strongest_zone = range_signal['all_zones'][0]
+                                    print(f"  Nearest support zone: ${strongest_zone['zone_price_avg']:.2f} ({range_signal['distance_from_zone_avg']:+.2f}% away)")
+
+                        # Check all buy conditions
+                        if range_strategy_enabled and range_signal and range_signal['signal'] != 'buy':
+                            print(f"\n{Colors.YELLOW}STATUS: Not in support zone - waiting for price to reach support{Colors.ENDC}")
+                        elif TRADE_RECOMMENDATION != 'buy':
+                            print(f"\n{Colors.YELLOW}STATUS: AI recommends '{TRADE_RECOMMENDATION}' - only executing buy orders when recommendation is 'buy'{Colors.ENDC}")
                         elif CONFIDENCE_LEVEL != 'high':
-                            print(f"STATUS: AI confidence level is '{CONFIDENCE_LEVEL}' - only trading with HIGH confidence")
-                        elif MARKET_TREND != 'bullish':
-                            print(f"STATUS: Market trend is {MARKET_TREND} - only executing buy orders in BULLISH markets")
+                            print(f"\n{Colors.YELLOW}STATUS: AI confidence level is '{CONFIDENCE_LEVEL}' - only trading with HIGH confidence{Colors.ENDC}")
                         else:
-                            print(f"STATUS: Executing BUY at market price ~${current_price} (AI target was ${BUY_AT_PRICE}, Confidence: {CONFIDENCE_LEVEL})")
+                            # Note: market_trend (bullish/bearish/sideways) is informational only
+                            # The LLM factors trend into its buy/high confidence signals
+                            # Range-based strategies often work in sideways markets
+                            print(f"\n{Colors.BOLD}{Colors.GREEN}{'='*60}")
+                            print(f"  ✓ ALL BUY CONDITIONS MET - EXECUTING BUY")
+                            print(f"{'='*60}{Colors.ENDC}")
+                            if range_strategy_enabled and range_signal and range_signal['signal'] == 'buy':
+                                zone = range_signal['zone']
+                                print(f"{Colors.GREEN}Range Strategy: ✓ In support zone (${zone['zone_price_avg']:.2f}, {zone['touches']} touches){Colors.ENDC}")
+                            print(f"{Colors.GREEN}AI Analysis: ✓ BUY recommendation with HIGH confidence{Colors.ENDC}")
+                            print(f"{Colors.GREEN}Market Price: ${current_price:.2f} (AI target: ${BUY_AT_PRICE:.2f}){Colors.ENDC}\n")
                             # Filter data to match snapshot chart (3 months = 2160 hours)
                             buy_chart_hours = 2160  # 90 days
                             buy_chart_data_points = int((buy_chart_hours * 60) / INTERVAL_SAVE_DATA_EVERY_X_MINUTES)
@@ -983,8 +1028,17 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                         print(f"Calculated shares to buy: {shares_to_buy} fractional shares (${buy_amount} / ${current_price})")
 
                                     if shares_to_buy > 0:
-                                        # Use market order for guaranteed execution
-                                        place_market_buy_order(coinbase_client, symbol, shares_to_buy)
+                                        # Always use limit orders for guaranteed price and lower fees (maker vs taker)
+                                        # Get optional price buffer from config (default 0% = exact AI price)
+                                        order_execution_config = config.get('order_execution', {})
+                                        limit_price_buffer_pct = order_execution_config.get('limit_order_price_buffer_pct', 0.0)
+
+                                        # Calculate limit price with optional buffer
+                                        # Buffer of 0% means we get EXACTLY the AI recommended price or better
+                                        # Small buffer (0.3-0.5%) increases fill probability in fast markets
+                                        limit_price = BUY_AT_PRICE * (1 + limit_price_buffer_pct / 100)
+                                        print(f"Placing LIMIT buy order at ${limit_price:.4f} (AI target: ${BUY_AT_PRICE:.4f}, buffer: {limit_price_buffer_pct}%)")
+                                        place_limit_buy_order(coinbase_client, symbol, shares_to_buy, limit_price)
 
                                         # Store screenshot path AND original analysis for later use in transaction record
                                         # This will be retrieved from the ledger when we sell
@@ -1127,59 +1181,21 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                         effective_profit_target = max(PROFIT_PERCENTAGE, min_profit_target_percentage)
                         print(f"effective_profit_target: {effective_profit_target}% (AI: {PROFIT_PERCENTAGE}%, Min: {min_profit_target_percentage}%)")
 
-                        # DYNAMIC TRAILING STOP: Adjust protection based on profit level
-                        # Tighter stops when barely profitable, looser when riding winners
-                        # This locks in gains early while letting big wins run
-                        trailing_stop_tiers = config.get('trailing_stop_tiers', [
-                            {"min_profit_pct": 0, "max_profit_pct": 2.0, "trailing_stop_pct": 1.5},
-                            {"min_profit_pct": 2.0, "max_profit_pct": 5.0, "trailing_stop_pct": 2.5},
-                            {"min_profit_pct": 5.0, "max_profit_pct": 999, "trailing_stop_pct": 4.0}
-                        ])
+                        # TRAILING STOP DISABLED: Analysis showed it was causing premature exits
+                        # Trades were exiting at 0.4-1% profit when targeting 2.5-3.5%
+                        # Now using only stop loss + profit target (simpler and more effective)
 
-                        # Select trailing stop percentage based on current profit level
-                        trailing_stop_percentage = 4.0  # Default fallback
-                        active_tier = None
-                        for tier in trailing_stop_tiers:
-                            if tier['min_profit_pct'] <= net_profit_percentage < tier['max_profit_pct']:
-                                trailing_stop_percentage = tier['trailing_stop_pct']
-                                active_tier = tier
-                                break
-
-                        should_trigger_trailing_stop = False
-
-                        # Calculate drop from peak using ledger-tracked peak_price
-                        # (peak_price is already updated above every 5 minutes)
-                        drop_from_peak_pct = ((peak_price - current_price) / peak_price) * 100
-
-                        print(f"--- DYNAMIC TRAILING STOP CHECK ---")
+                        print(f"--- POSITION STATUS ---")
                         print(f"Entry price: ${entry_price:.2f}")
                         print(f"Peak price since entry: ${peak_price:.2f}")
                         print(f"Current price: ${current_price:.2f}")
                         print(f"Current profit: ${net_profit_after_all_costs_usd:.2f} ({net_profit_percentage:.4f}%)")
-                        if active_tier:
-                            print(f"Active tier: {active_tier['min_profit_pct']:.1f}%-{active_tier['max_profit_pct']:.1f}% profit → {trailing_stop_percentage}% trailing stop")
-                        else:
-                            print(f"Using default trailing stop: {trailing_stop_percentage}%")
-                        print(f"Drop from peak: {drop_from_peak_pct:.2f}%")
+                        print(f"Stop loss: ${STOP_LOSS_PRICE:.2f} | Profit target: {effective_profit_target:.2f}%")
+                        print(f"Trailing stop: DISABLED (using stop loss + profit target only)")
 
-                        # SAFEGUARD: Only trigger trailing stop if net profit % >= trailing stop %
-                        # This guarantees you can NEVER trail into a loss (even if stop triggers, you exit green)
-                        if drop_from_peak_pct >= trailing_stop_percentage:
-                            if net_profit_percentage < trailing_stop_percentage:
-                                print(f"⚠️  Trailing stop condition met BUT net profit ({net_profit_percentage:.2f}%) below trailing stop threshold ({trailing_stop_percentage}%)")
-                                print(f"   Trailing stop DISABLED - need at least {trailing_stop_percentage}% profit to prevent trailing into red")
-                                print(f"   Current profit: ${net_profit_after_all_costs_usd:.2f} - letting position run")
-                            else:
-                                should_trigger_trailing_stop = True
-                                print(f"🛑 TRAILING STOP TRIGGERED - Price dropped {drop_from_peak_pct:.2f}% from peak ${peak_price:.2f}")
-                                print(f"   Tier threshold: {trailing_stop_percentage}% (profit level: {net_profit_percentage:.2f}%)")
-                                print(f"   Net profit: ${net_profit_after_all_costs_usd:.2f} ({net_profit_percentage:.2f}%)")
-                                print(f"   Selling to protect profits - guaranteed green exit")
-                        else:
-                            remaining_buffer = trailing_stop_percentage - drop_from_peak_pct
-                            print(f"✓ Trailing stop not triggered ({remaining_buffer:.2f}% buffer remaining)")
+                        # Trailing stop is now disabled - skip this check
+                        should_trigger_trailing_stop = False
 
-                        # Execute trailing stop sell
                         if should_trigger_trailing_stop:
                             print('~ TRAILING STOP TRIGGERED - Selling to lock in gains ~')
                             # Filter data to match snapshot chart (3 months = 2160 hours)

@@ -199,6 +199,15 @@ def calculate_volatility_adjusted_position_size(
     max_position = current_usd_value * 0.75
     final_position = min(adjusted_position, max_position)
 
+    # Apply minimum position size to ensure fee efficiency
+    min_position = position_config.get('minimum_position_size_usd', 0)
+    if min_position > 0 and final_position < min_position:
+        print(f"Position Sizing: Volatility={range_percentage_from_min:.1f}% ({vol_category})")
+        print(f"  Base position: ${base_position:.2f} ({base_percentage}% of ${current_usd_value:.2f})")
+        print(f"  Volatility-adjusted: ${final_position:.2f}")
+        print(f"  ⚠️  Position too small (< ${min_position}) - fees would eat profits. Skipping trade.")
+        return 0  # Don't trade if position would be too small
+
     print(f"Position Sizing: Volatility={range_percentage_from_min:.1f}% ({vol_category})")
     print(f"  Base position: ${base_position:.2f} ({base_percentage}% of ${current_usd_value:.2f})")
     print(f"  Volatility-adjusted: ${final_position:.2f}")

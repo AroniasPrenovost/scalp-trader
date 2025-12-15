@@ -155,8 +155,58 @@ VOLATILITY TRADING RULES:
 4. Profit targets should be realistic relative to observed volatility (don't target 10% profit on 8% range asset)
 5. Position sizing: Higher volatility = smaller position size to manage risk"""
 
+    # Check range support strategy for confluence
+    range_strategy_context = ""
+    try:
+        from utils.range_support_strategy import check_range_support_buy_signal
+
+        range_signal = check_range_support_buy_signal(
+            prices=prices,
+            current_price=current_price,
+            min_touches=2,
+            zone_tolerance_percentage=3.0,
+            entry_tolerance_percentage=1.5,
+            extrema_order=5,
+            lookback_window=336  # 14 days
+        )
+
+        if range_signal['all_zones']:
+            range_strategy_context = f"""
+
+RANGE SUPPORT STRATEGY ANALYSIS (For Confluence):
+- Range Strategy Signal: {range_signal['signal'].upper()}
+- Support Zones Identified: {len(range_signal['all_zones'])}
+
+"""
+            # Add details about strongest zone
+            if range_signal['all_zones']:
+                strongest_zone = range_signal['all_zones'][0]
+                range_strategy_context += f"""Strongest Support Zone:
+- Zone Average: ${strongest_zone['zone_price_avg']:.4f}
+- Zone Range: ${strongest_zone['zone_price_min']:.4f} - ${strongest_zone['zone_price_max']:.4f}
+- Zone Strength: {strongest_zone['touches']} historical touches
+- Current Price Position: {"IN ZONE" if range_signal['signal'] == 'buy' else "NOT IN ZONE"}
+
+"""
+
+            if range_signal['signal'] == 'buy':
+                range_strategy_context += f"""✓ RANGE STRATEGY CONFIRMATION: Price is currently in a support zone with {range_signal['zone_strength']} touches.
+This suggests price is at a historically strong support level that has held multiple times.
+Consider INCREASING your confidence if your technical analysis also shows bullish signals.
+
+"""
+            else:
+                range_strategy_context += f"""⚠ RANGE STRATEGY: Price is NOT currently in an identified support zone.
+Nearest support zone is at ${range_signal['all_zones'][0]['zone_price_avg']:.4f} ({range_signal['distance_from_zone_avg']:+.2f}% away).
+Consider waiting for price to reach support zone, OR ensure your analysis shows STRONG bullish signals to override.
+
+"""
+    except Exception as e:
+        # If range strategy fails, continue without it
+        pass
+
     prompt = f"""Analyze the following market data for {symbol} and provide a technical analysis with specific trading levels.
-{historical_context_section}{timeframe_context}{volatility_context}
+{historical_context_section}{timeframe_context}{volatility_context}{range_strategy_context}
 
 Market Data:
 - Current Price: ${current_price}
@@ -264,6 +314,7 @@ HIGH confidence requires ALL of the following:
 ✓ RSI supports direction (not overbought on longs, not oversold on shorts)
 ✓ Historical data shows similar setups succeeded (if historical context available)
 ✓ Multiple technical confirmations (e.g., MACD cross + support bounce + volume)
+✓ **RANGE STRATEGY ALIGNMENT**: If range support strategy shows price IN a support zone with 3+ touches, this INCREASES confidence. If price is NOT in a support zone, you may still trade if other signals are exceptionally strong, but consider reducing confidence to MEDIUM unless setup is very compelling.
 
 MEDIUM confidence (DO NOT TRADE - per requirement #4):
 - Some but not all HIGH confidence criteria met

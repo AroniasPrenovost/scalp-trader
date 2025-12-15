@@ -796,5 +796,518 @@
       "starting_capital": 1300,
       "wallet_allocation_pct": 75.7961354638666
     }
+  },
+  {
+    "symbol": "ETH-USD",
+    "buy_price": 3147.6,
+    "sell_price": 3293.7,
+    "potential_profit_percentage": 2.611375072787039,
+    "timestamp": "2025-12-09T16:15:38.219720+00:00",
+    "gross_profit": 19.17440688132001,
+    "taxes": 4.601857651516802,
+    "exchange_fees": 2.42228348541,
+    "total_profit": 12.15026574439321,
+    "time_held_position": "18.74 hours",
+    "time_held_seconds": 67451.796958,
+    "buy_timestamp": "2025-12-08T21:31:26.422785Z",
+    "buy_screenshot_path": "./screenshots/ETH-USD_1h-candles_buy_20251208133122.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 1.9264160607690903,
+      "current_trend": "sideways",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $2925, sell $3600 = 23.08% gross, 16.55% net after costs. Strong support at $2800, high risk/reward ratio."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 2800.0,
+      "minor_support": 2900.0,
+      "major_resistance": 3600.0,
+      "minor_resistance": 3100.0,
+      "buy_in_price_target": 3147.6,
+      "actual_entry_price": 3147.6,
+      "stop_loss_set": 3000.0,
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": 2.611375072787039,
+      "risk_reward_ratio": 5.2,
+      "price_vs_support": "12.41% above major support",
+      "price_vs_resistance": "14.37% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1764005669.5542269,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "sideways",
+      "volume_confirmation": null,
+      "reasoning": "Buy $2925, sell $3600 = 23.08% gross, 16.55% net after costs. Strong support at $2800, high risk/reward ratio.",
+      "trade_invalidation_price": 2790.0
+    },
+    "exit_analysis": {
+      "exit_trigger": "profit_target",
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": 2.611375072787039
+    },
+    "position_sizing": {
+      "buy_amount_usd": 462.6953474855341,
+      "actual_shares": 0.14708586,
+      "entry_position_value": 465.28229020068,
+      "starting_capital": 2600,
+      "wallet_allocation_pct": 17.895472700026154
+    }
+  },
+  {
+    "symbol": "XRP-USD",
+    "buy_price": 2.1461,
+    "sell_price": 2.092,
+    "potential_profit_percentage": -2.7693961115627728,
+    "timestamp": "2025-12-09T21:49:08.235853+00:00",
+    "gross_profit": -28.266097999999943,
+    "taxes": -6.783863519999986,
+    "exchange_fees": 4.560560000000001,
+    "total_profit": -26.04279447999996,
+    "time_held_position": "5.39 hours",
+    "time_held_seconds": 19401.932166,
+    "buy_timestamp": "2025-12-09T16:25:46.303710Z",
+    "buy_screenshot_path": "./screenshots/XRP-USD_1h-candles_buy_20251209082542.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 5.138679015354622,
+      "current_trend": "sideways",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $2.0718, sell $2.17724 = 5.08% gross, 2.5% net after costs. Risk/reward 3.44 with support at $2.0396."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 2.0396,
+      "minor_support": 2.0718,
+      "major_resistance": 2.4945,
+      "minor_resistance": 2.3018,
+      "buy_in_price_target": 2.1461,
+      "actual_entry_price": 2.1461,
+      "stop_loss_set": 2.1045,
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": -2.7693961115627728,
+      "risk_reward_ratio": 3.44,
+      "price_vs_support": "5.22% above major support",
+      "price_vs_resistance": "16.23% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1764005684.914336,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "sideways",
+      "volume_confirmation": null,
+      "reasoning": "Buy $2.0718, sell $2.17724 = 5.08% gross, 2.5% net after costs. Risk/reward 3.44 with support at $2.0396.",
+      "trade_invalidation_price": 2.0296
+    },
+    "exit_analysis": {
+      "exit_trigger": "stop_loss",
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": -2.7693961115627728
+    },
+    "position_sizing": {
+      "buy_amount_usd": 938.21436306,
+      "actual_shares": 436.0,
+      "entry_position_value": 940.378098,
+      "starting_capital": 2600,
+      "wallet_allocation_pct": 36.16838838461538
+    }
+  },
+  {
+    "symbol": "ETH-USD",
+    "buy_price": 3316.186434123521,
+    "sell_price": 3365.96,
+    "potential_profit_percentage": 0.25194082555456937,
+    "timestamp": "2025-12-10T16:52:43.800424+00:00",
+    "gross_profit": 19.13246210145212,
+    "taxes": 4.591790904348509,
+    "exchange_fees": 9.700812340726,
+    "total_profit": 4.839858856377612,
+    "time_held_position": "18.39 hours",
+    "time_held_seconds": 66212.14443,
+    "buy_timestamp": "2025-12-09T22:29:11.656032Z",
+    "buy_screenshot_path": "./screenshots/ETH-USD_1h-candles_buy_20251209142909.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 2.552447953620186,
+      "current_trend": "sideways",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $3205, sell $3290 = 2.65% gross, 2.5% net after costs. Strong support at $3058, risk/reward 3.09."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 3058.2527,
+      "minor_support": 3200.0,
+      "major_resistance": 3500.0,
+      "minor_resistance": 3400.0,
+      "buy_in_price_target": 3316.186434123521,
+      "actual_entry_price": 3316.186434123521,
+      "stop_loss_set": 3250.0,
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": 0.25194082555456937,
+      "risk_reward_ratio": 2.06,
+      "price_vs_support": "8.43% above major support",
+      "price_vs_resistance": "5.54% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1765319349.00483,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "sideways",
+      "volume_confirmation": null,
+      "reasoning": "Buy $3205, sell $3290 = 2.65% gross, 2.5% net after costs. Strong support at $3058, risk/reward 3.09.",
+      "trade_invalidation_price": 3145.0
+    },
+    "exit_analysis": {
+      "exit_trigger": "trailing_stop",
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": 0.25194082555456937
+    },
+    "position_sizing": {
+      "buy_amount_usd": 1909.5033942793634,
+      "actual_shares": 0.57640687,
+      "entry_position_value": 1921.030006043748,
+      "starting_capital": 2600,
+      "wallet_allocation_pct": 73.88576946322107
+    }
+  },
+  {
+    "symbol": "XRP-USD",
+    "buy_price": 2.0858,
+    "sell_price": 2.0294,
+    "potential_profit_percentage": -2.9069839220810354,
+    "timestamp": "2025-12-11T00:42:20.323129+00:00",
+    "gross_profit": -30.273537000000033,
+    "taxes": -7.265648880000008,
+    "exchange_fees": 4.596591,
+    "total_profit": -27.60447912000003,
+    "time_held_position": "21.86 hours",
+    "time_held_seconds": 78678.22156,
+    "buy_timestamp": "2025-12-10T02:51:02.101596Z",
+    "buy_screenshot_path": "./screenshots/XRP-USD_1h-candles_buy_20251209185058.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 2.3839734517593008,
+      "current_trend": "sideways",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $2.086, sell $2.189 = 4.9% gross, 3.5% net after costs. Price in strong support zone with stable volume."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 2.0378,
+      "minor_support": 2.086,
+      "major_resistance": 2.4945,
+      "minor_resistance": 2.3018,
+      "buy_in_price_target": 2.086,
+      "actual_entry_price": 2.0858,
+      "stop_loss_set": 2.0378,
+      "profit_target_percentage": 3.5,
+      "actual_profit_percentage": -2.9069839220810354,
+      "risk_reward_ratio": 2.1,
+      "price_vs_support": "2.36% above major support",
+      "price_vs_resistance": "19.59% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1765335058.785941,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "sideways",
+      "volume_confirmation": null,
+      "reasoning": "Buy $2.086, sell $2.189 = 4.9% gross, 3.5% net after costs. Price in strong support zone with stable volume.",
+      "trade_invalidation_price": 2.03
+    },
+    "exit_analysis": {
+      "exit_trigger": "stop_loss",
+      "profit_target_percentage": 3.5,
+      "actual_profit_percentage": -2.9069839220810354
+    },
+    "position_sizing": {
+      "buy_amount_usd": 946.8411336,
+      "actual_shares": 453.0,
+      "entry_position_value": 949.591737,
+      "starting_capital": 2600,
+      "wallet_allocation_pct": 36.52275911538461
+    }
+  },
+  {
+    "symbol": "XRP-USD",
+    "buy_price": 2.0141,
+    "sell_price": 1.9873,
+    "potential_profit_percentage": -1.6903914683278332,
+    "timestamp": "2025-12-11T14:54:11.291918+00:00",
+    "gross_profit": -14.771555999999919,
+    "taxes": -3.54517343999998,
+    "exchange_fees": 4.610536000000001,
+    "total_profit": -15.836918559999939,
+    "time_held_position": "9.07 hours",
+    "time_held_seconds": 32636.383631,
+    "buy_timestamp": "2025-12-11T05:50:14.908309Z",
+    "buy_screenshot_path": "./screenshots/XRP-USD_1h-candles_buy_20251210215012.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 5.147687817642018,
+      "current_trend": "sideways",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $2.0141, sell $2.0858 = 3.56% gross, 2.5% net after costs. Price in strong support zone, risk/reward 3.0."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 2.0035,
+      "minor_support": 2.0127,
+      "major_resistance": 2.1461,
+      "minor_resistance": 2.0896,
+      "buy_in_price_target": 2.0141,
+      "actual_entry_price": 2.0141,
+      "stop_loss_set": 1.9902,
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": -1.6903914683278332,
+      "risk_reward_ratio": 3.0,
+      "price_vs_support": "0.53% above major support",
+      "price_vs_resistance": "6.55% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1765432212.230273,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "sideways",
+      "volume_confirmation": null,
+      "reasoning": "Buy $2.0141, sell $2.0858 = 3.56% gross, 2.5% net after costs. Price in strong support zone, risk/reward 3.0.",
+      "trade_invalidation_price": 1.985
+    },
+    "exit_analysis": {
+      "exit_trigger": "stop_loss",
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": -1.6903914683278332
+    },
+    "position_sizing": {
+      "buy_amount_usd": 936.48945393,
+      "actual_shares": 464.0,
+      "entry_position_value": 936.878756,
+      "starting_capital": 2600,
+      "wallet_allocation_pct": 36.03379830769231
+    }
+  },
+  {
+    "symbol": "ETH-USD",
+    "buy_price": 3185.54,
+    "sell_price": 3224.56,
+    "potential_profit_percentage": 0.23422154321184377,
+    "timestamp": "2025-12-11T19:37:55.577914+00:00",
+    "gross_profit": 18.65132896151522,
+    "taxes": 4.476318950763653,
+    "exchange_fees": 9.682837266716,
+    "total_profit": 4.4921727440355665,
+    "time_held_position": "15.82 hours",
+    "time_held_seconds": 56940.116242,
+    "buy_timestamp": "2025-12-11T03:48:55.461696Z",
+    "buy_screenshot_path": "./screenshots/ETH-USD_1h-candles_buy_20251210194852.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 7.502530364372478,
+      "current_trend": "sideways",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $3185.54, sell $3360.00 = 5.47% gross, 2.5% net after costs. Strong support at $3074.75, aligned timeframes."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 3074.7563,
+      "minor_support": 3185.54,
+      "major_resistance": 3500.0,
+      "minor_resistance": 3300.0,
+      "buy_in_price_target": 3185.54,
+      "actual_entry_price": 3185.54,
+      "stop_loss_set": 3100.0,
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": 0.23422154321184377,
+      "risk_reward_ratio": 2.18,
+      "price_vs_support": "3.60% above major support",
+      "price_vs_resistance": "9.87% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1765424932.645535,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "sideways",
+      "volume_confirmation": null,
+      "reasoning": "Buy $3185.54, sell $3360.00 = 5.47% gross, 2.5% net after costs. Strong support at $3074.75, aligned timeframes.",
+      "trade_invalidation_price": 3050.0
+    },
+    "exit_analysis": {
+      "exit_trigger": "trailing_stop",
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": 0.23422154321184377
+    },
+    "position_sizing": {
+      "buy_amount_usd": 1913.1332884216463,
+      "actual_shares": 0.60056797,
+      "entry_position_value": 1917.9161243816845,
+      "starting_capital": 2600,
+      "wallet_allocation_pct": 73.76600478391094
+    }
+  },
+  {
+    "symbol": "XRP-USD",
+    "buy_price": 2.0097,
+    "sell_price": 2.0441,
+    "potential_profit_percentage": 0.6008301135998991,
+    "timestamp": "2025-12-11T21:55:10.449936+00:00",
+    "gross_profit": 6.785798249999914,
+    "taxes": 1.6285915799999793,
+    "exchange_fees": 2.3609354999999996,
+    "total_profit": 2.7962711699999345,
+    "time_held_position": "1.93 hours",
+    "time_held_seconds": 6953.915876,
+    "buy_timestamp": "2025-12-11T19:59:16.534083Z",
+    "buy_screenshot_path": "./screenshots/XRP-USD_1h-candles_buy_20251211115909.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 3.537462889347346,
+      "current_trend": "sideways",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $2.0097, sell $2.086 = 3.8% gross, 2.5% net after costs. Price in strong support zone with 5 touches."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 1.9973,
+      "minor_support": 2.0036,
+      "major_resistance": 2.3,
+      "minor_resistance": 2.1461,
+      "buy_in_price_target": 2.0097,
+      "actual_entry_price": 2.0097,
+      "stop_loss_set": 1.9873,
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": 0.6008301135998991,
+      "risk_reward_ratio": 3.5,
+      "price_vs_support": "0.62% above major support",
+      "price_vs_resistance": "14.44% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1765483149.480085,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "sideways",
+      "volume_confirmation": null,
+      "reasoning": "Buy $2.0097, sell $2.086 = 3.8% gross, 2.5% net after costs. Price in strong support zone with 5 touches.",
+      "trade_invalidation_price": 1.985
+    },
+    "exit_analysis": {
+      "exit_trigger": "trailing_stop",
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": 0.6008301135998991
+    },
+    "position_sizing": {
+      "buy_amount_usd": 465.27530473499996,
+      "actual_shares": 231.0,
+      "entry_position_value": 465.40130175,
+      "starting_capital": 2600,
+      "wallet_allocation_pct": 17.900050067307692
+    }
+  },
+  {
+    "symbol": "ETH-USD",
+    "buy_price": 3078.492637429474,
+    "sell_price": 3119.86,
+    "potential_profit_percentage": 0.2188748462561417,
+    "timestamp": "2025-12-13T08:33:58.059020+00:00",
+    "gross_profit": 18.318224443310555,
+    "taxes": 4.396373866394533,
+    "exchange_fees": 9.710970299779,
+    "total_profit": 4.210880277137023,
+    "time_held_position": "16.43 hours",
+    "time_held_seconds": 59163.593354,
+    "buy_timestamp": "2025-12-12T16:07:54.465699Z",
+    "buy_screenshot_path": "./screenshots/ETH-USD_1h-candles_buy_20251212080751.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 5.938410930349958,
+      "current_trend": "sideways",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $3078.59, sell $3171.95 = 3.0% gross, 2.5% net after costs. Strong support at $3052.95, volume stable."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 3052.95,
+      "minor_support": 3100.0,
+      "major_resistance": 3500.0,
+      "minor_resistance": 3250.0,
+      "buy_in_price_target": 3078.59,
+      "actual_entry_price": 3078.492637429474,
+      "stop_loss_set": 3037.0,
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": 0.2188748462561417,
+      "risk_reward_ratio": 2.3,
+      "price_vs_support": "0.84% above major support",
+      "price_vs_resistance": "13.69% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1765555671.264382,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "sideways",
+      "volume_confirmation": null,
+      "reasoning": "Buy $3078.59, sell $3171.95 = 3.0% gross, 2.5% net after costs. Strong support at $3052.95, volume stable.",
+      "trade_invalidation_price": 3025.0
+    },
+    "exit_analysis": {
+      "exit_trigger": "trailing_stop",
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": 0.2188748462561417
+    },
+    "position_sizing": {
+      "buy_amount_usd": 1916.5024179796728,
+      "actual_shares": 0.62252603,
+      "entry_position_value": 1923.8758355124894,
+      "starting_capital": 2600,
+      "wallet_allocation_pct": 73.99522444278806
+    }
+  },
+  {
+    "symbol": "ETH-USD",
+    "buy_price": 3105.95,
+    "sell_price": 3056.27,
+    "potential_profit_percentage": -2.0772442941524836,
+    "timestamp": "2025-12-14T22:30:55.093657+00:00",
+    "gross_profit": -40.29361837783017,
+    "taxes": -9.670468410679241,
+    "exchange_fees": 9.442466582038,
+    "total_profit": -40.06561654918893,
+    "time_held_position": "32.92 hours",
+    "time_held_seconds": 118524.035902,
+    "buy_timestamp": "2025-12-13T13:35:31.057780Z",
+    "buy_screenshot_path": "./screenshots/ETH-USD_1h-candles_buy_20251213053528.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 2.2143275399014053,
+      "current_trend": "sideways",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $3106.71, sell $3199.91 = 3% gross, 2.5% net after costs. Price in strong support zone, risk/reward ratio 3.0."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 3121.763,
+      "minor_support": 3105.2941,
+      "major_resistance": 3293.7,
+      "minor_resistance": 3224.56,
+      "buy_in_price_target": 3106.71,
+      "actual_entry_price": 3105.95,
+      "stop_loss_set": 3065.0,
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": -2.0772442941524836,
+      "risk_reward_ratio": 3.0,
+      "price_vs_support": "-0.51% above major support",
+      "price_vs_resistance": "6.04% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1765632928.26515,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "sideways",
+      "volume_confirmation": null,
+      "reasoning": "Buy $3106.71, sell $3199.91 = 3% gross, 2.5% net after costs. Price in strong support zone, risk/reward ratio 3.0.",
+      "trade_invalidation_price": 3060.0
+    },
+    "exit_analysis": {
+      "exit_trigger": "stop_loss",
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": -2.0772442941524836
+    },
+    "position_sizing": {
+      "buy_amount_usd": 1919.660578187526,
+      "actual_shares": 0.61790788,
+      "entry_position_value": 1928.78693478543,
+      "starting_capital": 2600,
+      "wallet_allocation_pct": 74.18411287636269
+    }
   }
 ]
