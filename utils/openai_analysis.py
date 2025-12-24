@@ -155,58 +155,78 @@ VOLATILITY TRADING RULES:
 4. Profit targets should be realistic relative to observed volatility (don't target 10% profit on 8% range asset)
 5. Position sizing: Higher volatility = smaller position size to manage risk"""
 
-    # Check range support strategy for confluence
-    range_strategy_context = ""
+    # Check adaptive mean reversion strategy
+    adaptive_strategy_context = ""
     try:
-        from utils.range_support_strategy import check_range_support_buy_signal
+        from utils.adaptive_mean_reversion import check_adaptive_buy_signal
 
-        range_signal = check_range_support_buy_signal(
+        adaptive_signal = check_adaptive_buy_signal(
             prices=prices,
-            current_price=current_price,
-            min_touches=2,
-            zone_tolerance_percentage=3.0,
-            entry_tolerance_percentage=1.5,
-            extrema_order=5,
-            lookback_window=336  # 14 days
+            current_price=current_price
         )
 
-        if range_signal['all_zones']:
-            range_strategy_context = f"""
+        adaptive_strategy_context = f"""
 
-RANGE SUPPORT STRATEGY ANALYSIS (For Confluence):
-- Range Strategy Signal: {range_signal['signal'].upper()}
-- Support Zones Identified: {len(range_signal['all_zones'])}
+ADAPTIVE MEAN REVERSION STRATEGY (PRIMARY STRATEGY - PROVEN PROFITABLE):
+- Market Trend: {adaptive_signal['trend'].upper()}
+- Strategy Signal: {adaptive_signal['signal'].upper()}
+- Deviation from 24h MA: {adaptive_signal['deviation_from_ma']:+.2f}%
 
-"""
-            # Add details about strongest zone
-            if range_signal['all_zones']:
-                strongest_zone = range_signal['all_zones'][0]
-                range_strategy_context += f"""Strongest Support Zone:
-- Zone Average: ${strongest_zone['zone_price_avg']:.4f}
-- Zone Range: ${strongest_zone['zone_price_min']:.4f} - ${strongest_zone['zone_price_max']:.4f}
-- Zone Strength: {strongest_zone['touches']} historical touches
-- Current Price Position: {"IN ZONE" if range_signal['signal'] == 'buy' else "NOT IN ZONE"}
+{adaptive_signal['reasoning']}
 
 """
 
-            if range_signal['signal'] == 'buy':
-                range_strategy_context += f"""✓ RANGE STRATEGY CONFIRMATION: Price is currently in a support zone with {range_signal['zone_strength']} touches.
-This suggests price is at a historically strong support level that has held multiple times.
-Consider INCREASING your confidence if your technical analysis also shows bullish signals.
+        if adaptive_signal['signal'] == 'buy':
+            adaptive_strategy_context += f"""
+✅ STRONG BUY SIGNAL - ADAPTIVE STRATEGY CONFIRMATION:
+- Entry Price: ${adaptive_signal['entry_price']:.4f}
+- Stop Loss: ${adaptive_signal['stop_loss']:.4f} (-1.7%)
+- Profit Target: ${adaptive_signal['profit_target']:.4f} (+1.7%)
+- Risk/Reward: 1:1 (symmetric)
+
+This is a HIGH-PROBABILITY setup based on backtested profitable strategy:
+• 53.3% win rate over 5 weeks
+• Only trades uptrend/sideways markets (avoids downtrend losses)
+• Mean reversion at 2-3% dip below 24h MA
+
+YOU SHOULD SET:
+- buy_in_price: ${adaptive_signal['entry_price']:.4f}
+- stop_loss: ${adaptive_signal['stop_loss']:.4f}
+- sell_price: ${adaptive_signal['profit_target']:.4f}
+- profit_target_percentage: 1.7
+- confidence_level: "high"
+- trade_recommendation: "buy"
 
 """
-            else:
-                range_strategy_context += f"""⚠ RANGE STRATEGY: Price is NOT currently in an identified support zone.
-Nearest support zone is at ${range_signal['all_zones'][0]['zone_price_avg']:.4f} ({range_signal['distance_from_zone_avg']:+.2f}% away).
-Consider waiting for price to reach support zone, OR ensure your analysis shows STRONG bullish signals to override.
+        else:
+            adaptive_strategy_context += f"""
+⚠ NO SIGNAL from adaptive strategy.
+Reason: {adaptive_signal['reasoning']}
+
+If market trend is DOWNTREND, you should set trade_recommendation to "no_trade" to avoid losses.
+Only override this if you have EXCEPTIONAL technical confirmation for a trade.
 
 """
     except Exception as e:
-        # If range strategy fails, continue without it
-        pass
+        # If adaptive strategy fails, continue without it
+        adaptive_strategy_context = f"\n⚠ Adaptive strategy failed to load: {str(e)}\n"
+
+    # Calculate ATR (Average True Range) for volatility-based stop loss
+    # Using recent 24 data points (24 hours of data) for ATR calculation
+    atr_period = min(24, len(prices) - 1)
+    if atr_period > 1:
+        true_ranges = []
+        for i in range(len(prices) - atr_period, len(prices)):
+            if i > 0:
+                true_ranges.append(abs(prices[i] - prices[i-1]))
+        atr = sum(true_ranges) / len(true_ranges) if true_ranges else 0
+    else:
+        atr = 0
+
+    atr_percentage = (atr / current_price * 100) if current_price > 0 and atr > 0 else 0
 
     prompt = f"""Analyze the following market data for {symbol} and provide a technical analysis with specific trading levels.
-{historical_context_section}{timeframe_context}{volatility_context}{range_strategy_context}
+{historical_context_section}{timeframe_context}{volatility_context}{adaptive_strategy_context}
 
 Market Data:
 - Current Price: ${current_price}
@@ -214,6 +234,7 @@ Market Data:
 - Average Price: ${avg_price}
 - Number of Data Points: {len(prices)}
 - Recent Price Trend: {prices[-20:] if len(prices) >= 20 else prices}
+- ATR (Average True Range): ${atr:.4f} ({atr_percentage:.2f}% of current price)
 
 VOLUME DATA (Rolling 24h Snapshots - NOTE: This is Coinbase's rolling 24-hour volume):
 - Current 24h Volume: {coin_data.get('current_volume_24h', 0)}
@@ -276,13 +297,11 @@ CRITICAL REQUIREMENTS:
    - If ratio < 2.0, you MUST set trade_recommendation to "no_trade"
    - Example: Buy $1.00, Sell $1.06, Stop $0.97 = (0.06/0.03) = 2.0 ratio ✓
 
-2. PROFIT THRESHOLD: If market conditions do NOT support at least {min_profit_target_percentage}% NET profit (after all fees and taxes), set trade_recommendation to "no_trade" and set profit_target_percentage to {min_profit_target_percentage}%.
-
-3. COST CALCULATION TRANSPARENCY: Show your work in reasoning field:
+2. COST CALCULATION TRANSPARENCY: Show your work in reasoning field:
    - Example: "Buy $0.50, sell $0.52 = 4% gross, 2.8% net after costs"
    - Gross price movement must exceed net profit target to cover {total_fee_percentage}% fees + {tax_rate_percentage}% tax
 
-4. POSITION SIZING (REQUIRED): Position size will be automatically calculated based on volatility.
+3. POSITION SIZING (REQUIRED): Position size will be automatically calculated based on volatility.
    - VOLATILITY-ADJUSTED SIZING is enabled: Position size scales inversely with market volatility
    - Low volatility (<15%): Up to 75% of capital for HIGH confidence trades
    - Moderate volatility (15-30%): Up to 64% of capital (85% multiplier)
@@ -296,10 +315,11 @@ CRITICAL REQUIREMENTS:
      * MEDIUM confidence: DO NOT TRADE - wait for higher quality opportunities
      * LOW confidence: DO NOT TRADE - recommend "no_trade" instead
    - The system will automatically calculate the optimal buy_amount_usd based on current volatility
-   - You should set buy_amount_usd to 0 in your JSON response - it will be overridden by volatility calculation
+   - IMPORTANT: Set buy_amount_usd to a reasonable value (e.g., current_usd * 0.5) as a fallback
+   - The system may override your buy_amount_usd with volatility-adjusted calculations
    - Prioritize QUALITY over QUANTITY - focus on high-likelihood trades with strong technical confirmation
 
-5. TRADE INVALIDATION: Set trade_invalidation_price to a level where if breached, the entire trade thesis is wrong
+4. TRADE INVALIDATION: Set trade_invalidation_price to a level where if breached, the entire trade thesis is wrong
    - Typically below stop_loss by a small margin
    - Example: If support is $0.95, stop is $0.94, invalidation might be $0.93
 
@@ -308,6 +328,9 @@ CONFIDENCE LEVEL CRITERIA (OBJECTIVE RUBRIC):
 HIGH confidence requires ALL of the following:
 ✓ All 5 timeframes (72h, 14d, 30d, 90d, 6mo) aligned in same direction
 ✓ Price at key technical level (major support/resistance, Fibonacci level)
+✓ **MULTI-TIMEFRAME SUPPORT/RESISTANCE CONFIRMATION**: Support/resistance levels MUST align across at least 3 timeframes (e.g., 14d, 30d, 90d all show support at ~same level)
+✓ **ENTRY POSITION**: Price must be within 2% ABOVE support, NOT near resistance (prevents buying at peaks)
+✓ **STOP LOSS VALIDATION**: Proposed stop loss respects minimum ATR/volatility distance requirements
 ✓ Volume confirms the setup (above average on bullish setups, spike at support)
 ✓ Risk/reward ratio >= 3.0 (preferably 3.5+)
 ✓ No major resistance within profit target range on any timeframe

@@ -596,6 +596,22 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                     # Load core learnings early so it's always available
                     core_learnings = load_core_learnings(symbol)
 
+                    # Build historical trading context for LLM learning (always, even for cached analysis)
+                    # This is needed for position sizing calculations
+                    trading_context = None
+                    if llm_learning_enabled:
+                        trading_context = build_trading_context(
+                            symbol,
+                            max_trades=max_historical_trades,
+                            include_screenshots=include_screenshots,
+                            starting_capital_usd=STARTING_CAPITAL_USD
+                        )
+                        if trading_context and trading_context.get('total_trades', 0) > 0:
+                            # Optionally prune old trades if we have too many
+                            if trading_context.get('total_trades', 0) > prune_old_trades_after:
+                                from utils.trade_context import prune_old_transactions
+                                prune_old_transactions(symbol, keep_count=prune_old_trades_after)
+
                     # Check if we need to generate new analysis
                     should_refresh = should_refresh_analysis(
                         symbol,
@@ -629,26 +645,11 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                             )
                             print(f"✓ Generated {len(chart_paths)} timeframe charts: {', '.join(chart_paths.keys())}")
 
-                            # Build historical trading context for LLM learning
-                            trading_context = None
-                            if llm_learning_enabled:
-                                print(f"Building historical trading context for {symbol}...")
-                                trading_context = build_trading_context(
-                                    symbol,
-                                    max_trades=max_historical_trades,
-                                    include_screenshots=include_screenshots,
-                                    starting_capital_usd=STARTING_CAPITAL_USD
-                                )
-                                if trading_context and trading_context.get('total_trades', 0) > 0:
-                                    print(f"✓ Loaded {trading_context['trades_included']} historical trades for context")
-                                    # Optionally prune old trades if we have too many
-                                    if trading_context.get('total_trades', 0) > prune_old_trades_after:
-                                        from utils.trade_context import prune_old_transactions
-                                        prune_old_transactions(symbol, keep_count=prune_old_trades_after)
-                                else:
-                                    print("No historical trades found - this will be the first trade")
+                            # Display context information
+                            if trading_context and trading_context.get('total_trades', 0) > 0:
+                                print(f"✓ Loaded {trading_context['trades_included']} historical trades for context")
                             else:
-                                print("LLM learning disabled in config")
+                                print("No historical trades found - this will be the first trade")
 
                             # Display core learnings if present (already loaded earlier)
                             if core_learnings and (
@@ -675,6 +676,32 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 print(f"Warning: Failed to generate analysis for {symbol}")
                     elif analysis:
                         print(f"Using existing AI analysis (generated at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(analysis.get('analyzed_at', 0)))})")
+
+                        # CRITICAL: Apply position sizing to cached analysis if buy_amount_usd is missing or 0
+                        # This fixes the issue where old cached analysis had buy_amount_usd set to 0
+                        if analysis.get('buy_amount_usd', 0) == 0 and trading_context and config and range_percentage_from_min is not None:
+                            from utils.dynamic_refresh import calculate_volatility_adjusted_position_size
+
+                            wallet_metrics = trading_context.get('wallet_metrics', {})
+                            current_usd_value = wallet_metrics.get('current_usd', 0)
+                            starting_capital = wallet_metrics.get('starting_capital_usd', 0)
+                            confidence_level = analysis.get('confidence_level', 'low')
+
+                            if current_usd_value > 0:
+                                adjusted_position = calculate_volatility_adjusted_position_size(
+                                    range_percentage_from_min=range_percentage_from_min,
+                                    starting_capital_usd=starting_capital,
+                                    current_usd_value=current_usd_value,
+                                    confidence_level=confidence_level,
+                                    config=config
+                                )
+
+                                analysis['buy_amount_usd'] = adjusted_position
+                                analysis['position_sizing_method'] = 'volatility_adjusted'
+                                print(f"✓ Applied position sizing to cached analysis: ${adjusted_position:.2f}")
+
+                                # Save the updated analysis back to file
+                                save_analysis_to_file(symbol, analysis)
                     else:
                         print(f"No existing AI analysis found for {symbol}")
 
