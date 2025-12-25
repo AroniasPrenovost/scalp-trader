@@ -157,6 +157,7 @@ VOLATILITY TRADING RULES:
 
     # Check adaptive mean reversion strategy
     adaptive_strategy_context = ""
+    adaptive_signal = None  # Initialize to None for later enforcement check
     try:
         from utils.adaptive_mean_reversion import check_adaptive_buy_signal
 
@@ -209,6 +210,7 @@ Only override this if you have EXCEPTIONAL technical confirmation for a trade.
 """
     except Exception as e:
         # If adaptive strategy fails, continue without it
+        adaptive_signal = None
         adaptive_strategy_context = f"\n⚠ Adaptive strategy failed to load: {str(e)}\n"
 
     # Calculate ATR (Average True Range) for volatility-based stop loss
@@ -488,6 +490,38 @@ Output ONLY valid JSON with no markdown formatting or explanatory text outside t
         analysis_result['symbol'] = symbol
         analysis_result['analyzed_at'] = time.time()
         analysis_result['model_used'] = response.model
+
+        # ENFORCE ADAPTIVE MEAN REVERSION STRATEGY
+        # If adaptive strategy gave a signal, enforce it strictly
+        if adaptive_signal:
+            if adaptive_signal['signal'] == 'buy':
+                # Adaptive strategy says BUY - override LLM if it disagrees
+                if analysis_result.get('trade_recommendation') != 'buy':
+                    print(f"⚠️  LLM recommended '{analysis_result.get('trade_recommendation')}' but adaptive strategy says BUY. Enforcing adaptive strategy.")
+
+                # Enforce adaptive strategy values
+                analysis_result['buy_in_price'] = adaptive_signal['entry_price']
+                analysis_result['stop_loss'] = adaptive_signal['stop_loss']
+                analysis_result['sell_price'] = adaptive_signal['profit_target']
+                analysis_result['profit_target_percentage'] = 1.7
+                analysis_result['trade_recommendation'] = 'buy'
+                analysis_result['confidence_level'] = 'high'
+                analysis_result['risk_reward_ratio'] = 1.0
+                analysis_result['adaptive_strategy_enforced'] = True
+                analysis_result['reasoning'] = f"ADAPTIVE STRATEGY: {adaptive_signal['reasoning']}"
+
+                print(f"✓ Adaptive strategy BUY signal enforced: Entry ${adaptive_signal['entry_price']:.4f}, Stop ${adaptive_signal['stop_loss']:.4f}, Target ${adaptive_signal['profit_target']:.4f}")
+
+            elif adaptive_signal['trend'] == 'downtrend':
+                # Adaptive strategy detected DOWNTREND - enforce no_trade
+                if analysis_result.get('trade_recommendation') == 'buy':
+                    print(f"⚠️  LLM recommended BUY but adaptive strategy detected DOWNTREND. Enforcing no_trade.")
+
+                analysis_result['trade_recommendation'] = 'no_trade'
+                analysis_result['adaptive_strategy_enforced'] = True
+                analysis_result['reasoning'] = f"DOWNTREND DETECTED: {adaptive_signal['reasoning']}"
+
+                print(f"✓ Adaptive strategy DOWNTREND enforcement: no_trade")
 
         # Override buy_amount_usd with volatility-adjusted position sizing if enabled
         if config and range_percentage_from_min is not None and trading_context:
