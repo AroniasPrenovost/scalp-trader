@@ -376,7 +376,7 @@ def get_property_values_from_crypto_file(directory, product_id, property_name, m
     return values
 
 
-def cleanup_old_crypto_data(directory, product_id, max_age_hours):
+def cleanup_old_crypto_data(directory, product_id, max_age_hours, verbose=True):
     """
     Removes old entries from a crypto's data file, keeping only recent data.
     Rewrites the file with only entries younger than max_age_hours.
@@ -384,6 +384,7 @@ def cleanup_old_crypto_data(directory, product_id, max_age_hours):
     :param directory: Path to the directory containing crypto data files
     :param product_id: The product_id (e.g., 'BTC-USD')
     :param max_age_hours: Maximum age in hours for entries to keep
+    :param verbose: Whether to print cleanup message (default: True)
     """
     file_name = f"{product_id}.json"
     file_path = os.path.join(directory, file_name)
@@ -398,7 +399,8 @@ def cleanup_old_crypto_data(directory, product_id, max_age_hours):
     with open(file_path, 'w') as file:
         json.dump(fresh_entries, file, indent=4)
 
-    print(f"Cleaned up old data for {product_id}: kept {len(fresh_entries)} entries")
+    if verbose:
+        print(f"Cleaned up old data for {product_id}: kept {len(fresh_entries)} entries")
 
 
 def cleanup_old_screenshots(screenshots_dir, transactions_dir, config):

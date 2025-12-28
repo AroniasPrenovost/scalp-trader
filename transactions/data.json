@@ -1537,5 +1537,62 @@
       "starting_capital": 1800,
       "wallet_allocation_pct": 72.39489583333332
     }
+  },
+  {
+    "symbol": "SOL-USD",
+    "buy_price": 119.73788712512,
+    "sell_price": 123.54,
+    "potential_profit_percentage": 1.5098500104963333,
+    "timestamp": "2025-12-26T02:23:02.604336+00:00",
+    "gross_profit": 64.06846878508804,
+    "taxes": 15.37643250842113,
+    "exchange_fees": 12.354000000000001,
+    "total_profit": 36.33803627666691,
+    "time_held_position": "1.67 hours",
+    "time_held_seconds": 6024.212293,
+    "buy_timestamp": "2025-12-26T00:42:38.392067Z",
+    "buy_screenshot_path": "./screenshots/SOL-USD_1h-candles_buy_20251225164235.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 3.2734822199354787,
+      "current_trend": "sideways",
+      "confidence_level": "high",
+      "entry_reasoning": "ADAPTIVE STRATEGY: Sideways market: price $119.7700 is 2.17% below 24h MA $122.4275. Mean reversion opportunity."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 117.61902141,
+      "minor_support": 120.01776608,
+      "major_resistance": 251.68494182,
+      "minor_resistance": 123.94652632,
+      "buy_in_price_target": 119.77,
+      "actual_entry_price": 119.73788712512,
+      "stop_loss_set": 117.73391,
+      "profit_target_percentage": 1.7,
+      "actual_profit_percentage": 1.5098500104963333,
+      "risk_reward_ratio": 1.0,
+      "price_vs_support": "1.80% above major support",
+      "price_vs_resistance": "110.20% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1766709755.731775,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "sideways",
+      "volume_confirmation": null,
+      "reasoning": "ADAPTIVE STRATEGY: Sideways market: price $119.7700 is 2.17% below 24h MA $122.4275. Mean reversion opportunity.",
+      "trade_invalidation_price": 117.5
+    },
+    "exit_analysis": {
+      "exit_trigger": "intelligent_rotation",
+      "profit_target_percentage": 1.7,
+      "actual_profit_percentage": 1.5098500104963333
+    },
+    "position_sizing": {
+      "buy_amount_usd": 2437.5,
+      "actual_shares": 20.0,
+      "entry_position_value": 2406.731531214912,
+      "starting_capital": 3250,
+      "wallet_allocation_pct": 74.05327788353576
+    }
   }
 ]

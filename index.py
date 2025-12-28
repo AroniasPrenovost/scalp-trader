@@ -459,6 +459,107 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
             if count_files_in_directory(coinbase_data_directory) < 1:
                 print('waiting for more data...\n')
             else:
+                # MARKET ROTATION: Find the single best opportunity across all enabled assets
+                market_rotation_config = config.get('market_rotation', {})
+                market_rotation_enabled = market_rotation_config.get('enabled', False)
+
+                best_opportunity_symbol = None  # Will hold the symbol we should trade
+                active_position_symbols = []    # Track which assets have active positions
+
+                # First, check for any existing active positions
+                for symbol in enabled_wallets:
+                    last_order = get_last_order_from_local_json_ledger(symbol)
+                    last_order_type = detect_stored_coinbase_order_type(last_order)
+                    if last_order_type in ['placeholder', 'buy']:
+                        active_position_symbols.append(symbol)
+
+                if market_rotation_enabled:
+                    from utils.opportunity_scorer import find_best_opportunity, print_opportunity_report, score_opportunity
+
+                    print(f"\n{Colors.BOLD}{Colors.CYAN}{'='*100}")
+                    print(f"🔍 MARKET ROTATION: Scanning {len(enabled_wallets)} assets for best opportunity...")
+                    if active_position_symbols:
+                        print(f"📊 ACTIVE POSITION(S): {Colors.GREEN}{', '.join(active_position_symbols)}{Colors.CYAN} (managing these)")
+                        print(f"🔎 MONITORING: {', '.join([s for s in enabled_wallets if s not in active_position_symbols])} (scanning for next opportunity)")
+                    else:
+                        print(f"💰 NO ACTIVE POSITIONS - Capital ready to deploy")
+                    print(f"{'='*100}{Colors.ENDC}\n")
+
+                    # Find the best opportunity across all enabled assets
+                    best_opportunity = find_best_opportunity(
+                        config=config,
+                        coinbase_client=coinbase_client,
+                        enabled_symbols=enabled_wallets,
+                        interval_seconds=INTERVAL_SECONDS,
+                        data_retention_hours=DATA_RETENTION_HOURS
+                    )
+
+                    # Optionally print detailed report
+                    if market_rotation_config.get('print_opportunity_report', True):
+                        # Score all opportunities for the report
+                        all_opportunities = []
+                        for symbol in enabled_wallets:
+                            try:
+                                current_price = get_asset_price(coinbase_client, symbol)
+                                coin_prices_list = get_property_values_from_crypto_file(
+                                    coinbase_data_directory, symbol, 'price', max_age_hours=DATA_RETENTION_HOURS
+                                )
+                                if coin_prices_list and len(coin_prices_list) > 0:
+                                    volatility_window_hours = 24
+                                    volatility_data_points = int(volatility_window_hours / (INTERVAL_SECONDS / 3600))
+                                    recent_prices = coin_prices_list[-volatility_data_points:] if len(coin_prices_list) >= volatility_data_points else coin_prices_list
+                                    min_price = min(recent_prices)
+                                    max_price = max(recent_prices)
+                                    range_pct = calculate_percentage_from_min(min_price, max_price)
+
+                                    opp = score_opportunity(
+                                        symbol=symbol,
+                                        config=config,
+                                        coinbase_client=coinbase_client,
+                                        coin_prices_list=coin_prices_list,
+                                        current_price=current_price,
+                                        range_percentage_from_min=range_pct
+                                    )
+                                    all_opportunities.append(opp)
+                            except Exception as e:
+                                print(f"  Error scoring {symbol}: {e}")
+                                continue
+
+                        print_opportunity_report(all_opportunities, best_opportunity)
+
+                    if best_opportunity:
+                        best_opportunity_symbol = best_opportunity['symbol']
+                        min_score = market_rotation_config.get('min_opportunity_score', 50)
+
+                        if best_opportunity['score'] >= min_score:
+                            if active_position_symbols:
+                                print(f"{Colors.BOLD}{Colors.GREEN}🎯 BEST NEXT OPPORTUNITY: {best_opportunity_symbol}{Colors.ENDC}")
+                                print(f"   Score: {best_opportunity['score']:.1f}/100 | Strategy: {best_opportunity['strategy'].replace('_', ' ').title()}")
+                                print(f"   {Colors.YELLOW}⏸  Waiting for active position(s) to close: {', '.join(active_position_symbols)}{Colors.ENDC}")
+                                print(f"   {Colors.CYAN}→ Will trade {best_opportunity_symbol} immediately after exit{Colors.ENDC}\n")
+                                best_opportunity_symbol = None  # Don't enter new trade while position open
+                            else:
+                                print(f"{Colors.BOLD}{Colors.GREEN}✅ TRADING NOW: {best_opportunity_symbol}{Colors.ENDC}")
+                                print(f"   Score: {best_opportunity['score']:.1f}/100 | Strategy: {best_opportunity['strategy'].replace('_', ' ').title()}")
+                                print(f"   Entry: ${best_opportunity['entry_price']:.4f} | Stop: ${best_opportunity['stop_loss']:.4f} | Target: ${best_opportunity['profit_target']:.4f}")
+                                if best_opportunity['risk_reward_ratio']:
+                                    print(f"   Risk/Reward: 1:{best_opportunity['risk_reward_ratio']:.2f}")
+                                print()
+                        else:
+                            print(f"{Colors.YELLOW}⚠️  Best opportunity {best_opportunity_symbol} has score {best_opportunity['score']:.1f} below minimum {min_score}")
+                            print(f"   Skipping all NEW trades this iteration - waiting for better setups")
+                            if active_position_symbols:
+                                print(f"   {Colors.CYAN}✓ Continuing to manage active position(s): {', '.join(active_position_symbols)}{Colors.ENDC}")
+                            print()
+                            best_opportunity_symbol = None  # Don't trade anything
+                    else:
+                        print(f"{Colors.YELLOW}⚠️  No tradeable opportunities found - all assets have open positions or no valid setups")
+                        if active_position_symbols:
+                            print(f"   {Colors.CYAN}✓ Continuing to manage active position(s): {', '.join(active_position_symbols)}{Colors.ENDC}")
+                        else:
+                            print(f"   Waiting for market conditions to improve")
+                        print()
+
                 for coin in coinbase_data_dictionary:
                     # set data from coinbase data
                     symbol = coin['product_id'] # 'BTC-USD', 'ETH-USD', etc..
@@ -476,7 +577,41 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                             STARTING_CAPITAL_USD = wallet['starting_capital_usd']
 
                     wallet_metrics = calculate_wallet_metrics(symbol, STARTING_CAPITAL_USD)
-                    format_wallet_metrics(symbol, wallet_metrics)
+
+                    # Check if this asset has an active position FIRST (before formatting wallet metrics)
+                    # Note: we check verbosity after we know if it's an open position
+                    last_order = get_last_order_from_local_json_ledger(symbol, verbose=False)
+                    last_order_type = detect_stored_coinbase_order_type(last_order)
+                    has_open_position = last_order_type in ['placeholder', 'buy']
+
+                    # ENHANCED LOGGING: Show clearly if this is an active trade or just monitoring
+                    # Only show detailed logging for open positions or selected opportunities
+                    show_detailed_logs = has_open_position or (market_rotation_enabled and symbol == best_opportunity_symbol)
+
+                    if has_open_position:
+                        print(f"\n{Colors.BOLD}{Colors.GREEN}{'='*100}")
+                        print(f"  🔥 ACTIVE TRADE: {symbol} - Managing Open Position")
+                        print(f"{'='*100}{Colors.ENDC}")
+                        format_wallet_metrics(symbol, wallet_metrics)
+                        print(f"{Colors.CYAN}📊 Monitoring other assets in background for next opportunity after exit{Colors.ENDC}\n")
+                    elif market_rotation_enabled and symbol == best_opportunity_symbol:
+                        print(f"\n{Colors.BOLD}{Colors.GREEN}{'='*100}")
+                        print(f"  🎯 SELECTED OPPORTUNITY: {symbol} - Evaluating Entry")
+                        print(f"{'='*100}{Colors.ENDC}")
+                        format_wallet_metrics(symbol, wallet_metrics)
+                    # Else: silent monitoring - no output for non-selected opportunities
+
+                    # MARKET ROTATION: Only ENTER trades on the best opportunity
+                    # But we still analyze every wallet to:
+                    # 1. Manage existing open positions (sell logic)
+                    # 2. Keep scoring updated for next opportunity selection
+                    # 3. Provide visibility into all market conditions
+                    should_allow_new_entry = True
+                    if market_rotation_enabled and best_opportunity_symbol:
+                        if symbol != best_opportunity_symbol and not has_open_position:
+                            should_allow_new_entry = False
+                            if show_detailed_logs:
+                                print(f"{Colors.CYAN}💡 Analyzing {symbol} (best opportunity: {best_opportunity_symbol} - will only enter {best_opportunity_symbol} if conditions met){Colors.ENDC}\n")
 
                     # Check cooldown period after sell
                     if cooldown_hours_after_sell > 0:
@@ -504,7 +639,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                     current_volume_24h = float(coin['volume_24h'])
 
                     # Periodically cleanup old data from crypto files (runs once per iteration, for each coin)
-                    cleanup_old_crypto_data(coinbase_data_directory, symbol, DATA_RETENTION_HOURS)
+                    cleanup_old_crypto_data(coinbase_data_directory, symbol, DATA_RETENTION_HOURS, verbose=show_detailed_logs)
 
                     # Validate price data before using min/max
                     if not coin_prices_LIST or len(coin_prices_LIST) == 0:
@@ -550,26 +685,31 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
 
                     # Check for open or pending positions BEFORE applying volatility filter
                     # This ensures we can sell existing positions even when volatility is low
-                    last_order = get_last_order_from_local_json_ledger(symbol)
-                    last_order_type = detect_stored_coinbase_order_type(last_order)
-                    has_open_position = last_order_type in ['placeholder', 'buy']
+                    # Note: last_order already retrieved above without verbose output
+                    # last_order = get_last_order_from_local_json_ledger(symbol)
+                    # last_order_type = detect_stored_coinbase_order_type(last_order)
+                    # has_open_position = last_order_type in ['placeholder', 'buy']
 
                     # Volatility check - skip trading if outside acceptable range (but NOT if we have an open position)
                     if enable_volatility_checks and not has_open_position:
                         if range_percentage_from_min < min_range_percentage:
-                            print(f"STATUS: Volatility too low ({range_percentage_from_min:.2f}% < {min_range_percentage}%) - skipping trade analysis")
-                            print(f"Market is too flat for profitable trading (not enough price movement)")
-                            print()
+                            if show_detailed_logs:
+                                print(f"STATUS: Volatility too low ({range_percentage_from_min:.2f}% < {min_range_percentage}%) - skipping trade analysis")
+                                print(f"Market is too flat for profitable trading (not enough price movement)")
+                                print()
                             continue
                         elif range_percentage_from_min > max_range_percentage:
-                            print(f"STATUS: Volatility too high ({range_percentage_from_min:.2f}% > {max_range_percentage}%) - skipping trade analysis")
-                            print(f"Market is too volatile (excessive risk of whipsaw)")
-                            print()
+                            if show_detailed_logs:
+                                print(f"STATUS: Volatility too high ({range_percentage_from_min:.2f}% > {max_range_percentage}%) - skipping trade analysis")
+                                print(f"Market is too volatile (excessive risk of whipsaw)")
+                                print()
                             continue
                         else:
-                            print(f"Volatility: {range_percentage_from_min:.2f}% (within acceptable range {min_range_percentage}-{max_range_percentage}%)")
+                            if show_detailed_logs:
+                                print(f"Volatility: {range_percentage_from_min:.2f}% (within acceptable range {min_range_percentage}-{max_range_percentage}%)")
                     elif enable_volatility_checks and has_open_position:
-                        print(f"Volatility: {range_percentage_from_min:.2f}% (outside range, but allowing trade management for open position)")
+                        if show_detailed_logs:
+                            print(f"Volatility: {range_percentage_from_min:.2f}% (outside range, but allowing trade management for open position)")
 
                     coin_data = {
                         'current_price': current_price,
@@ -675,7 +815,8 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                             else:
                                 print(f"Warning: Failed to generate analysis for {symbol}")
                     elif analysis:
-                        print(f"Using existing AI analysis (generated at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(analysis.get('analyzed_at', 0)))})")
+                        if show_detailed_logs:
+                            print(f"Using existing AI analysis (generated at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(analysis.get('analyzed_at', 0)))})")
 
                         # CRITICAL: Apply position sizing to cached analysis if buy_amount_usd is missing or 0
                         # This fixes the issue where old cached analysis had buy_amount_usd set to 0
@@ -698,7 +839,8 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
 
                                 analysis['buy_amount_usd'] = adjusted_position
                                 analysis['position_sizing_method'] = 'volatility_adjusted'
-                                print(f"✓ Applied position sizing to cached analysis: ${adjusted_position:.2f}")
+                                if show_detailed_logs:
+                                    print(f"✓ Applied position sizing to cached analysis: ${adjusted_position:.2f}")
 
                                 # Save the updated analysis back to file
                                 save_analysis_to_file(symbol, analysis)
@@ -765,10 +907,11 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                     TRADE_RECOMMENDATION = analysis.get('trade_recommendation', 'buy')
                     CONFIDENCE_LEVEL = analysis.get('confidence_level', 'low')
                     STOP_LOSS_PRICE = analysis.get('stop_loss')
-                    print('--- AI STRATEGY ---')
-                    print(f"buy_at: ${BUY_AT_PRICE}, stop_loss: ${STOP_LOSS_PRICE if STOP_LOSS_PRICE else 'N/A'}, target_profit_%: {PROFIT_PERCENTAGE}%")
-                    print(f"current_price: ${current_price}, support: ${analysis.get('major_support', 'N/A')}, resistance: ${analysis.get('major_resistance', 'N/A')}")
-                    print(f"market_trend: {analysis.get('market_trend', 'N/A')}, confidence: {CONFIDENCE_LEVEL}")
+                    if show_detailed_logs:
+                        print('--- AI STRATEGY ---')
+                        print(f"buy_at: ${BUY_AT_PRICE}, stop_loss: ${STOP_LOSS_PRICE if STOP_LOSS_PRICE else 'N/A'}, target_profit_%: {PROFIT_PERCENTAGE}%")
+                        print(f"current_price: ${current_price}, support: ${analysis.get('major_support', 'N/A')}, resistance: ${analysis.get('major_resistance', 'N/A')}")
+                        print(f"market_trend: {analysis.get('market_trend', 'N/A')}, confidence: {CONFIDENCE_LEVEL}")
 
                     #
                     #
@@ -958,6 +1101,13 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                     #
                     # BUY logic
                     elif last_order_type == 'none' or last_order_type == 'sell':
+                        # SAFETY CHECK: Verify we don't have an open position (double-check in case of ledger corruption)
+                        if has_open_position:
+                            print(f"{Colors.RED}⚠️  SAFETY CHECK FAILED: Detected open position but last_order_type='{last_order_type}'{Colors.ENDC}")
+                            print(f"{Colors.RED}   This indicates a ledger inconsistency. Skipping buy logic to prevent double-position.{Colors.ENDC}")
+                            print(f"{Colors.YELLOW}   Please review the ledger file: {symbol}_orders.json{Colors.ENDC}\n")
+                            continue
+
                         MARKET_TREND = analysis.get('market_trend', 'N/A')
 
                         # Load range support strategy configuration
@@ -994,23 +1144,66 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                     print(f"  Nearest support zone: ${strongest_zone['zone_price_avg']:.2f} ({range_signal['distance_from_zone_avg']:+.2f}% away)")
 
                         # Check all buy conditions
-                        if range_strategy_enabled and range_signal and range_signal['signal'] != 'buy':
-                            print(f"\n{Colors.YELLOW}STATUS: Not in support zone - waiting for price to reach support{Colors.ENDC}")
-                        elif TRADE_RECOMMENDATION != 'buy':
-                            print(f"\n{Colors.YELLOW}STATUS: AI recommends '{TRADE_RECOMMENDATION}' - only executing buy orders when recommendation is 'buy'{Colors.ENDC}")
-                        elif CONFIDENCE_LEVEL != 'high':
-                            print(f"\n{Colors.YELLOW}STATUS: AI confidence level is '{CONFIDENCE_LEVEL}' - only trading with HIGH confidence{Colors.ENDC}")
-                        else:
-                            # Note: market_trend (bullish/bearish/sideways) is informational only
-                            # The LLM factors trend into its buy/high confidence signals
-                            # Range-based strategies often work in sideways markets
-                            print(f"\n{Colors.BOLD}{Colors.GREEN}{'='*60}")
-                            print(f"  ✓ ALL BUY CONDITIONS MET - EXECUTING BUY")
-                            print(f"{'='*60}{Colors.ENDC}")
-                            if range_strategy_enabled and range_signal and range_signal['signal'] == 'buy':
-                                zone = range_signal['zone']
-                                print(f"{Colors.GREEN}Range Strategy: ✓ In support zone (${zone['zone_price_avg']:.2f}, {zone['touches']} touches){Colors.ENDC}")
-                            print(f"{Colors.GREEN}AI Analysis: ✓ BUY recommendation with HIGH confidence{Colors.ENDC}")
+                        # Note: If market rotation is enabled and this is the selected best opportunity,
+                        # we trust the opportunity scorer's strategy validation
+                        # Otherwise, fall back to the traditional checks (AI + range strategy)
+
+                        is_selected_opportunity = market_rotation_enabled and symbol == best_opportunity_symbol
+                        should_execute_buy = False  # Track if we should execute the buy
+
+                        if not should_allow_new_entry:
+                            if show_detailed_logs:
+                                print(f"\n{Colors.YELLOW}STATUS: {symbol} is not the best opportunity - skipping NEW entry (best: {best_opportunity_symbol}){Colors.ENDC}")
+                            # When market rotation is enabled, ONLY the best opportunity can trigger new buys
+                            # Do not fall through to traditional buy logic
+                        elif is_selected_opportunity:
+                            # This is the best opportunity selected by the scorer - it already validated the strategy
+                            # Just verify it's actually a quality trade with a valid signal and meets minimum score
+                            if best_opportunity and best_opportunity.get('signal') == 'buy':
+                                min_score = market_rotation_config.get('min_opportunity_score', 50)
+                                if best_opportunity.get('score', 0) >= min_score:
+                                    print(f"\n{Colors.BOLD}{Colors.GREEN}{'='*60}")
+                                    print(f"  ✓ BEST OPPORTUNITY - EXECUTING BUY")
+                                    print(f"{'='*60}{Colors.ENDC}")
+                                    print(f"{Colors.BOLD}{Colors.CYAN}Strategy: {best_opportunity['strategy'].replace('_', ' ').title()}{Colors.ENDC}")
+                                    print(f"Score: {best_opportunity['score']:.1f}/100 | Confidence: {best_opportunity['confidence'].upper()}")
+                                    print(f"Trend: {best_opportunity.get('trend', 'unknown').title()}")
+                                    should_execute_buy = True
+                                else:
+                                    print(f"\n{Colors.YELLOW}STATUS: Selected opportunity {symbol} score {best_opportunity['score']:.1f} below minimum {min_score} - skipping{Colors.ENDC}")
+                            else:
+                                print(f"\n{Colors.YELLOW}STATUS: Selected opportunity {symbol} no longer has valid buy signal - skipping{Colors.ENDC}")
+                        elif not market_rotation_enabled:
+                            # Traditional path only allowed when market rotation is disabled
+                            if range_strategy_enabled and range_signal and range_signal['signal'] != 'buy':
+                                print(f"\n{Colors.YELLOW}STATUS: Not in support zone - waiting for price to reach support{Colors.ENDC}")
+                            elif TRADE_RECOMMENDATION != 'buy':
+                                print(f"\n{Colors.YELLOW}STATUS: AI recommends '{TRADE_RECOMMENDATION}' - only executing buy orders when recommendation is 'buy'{Colors.ENDC}")
+                            elif CONFIDENCE_LEVEL != 'high':
+                                print(f"\n{Colors.YELLOW}STATUS: AI confidence level is '{CONFIDENCE_LEVEL}' - only trading with HIGH confidence{Colors.ENDC}")
+                            else:
+                                # Traditional path: all individual checks passed
+                                print(f"\n{Colors.BOLD}{Colors.GREEN}{'='*60}")
+                                print(f"  ✓ ALL BUY CONDITIONS MET - EXECUTING BUY")
+                                print(f"{'='*60}{Colors.ENDC}")
+                                should_execute_buy = True
+
+                        # Execute buy if conditions met
+                        if should_execute_buy:
+                            # Show which strategy triggered the buy
+                            if is_selected_opportunity and best_opportunity:
+                                # Market rotation path - show the strategy that scored highest
+                                strategy_name = best_opportunity['strategy'].replace('_', ' ').title()
+                                print(f"{Colors.GREEN}✓ {strategy_name} Strategy Selected (Score: {best_opportunity['score']:.1f}/100){Colors.ENDC}")
+                                if best_opportunity.get('reasoning'):
+                                    print(f"{Colors.CYAN}Reasoning: {best_opportunity['reasoning']}{Colors.ENDC}")
+                            else:
+                                # Traditional path - show individual checks
+                                if range_strategy_enabled and range_signal and range_signal['signal'] == 'buy':
+                                    zone = range_signal['zone']
+                                    print(f"{Colors.GREEN}Range Strategy: ✓ In support zone (${zone['zone_price_avg']:.2f}, {zone['touches']} touches){Colors.ENDC}")
+                                print(f"{Colors.GREEN}AI Analysis: ✓ BUY recommendation with HIGH confidence{Colors.ENDC}")
+
                             print(f"{Colors.GREEN}Market Price: ${current_price:.2f} (AI target: ${BUY_AT_PRICE:.2f}){Colors.ENDC}\n")
                             # Filter data to match snapshot chart (3 months = 2160 hours)
                             buy_chart_hours = 2160  # 90 days
@@ -1189,6 +1382,210 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                         print(f"Current profit: ${net_profit_after_all_costs_usd:.2f} ({net_profit_percentage:.4f}%)")
                         print(f"Stop loss: ${STOP_LOSS_PRICE:.2f} | Profit target: {effective_profit_target:.2f}%")
 
+                        # INTELLIGENT ROTATION: Check if we should exit a profitable position for a better opportunity
+                        should_rotate_position = False
+                        rotation_reason = None
+
+                        intelligent_rotation_config = market_rotation_config.get('intelligent_rotation', {})
+                        intelligent_rotation_enabled = intelligent_rotation_config.get('enabled', False)
+
+                        if market_rotation_enabled and intelligent_rotation_enabled and best_opportunity:
+                            # Only consider rotation if we're currently profitable
+                            min_profit_for_rotation = intelligent_rotation_config.get('min_profit_to_consider_rotation', 0.5)
+
+                            if net_profit_percentage >= min_profit_for_rotation:
+                                # We're in profit - check if there's a significantly better opportunity
+                                current_symbol_score = 0
+
+                                # Try to find the current position's opportunity score
+                                for symbol_check in enabled_wallets:
+                                    if symbol_check == symbol:
+                                        try:
+                                            # Score the current position
+                                            current_opp = score_opportunity(
+                                                symbol=symbol,
+                                                config=config,
+                                                coinbase_client=coinbase_client,
+                                                coin_prices_list=coin_prices_LIST,
+                                                current_price=current_price,
+                                                range_percentage_from_min=range_percentage_from_min
+                                            )
+                                            current_symbol_score = current_opp.get('score', 0)
+                                        except:
+                                            current_symbol_score = 0
+                                        break
+
+                                best_opp_score = best_opportunity.get('score', 0)
+                                best_opp_symbol = best_opportunity.get('symbol')
+                                min_score_advantage = intelligent_rotation_config.get('min_score_advantage', 15)
+
+                                print(f"\n{Colors.BOLD}{Colors.CYAN}🔄 INTELLIGENT ROTATION CHECK{Colors.ENDC}")
+                                print(f"  Current position ({symbol}): Score {current_symbol_score:.1f}/100, Profit: {net_profit_percentage:.2f}%")
+                                print(f"  Best opportunity ({best_opp_symbol}): Score {best_opp_score:.1f}/100")
+                                print(f"  Score advantage required: {min_score_advantage}+")
+
+                                # Check if the best opportunity is significantly better
+                                score_difference = best_opp_score - current_symbol_score
+
+                                if best_opp_symbol != symbol and score_difference >= min_score_advantage:
+                                    # New opportunity is significantly better by score
+                                    print(f"  {Colors.GREEN}✓ Score advantage: {score_difference:.1f} (meets threshold){Colors.ENDC}")
+
+                                    # Optional: Also check if the new opportunity has better profit target potential
+                                    require_profit_advantage = intelligent_rotation_config.get('require_profit_target_advantage', True)
+
+                                    if require_profit_advantage:
+                                        # Calculate remaining upside in current position
+                                        current_remaining_upside = effective_profit_target - net_profit_percentage
+
+                                        # Get new opportunity's expected profit target
+                                        new_opp_entry = best_opportunity.get('entry_price', current_price)
+                                        new_opp_target = best_opportunity.get('profit_target', 0)
+
+                                        if new_opp_entry > 0 and new_opp_target > 0:
+                                            new_opp_upside = ((new_opp_target - new_opp_entry) / new_opp_entry) * 100
+                                            min_profit_advantage = intelligent_rotation_config.get('min_profit_target_advantage_percentage', 1.0)
+
+                                            print(f"  Current remaining upside: {current_remaining_upside:.2f}%")
+                                            print(f"  New opportunity upside: {new_opp_upside:.2f}%")
+                                            print(f"  Profit advantage required: {min_profit_advantage}%+")
+
+                                            profit_advantage = new_opp_upside - current_remaining_upside
+
+                                            if profit_advantage >= min_profit_advantage:
+                                                print(f"  {Colors.GREEN}✓ Profit advantage: {profit_advantage:.2f}% (meets threshold){Colors.ENDC}")
+                                                should_rotate_position = True
+                                                rotation_reason = f"Rotating to {best_opp_symbol}: {score_difference:.1f} better score, {profit_advantage:.2f}% more upside potential"
+                                            else:
+                                                print(f"  {Colors.YELLOW}✗ Profit advantage: {profit_advantage:.2f}% (below {min_profit_advantage}%){Colors.ENDC}")
+                                                print(f"  {Colors.YELLOW}Staying in current position - better profit potential here{Colors.ENDC}")
+                                        else:
+                                            # Can't calculate profit advantage - use score only
+                                            should_rotate_position = True
+                                            rotation_reason = f"Rotating to {best_opp_symbol}: {score_difference:.1f} better score"
+                                    else:
+                                        # Score advantage alone is enough
+                                        should_rotate_position = True
+                                        rotation_reason = f"Rotating to {best_opp_symbol}: {score_difference:.1f} better score"
+                                else:
+                                    if best_opp_symbol == symbol:
+                                        print(f"  {Colors.CYAN}✓ Current position IS the best opportunity - holding{Colors.ENDC}")
+                                    else:
+                                        print(f"  {Colors.YELLOW}✗ Score advantage: {score_difference:.1f} (below {min_score_advantage}){Colors.ENDC}")
+                                        print(f"  {Colors.YELLOW}Staying in current position - advantage not significant enough{Colors.ENDC}")
+
+                                print()  # Blank line for readability
+                            else:
+                                print(f"\n{Colors.CYAN}ℹ️  Profit {net_profit_percentage:.2f}% below rotation threshold ({min_profit_for_rotation}%) - not considering rotation{Colors.ENDC}\n")
+
+                        # Execute intelligent rotation if triggered
+                        if should_rotate_position:
+                            print(f'{Colors.BOLD}{Colors.CYAN}🔄 INTELLIGENT ROTATION TRIGGERED{Colors.ENDC}')
+                            print(f'{Colors.CYAN}Reason: {rotation_reason}{Colors.ENDC}')
+                            print(f'{Colors.GREEN}Exiting {symbol} with {net_profit_percentage:.2f}% profit to enter {best_opportunity["symbol"]}{Colors.ENDC}')
+
+                            # Generate sell chart
+                            sell_chart_hours = 2160  # 90 days
+                            sell_chart_data_points = int((sell_chart_hours * 60) / INTERVAL_SAVE_DATA_EVERY_X_MINUTES)
+                            sell_chart_prices = coin_prices_LIST[-sell_chart_data_points:] if len(coin_prices_LIST) > sell_chart_data_points else coin_prices_LIST
+                            sell_chart_min = min(sell_chart_prices)
+                            sell_chart_max = max(sell_chart_prices)
+                            sell_chart_range_pct = calculate_percentage_from_min(sell_chart_min, sell_chart_max)
+
+                            plot_graph(
+                                time.time(),
+                                INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                                symbol,
+                                sell_chart_prices,
+                                sell_chart_min,
+                                sell_chart_max,
+                                sell_chart_range_pct,
+                                entry_price,
+                                analysis=analysis,
+                                buy_event=False
+                            )
+
+                            if READY_TO_TRADE:
+                                # Execute the rotation sell
+                                place_market_sell_order(coinbase_client, symbol, number_of_shares, net_profit_after_all_costs_usd, net_profit_percentage)
+
+                                # Save transaction record
+                                buy_timestamp = order_data.get('created_time')
+                                buy_screenshot_path = last_order.get('buy_screenshot_path')
+
+                                entry_market_conditions = {
+                                    "volatility_range_pct": range_percentage_from_min,
+                                    "current_trend": analysis.get('market_trend') if analysis else None,
+                                    "confidence_level": analysis.get('confidence_level') if analysis else None,
+                                    "entry_reasoning": analysis.get('reasoning') if analysis else None,
+                                }
+
+                                position_sizing_data = {
+                                    "buy_amount_usd": analysis.get('buy_amount_usd') if analysis else None,
+                                    "actual_shares": number_of_shares,
+                                    "entry_position_value": entry_position_value_after_fees,
+                                    "starting_capital": STARTING_CAPITAL_USD,
+                                    "wallet_allocation_pct": (entry_position_value_after_fees / STARTING_CAPITAL_USD * 100) if STARTING_CAPITAL_USD > 0 else None,
+                                }
+
+                                save_transaction_record(
+                                    symbol=symbol,
+                                    buy_price=entry_price,
+                                    sell_price=current_price,
+                                    potential_profit_percentage=net_profit_percentage,
+                                    gross_profit=unrealized_gain_usd,
+                                    taxes=capital_gains_tax_usd,
+                                    exchange_fees=exit_exchange_fee_usd,
+                                    total_profit=net_profit_after_all_costs_usd,
+                                    buy_timestamp=buy_timestamp,
+                                    buy_screenshot_path=buy_screenshot_path,
+                                    analysis=analysis,
+                                    entry_market_conditions=entry_market_conditions,
+                                    exit_trigger='intelligent_rotation',
+                                    position_sizing_data=position_sizing_data
+                                )
+
+                                # Update core learnings
+                                from utils.trade_context import load_transaction_history
+                                trade_outcome = {
+                                    'profit': net_profit_after_all_costs_usd,
+                                    'exit_trigger': 'intelligent_rotation',
+                                    'confidence_level': analysis.get('confidence_level', 'unknown'),
+                                    'market_trend': analysis.get('market_trend', 'unknown')
+                                }
+                                transactions = load_transaction_history(symbol)
+                                update_learnings_from_trade(symbol, trade_outcome, transactions)
+
+                                delete_analysis_file(symbol)
+
+                                # IMMEDIATE ROTATION: Recalculate best opportunity after exit
+                                print(f"\n{Colors.BOLD}{Colors.CYAN}🔄 CAPITAL FREED - Recalculating best opportunity...{Colors.ENDC}\n")
+                                best_opportunity = find_best_opportunity(
+                                    config=config,
+                                    coinbase_client=coinbase_client,
+                                    enabled_symbols=enabled_wallets,
+                                    interval_seconds=INTERVAL_SECONDS,
+                                    data_retention_hours=DATA_RETENTION_HOURS
+                                )
+                                if best_opportunity:
+                                    min_score = market_rotation_config.get('min_opportunity_score', 50)
+                                    if best_opportunity['score'] >= min_score:
+                                        best_opportunity_symbol = best_opportunity['symbol']
+                                        print(f"{Colors.GREEN}✅ NEW BEST OPPORTUNITY: {best_opportunity_symbol} (score: {best_opportunity['score']:.1f}){Colors.ENDC}")
+                                        print(f"   Will enter {best_opportunity_symbol} when we reach it in this iteration\n")
+                                    else:
+                                        best_opportunity_symbol = None
+                                        print(f"{Colors.YELLOW}⚠️  Best opportunity score {best_opportunity['score']:.1f} below minimum {min_score} - waiting{Colors.ENDC}\n")
+                                else:
+                                    best_opportunity_symbol = None
+                                    print(f"{Colors.YELLOW}⚠️  No tradeable opportunities found - capital will remain idle{Colors.ENDC}\n")
+
+                                # Skip the rest of sell logic since we already sold
+                                print('\n')
+                                continue
+                            else:
+                                print('STATUS: Trading disabled')
+
                         # Check for stop loss trigger
                         if STOP_LOSS_PRICE and current_price <= STOP_LOSS_PRICE:
                             print('~ STOP LOSS TRIGGERED - Selling to limit losses ~')
@@ -1266,6 +1663,30 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 update_learnings_from_trade(symbol, trade_outcome, transactions)
 
                                 delete_analysis_file(symbol)
+
+                                # IMMEDIATE ROTATION: Recalculate best opportunity after exit
+                                # This allows us to enter the next-best trade in the same iteration
+                                if market_rotation_enabled:
+                                    print(f"\n{Colors.BOLD}{Colors.CYAN}🔄 CAPITAL FREED - Recalculating best opportunity...{Colors.ENDC}\n")
+                                    best_opportunity = find_best_opportunity(
+                                        config=config,
+                                        coinbase_client=coinbase_client,
+                                        enabled_symbols=enabled_wallets,
+                                        interval_seconds=INTERVAL_SECONDS,
+                                        data_retention_hours=DATA_RETENTION_HOURS
+                                    )
+                                    if best_opportunity:
+                                        min_score = market_rotation_config.get('min_opportunity_score', 50)
+                                        if best_opportunity['score'] >= min_score:
+                                            best_opportunity_symbol = best_opportunity['symbol']
+                                            print(f"{Colors.GREEN}✅ NEW BEST OPPORTUNITY: {best_opportunity_symbol} (score: {best_opportunity['score']:.1f}){Colors.ENDC}")
+                                            print(f"   Will enter {best_opportunity_symbol} when we reach it in this iteration\n")
+                                        else:
+                                            best_opportunity_symbol = None
+                                            print(f"{Colors.YELLOW}⚠️  Best opportunity score {best_opportunity['score']:.1f} below minimum {min_score} - waiting{Colors.ENDC}\n")
+                                    else:
+                                        best_opportunity_symbol = None
+                                        print(f"{Colors.YELLOW}⚠️  No tradeable opportunities found - capital will remain idle{Colors.ENDC}\n")
                             else:
                                 print('STATUS: Trading disabled')
 
@@ -1346,11 +1767,159 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 update_learnings_from_trade(symbol, trade_outcome, transactions)
 
                                 delete_analysis_file(symbol)
+
+                                # IMMEDIATE ROTATION: Recalculate best opportunity after exit
+                                # This allows us to enter the next-best trade in the same iteration
+                                if market_rotation_enabled:
+                                    print(f"\n{Colors.BOLD}{Colors.CYAN}🔄 CAPITAL FREED - Recalculating best opportunity...{Colors.ENDC}\n")
+                                    best_opportunity = find_best_opportunity(
+                                        config=config,
+                                        coinbase_client=coinbase_client,
+                                        enabled_symbols=enabled_wallets,
+                                        interval_seconds=INTERVAL_SECONDS,
+                                        data_retention_hours=DATA_RETENTION_HOURS
+                                    )
+                                    if best_opportunity:
+                                        min_score = market_rotation_config.get('min_opportunity_score', 50)
+                                        if best_opportunity['score'] >= min_score:
+                                            best_opportunity_symbol = best_opportunity['symbol']
+                                            print(f"{Colors.GREEN}✅ NEW BEST OPPORTUNITY: {best_opportunity_symbol} (score: {best_opportunity['score']:.1f}){Colors.ENDC}")
+                                            print(f"   Will enter {best_opportunity_symbol} when we reach it in this iteration\n")
+                                        else:
+                                            best_opportunity_symbol = None
+                                            print(f"{Colors.YELLOW}⚠️  Best opportunity score {best_opportunity['score']:.1f} below minimum {min_score} - waiting{Colors.ENDC}\n")
+                                    else:
+                                        best_opportunity_symbol = None
+                                        print(f"{Colors.YELLOW}⚠️  No tradeable opportunities found - capital will remain idle{Colors.ENDC}\n")
                             else:
                                 print('STATUS: Trading disabled')
 
                     print('\n')
 
+
+                #
+                #
+                # ASSET PERFORMANCE SUMMARY: Show all assets ranked by P&L
+                # Collect data for all assets
+                asset_performance = []
+                for summary_symbol in enabled_wallets:
+                    summary_order = get_last_order_from_local_json_ledger(summary_symbol)
+                    summary_order_type = detect_stored_coinbase_order_type(summary_order)
+                    summary_has_position = summary_order_type in ['placeholder', 'buy']
+
+                    summary_price = get_asset_price(coinbase_client, summary_symbol)
+
+                    # Skip assets where price fetch failed
+                    if summary_price is None:
+                        continue
+
+                    # Get wallet metrics to calculate cumulative P&L from transaction history
+                    wallet_config = next((w for w in config.get('wallets', []) if w['symbol'] == summary_symbol), None)
+                    if wallet_config:
+                        summary_starting_capital = wallet_config['starting_capital_usd']
+                    else:
+                        summary_starting_capital = 3250.0  # Default fallback
+
+                    summary_wallet_metrics = calculate_wallet_metrics(summary_symbol, summary_starting_capital)
+                    pnl_pct = summary_wallet_metrics.get('percentage_gain', 0.0)
+                    total_profit_usd = summary_wallet_metrics.get('total_profit', 0.0)
+                    total_trades = 0
+                    wins = 0
+
+                    # Count total trades and wins from transaction history
+                    from utils.trade_context import load_transaction_history
+                    summary_transactions = load_transaction_history(summary_symbol)
+                    total_trades = len(summary_transactions)
+                    wins = len([t for t in summary_transactions if t.get('total_profit', 0) > 0])
+
+                    # Determine status
+                    status = "NO POSITION"
+                    if summary_has_position:
+                        if summary_order_type == 'placeholder':
+                            status = "PENDING ORDER"
+                        elif summary_order_type == 'buy':
+                            order_data = summary_order.get('order', summary_order)
+                            if 'average_filled_price' in order_data:
+                                entry_price = float(order_data['average_filled_price'])
+                                unrealized_pct = ((summary_price - entry_price) / entry_price) * 100
+                                status = f"OPEN ({unrealized_pct:+.1f}%)"
+
+                    asset_performance.append({
+                        'symbol': summary_symbol,
+                        'price': summary_price,
+                        'pnl_pct': pnl_pct,
+                        'total_profit_usd': total_profit_usd,
+                        'status': status,
+                        'has_position': summary_has_position,
+                        'total_trades': total_trades,
+                        'wins': wins
+                    })
+
+                # Sort by P&L percentage (highest to lowest), then by total profit USD as tie-breaker
+                asset_performance.sort(key=lambda x: (x['pnl_pct'], x['total_profit_usd']), reverse=True)
+
+                # Display header with actual count
+                print(f"\n{Colors.BOLD}{Colors.CYAN}{'='*100}")
+                print(f"  📊 ASSET PERFORMANCE SUMMARY - {len(asset_performance)} ASSETS")
+                print(f"{'='*100}{Colors.ENDC}")
+
+                # Display ranked summary (one line per asset)
+                for idx, asset in enumerate(asset_performance, 1):
+                    pnl_color = Colors.GREEN if asset['pnl_pct'] > 0 else (Colors.RED if asset['pnl_pct'] < 0 else Colors.YELLOW)
+                    position_indicator = "🔥" if asset['has_position'] else "  "
+
+                    # Calculate win rate
+                    if asset['total_trades'] > 0:
+                        win_pct = (asset['wins'] / asset['total_trades']) * 100
+                        win_rate_str = f" | {asset['wins']}/{asset['total_trades']} ({win_pct:.0f}%)"
+                    else:
+                        win_rate_str = f" | 0/0 (0%)"
+
+                    profit_color = Colors.GREEN if asset['total_profit_usd'] > 0 else (Colors.RED if asset['total_profit_usd'] < 0 else Colors.YELLOW)
+                    print(f"  {position_indicator} {idx:2d}. {asset['symbol']:10s} | {profit_color}${asset['total_profit_usd']:>+8.2f}{Colors.ENDC} | {pnl_color}P&L: {asset['pnl_pct']:>+6.2f}%{Colors.ENDC}{win_rate_str} | {asset['status']}")
+
+                # Calculate and display lifetime total
+                total_lifetime_profit = sum(asset['total_profit_usd'] for asset in asset_performance)
+                lifetime_color = Colors.GREEN if total_lifetime_profit > 0 else (Colors.RED if total_lifetime_profit < 0 else Colors.YELLOW)
+                print(f"{Colors.CYAN}{'-'*100}{Colors.ENDC}")
+                print(f"  {Colors.BOLD}LIFETIME TOTAL:      | {lifetime_color}${total_lifetime_profit:>+8.2f}{Colors.ENDC}{Colors.BOLD}{Colors.ENDC}")
+                print(f"{Colors.CYAN}{'='*100}{Colors.ENDC}\n")
+
+                #
+                #
+                # ITERATION SUMMARY: Show status of all positions and next action
+                if market_rotation_enabled:
+                    print(f"\n{Colors.BOLD}{Colors.CYAN}{'='*100}")
+                    print(f"  📋 ITERATION SUMMARY")
+                    print(f"{'='*100}{Colors.ENDC}")
+
+                    # Count active positions
+                    current_active_positions = []
+                    for symbol in enabled_wallets:
+                        last_order = get_last_order_from_local_json_ledger(symbol)
+                        last_order_type = detect_stored_coinbase_order_type(last_order)
+                        if last_order_type in ['placeholder', 'buy']:
+                            current_active_positions.append(symbol)
+
+                    if current_active_positions:
+                        print(f"  {Colors.GREEN}🔥 ACTIVE POSITION(S): {', '.join(current_active_positions)}{Colors.ENDC}")
+                        print(f"  {Colors.CYAN}💰 Capital Status: DEPLOYED (managing position){Colors.ENDC}")
+                        if best_opportunity and best_opportunity['score'] >= market_rotation_config.get('min_opportunity_score', 50):
+                            print(f"  {Colors.YELLOW}🎯 Next Opportunity Queued: {best_opportunity['symbol']} (score: {best_opportunity['score']:.1f}){Colors.ENDC}")
+                            print(f"  {Colors.YELLOW}⏭  Will trade immediately after current position exits{Colors.ENDC}")
+                        else:
+                            print(f"  {Colors.YELLOW}🔎 Monitoring {len(enabled_wallets)} assets for next opportunity{Colors.ENDC}")
+                    else:
+                        if best_opportunity_symbol:
+                            print(f"  {Colors.GREEN}✅ Ready to Trade: {best_opportunity_symbol}{Colors.ENDC}")
+                            print(f"  {Colors.CYAN}💰 Capital Status: READY ($3,000 available){Colors.ENDC}")
+                        else:
+                            print(f"  {Colors.YELLOW}⏸  No Strong Opportunities Currently{Colors.ENDC}")
+                            print(f"  {Colors.CYAN}💰 Capital Status: IDLE (waiting for quality setup){Colors.ENDC}")
+                            print(f"  {Colors.CYAN}🔎 Monitoring {len(enabled_wallets)} assets: {', '.join(enabled_wallets)}{Colors.ENDC}")
+
+                    print(f"  {Colors.CYAN}⏰ Next scan in {check_interval_seconds/60:.0f} minutes{Colors.ENDC}")
+                    print(f"{Colors.CYAN}{'='*100}{Colors.ENDC}\n")
 
                 #
                 #

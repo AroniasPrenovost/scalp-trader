@@ -705,9 +705,12 @@ def save_transaction_record(symbol, buy_price, sell_price, potential_profit_perc
 # get_last_order_from_local_json_ledger
 #
 
-def get_last_order_from_local_json_ledger(symbol):
+def get_last_order_from_local_json_ledger(symbol, verbose=False):
     """
     Retrieve the most recent order from the local JSON ledger for the given symbol.
+
+    :param symbol: The trading symbol (e.g., 'BTC-USD')
+    :param verbose: Whether to print "No orders found" message (default: True)
     """
     file_name = f"{symbol}_orders.json"
     try:
@@ -717,7 +720,8 @@ def get_last_order_from_local_json_ledger(symbol):
                 if orders:
                     # Return the most recent order
                     return orders[-1]
-        print(f"No orders found in ledger for {symbol}.")
+        if verbose:
+            print(f"No orders found in ledger for {symbol}.")
         return None
     except json.JSONDecodeError:
         print(f"Error decoding JSON from {file_name}. The file might be corrupted.")
