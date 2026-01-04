@@ -1247,17 +1247,11 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                         print(f"Calculated shares to buy: {shares_to_buy} fractional shares (${buy_amount} / ${current_price})")
 
                                     if shares_to_buy > 0:
-                                        # Always use limit orders for guaranteed price and lower fees (maker vs taker)
-                                        # Get optional price buffer from config (default 0% = exact AI price)
-                                        order_execution_config = config.get('order_execution', {})
-                                        limit_price_buffer_pct = order_execution_config.get('limit_order_price_buffer_pct', 0.0)
-
-                                        # Calculate limit price with optional buffer
-                                        # Buffer of 0% means we get EXACTLY the AI recommended price or better
-                                        # Small buffer (0.3-0.5%) increases fill probability in fast markets
-                                        limit_price = BUY_AT_PRICE * (1 + limit_price_buffer_pct / 100)
-                                        print(f"Placing LIMIT buy order at ${limit_price:.4f} (AI target: ${BUY_AT_PRICE:.4f}, buffer: {limit_price_buffer_pct}%)")
-                                        place_limit_buy_order(coinbase_client, symbol, shares_to_buy, limit_price)
+                                        # Use market orders for immediate execution
+                                        # This ensures orders fill instantly instead of waiting for price to drop to AI target
+                                        print(f"Placing MARKET buy order for {shares_to_buy} shares at current price ${current_price:.4f}")
+                                        print(f"  (AI recommended entry was ${BUY_AT_PRICE:.4f}, but using market order for guaranteed fill)")
+                                        place_market_buy_order(coinbase_client, symbol, shares_to_buy)
 
                                         # Store screenshot path AND original analysis for later use in transaction record
                                         # This will be retrieved from the ledger when we sell
