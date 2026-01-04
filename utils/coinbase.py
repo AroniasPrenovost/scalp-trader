@@ -344,11 +344,16 @@ def place_market_buy_order(client, symbol, base_size):
             # Save the placeholder order data until we can lookup the completed transaction
             save_order_data_to_local_json_ledger(symbol, order_data_dict)
 
-            send_email_notification(
-                subject="Buy Order Placed",
-                text_content=f"BUY ORDER placed successfully for {symbol}. Order ID: {order_id}",
-                html_content=f"<h3>BUY ORDER placed successfully for {symbol}. Order ID: {order_id}</h3>"
-            )
+            try:
+                import time
+                timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+                send_email_notification(
+                    subject=f"🟢 BUY ORDER EXECUTED - {symbol} - {timestamp}",
+                    text_content=f"BUY ORDER EXECUTED\n\nAsset: {symbol}\nOrder ID: {order_id}\nTime: {timestamp}\nType: Market Buy\n\nCheck your Coinbase account for details.",
+                    html_content=f"<div style='font-family: Arial, sans-serif; padding: 20px; background-color: #f0f8f0; border-left: 5px solid #28a745;'><h2 style='color: #28a745;'>🟢 BUY ORDER EXECUTED</h2><table style='width: 100%; border-collapse: collapse;'><tr><td style='padding: 8px; font-weight: bold;'>Asset:</td><td style='padding: 8px;'>{symbol}</td></tr><tr><td style='padding: 8px; font-weight: bold;'>Order ID:</td><td style='padding: 8px;'>{order_id}</td></tr><tr><td style='padding: 8px; font-weight: bold;'>Time:</td><td style='padding: 8px;'>{timestamp}</td></tr><tr><td style='padding: 8px; font-weight: bold;'>Type:</td><td style='padding: 8px;'>Market Buy</td></tr></table><p style='margin-top: 20px;'>Check your Coinbase account for complete details.</p></div>"
+                )
+            except Exception as email_error:
+                print(f"WARNING: Failed to send buy order email notification: {email_error}")
         else:
             print(f"Unexpected response structure - could not find order_id: {dumps(order_data_dict)}")
     except Exception as e:
@@ -441,11 +446,16 @@ def place_limit_buy_order(client, symbol, base_size, limit_price):
             # Save the placeholder order data until we can lookup the completed transaction
             save_order_data_to_local_json_ledger(symbol, order_data_dict)
 
-            send_email_notification(
-                subject="Limit Buy Order Placed",
-                text_content=f"LIMIT BUY ORDER placed for {symbol} at ${limit_price}. Order ID: {order_id}",
-                html_content=f"<h3>LIMIT BUY ORDER placed for {symbol} at ${limit_price}. Order ID: {order_id}</h3>"
-            )
+            try:
+                import time
+                timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+                send_email_notification(
+                    subject=f"🟢 LIMIT BUY ORDER PLACED - {symbol} @ ${limit_price} - {timestamp}",
+                    text_content=f"LIMIT BUY ORDER PLACED\n\nAsset: {symbol}\nLimit Price: ${limit_price}\nOrder ID: {order_id}\nTime: {timestamp}\nType: Limit Buy (GTC)\n\nThis order will execute when price reaches ${limit_price} or better.",
+                    html_content=f"<div style='font-family: Arial, sans-serif; padding: 20px; background-color: #f0f8f0; border-left: 5px solid #28a745;'><h2 style='color: #28a745;'>🟢 LIMIT BUY ORDER PLACED</h2><table style='width: 100%; border-collapse: collapse;'><tr><td style='padding: 8px; font-weight: bold;'>Asset:</td><td style='padding: 8px;'>{symbol}</td></tr><tr><td style='padding: 8px; font-weight: bold;'>Limit Price:</td><td style='padding: 8px; font-size: 18px; color: #28a745;'><strong>${limit_price}</strong></td></tr><tr><td style='padding: 8px; font-weight: bold;'>Order ID:</td><td style='padding: 8px;'>{order_id}</td></tr><tr><td style='padding: 8px; font-weight: bold;'>Time:</td><td style='padding: 8px;'>{timestamp}</td></tr><tr><td style='padding: 8px; font-weight: bold;'>Type:</td><td style='padding: 8px;'>Limit Buy (Good-Till-Cancelled)</td></tr></table><p style='margin-top: 20px; padding: 10px; background-color: #fff3cd; border-left: 3px solid #ffc107;'>⏳ This order will execute when the price reaches <strong>${limit_price}</strong> or better.</p></div>"
+                )
+            except Exception as email_error:
+                print(f"WARNING: Failed to send limit buy order email notification: {email_error}")
         else:
             print(f"Unexpected response structure - could not find order_id: {dumps(order_data_dict)}")
     except Exception as e:
@@ -496,11 +506,17 @@ def place_limit_sell_order(client, symbol, base_size, limit_price, potential_pro
             # Save the placeholder order data until we can lookup the completed transaction
             save_order_data_to_local_json_ledger(symbol, order_data_dict)
 
-            send_email_notification(
-                subject="Limit Sell Order Placed",
-                text_content=f"LIMIT SELL ORDER placed for {symbol} at ${limit_price}. Expected profit: ${potential_profit:.2f} ({potential_profit_percentage:.2f}%). Order ID: {order_id}",
-                html_content=f"<h3>LIMIT SELL ORDER placed for {symbol} at ${limit_price}</h3><p>Expected profit: ${potential_profit:.2f} ({potential_profit_percentage:.2f}%)</p><p>Order ID: {order_id}</p>"
-            )
+            try:
+                import time
+                timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+                profit_emoji = "🟢" if potential_profit > 0 else "🔴"
+                send_email_notification(
+                    subject=f"🔵 LIMIT SELL ORDER PLACED - {symbol} @ ${limit_price} - Expected: {profit_emoji}${potential_profit:.2f} ({potential_profit_percentage:.2f}%) - {timestamp}",
+                    text_content=f"LIMIT SELL ORDER PLACED\n\nAsset: {symbol}\nLimit Price: ${limit_price}\nExpected Profit: ${potential_profit:.2f} ({potential_profit_percentage:.2f}%)\nOrder ID: {order_id}\nTime: {timestamp}\nType: Limit Sell (GTC)\n\nThis order will execute when price reaches ${limit_price} or better.",
+                    html_content=f"<div style='font-family: Arial, sans-serif; padding: 20px; background-color: #f0f4ff; border-left: 5px solid #007bff;'><h2 style='color: #007bff;'>🔵 LIMIT SELL ORDER PLACED</h2><table style='width: 100%; border-collapse: collapse;'><tr><td style='padding: 8px; font-weight: bold;'>Asset:</td><td style='padding: 8px;'>{symbol}</td></tr><tr><td style='padding: 8px; font-weight: bold;'>Limit Price:</td><td style='padding: 8px; font-size: 18px; color: #007bff;'><strong>${limit_price}</strong></td></tr><tr><td style='padding: 8px; font-weight: bold;'>Expected Profit:</td><td style='padding: 8px; font-size: 18px; color: {'#28a745' if potential_profit > 0 else '#dc3545'};'><strong>{profit_emoji} ${potential_profit:.2f} ({potential_profit_percentage:.2f}%)</strong></td></tr><tr><td style='padding: 8px; font-weight: bold;'>Order ID:</td><td style='padding: 8px;'>{order_id}</td></tr><tr><td style='padding: 8px; font-weight: bold;'>Time:</td><td style='padding: 8px;'>{timestamp}</td></tr><tr><td style='padding: 8px; font-weight: bold;'>Type:</td><td style='padding: 8px;'>Limit Sell (Good-Till-Cancelled)</td></tr></table><p style='margin-top: 20px; padding: 10px; background-color: #fff3cd; border-left: 3px solid #ffc107;'>⏳ This order will execute when the price reaches <strong>${limit_price}</strong> or better.</p></div>"
+                )
+            except Exception as email_error:
+                print(f"WARNING: Failed to send limit sell order email notification: {email_error}")
         else:
             print(f"Unexpected response structure - could not find order_id: {dumps(order_data_dict)}")
     except Exception as e:
@@ -538,11 +554,18 @@ def place_market_sell_order(client, symbol, base_size, potential_profit, potenti
             # Clear out existing ledger since there is no need to wait and confirm a sell transaction as long as we got programmatic confirmation
             reset_json_ledger_file(symbol)
 
-            send_email_notification(
-                subject=f"Sell Order - {symbol}: ${potential_profit} (+{potential_profit_percentage}%)",
-                text_content=f"SELL ORDER placed successfully for {symbol}. Order ID: {order_id}",
-                html_content=f"<h3>SELL ORDER placed successfully for {symbol}. Order ID: {order_id}</h3>"
-            )
+            try:
+                import time
+                timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+                profit_emoji = "🟢" if potential_profit > 0 else "🔴"
+                profit_color = "#28a745" if potential_profit > 0 else "#dc3545"
+                send_email_notification(
+                    subject=f"🔴 SELL ORDER EXECUTED - {symbol} - {profit_emoji}${potential_profit:.2f} ({potential_profit_percentage:+.2f}%) - {timestamp}",
+                    text_content=f"SELL ORDER EXECUTED\n\nAsset: {symbol}\nProfit/Loss: ${potential_profit:.2f} ({potential_profit_percentage:+.2f}%)\nOrder ID: {order_id}\nTime: {timestamp}\nType: Market Sell\n\nPosition closed. Check your Coinbase account for details.",
+                    html_content=f"<div style='font-family: Arial, sans-serif; padding: 20px; background-color: #fff0f0; border-left: 5px solid #dc3545;'><h2 style='color: #dc3545;'>🔴 SELL ORDER EXECUTED</h2><table style='width: 100%; border-collapse: collapse;'><tr><td style='padding: 8px; font-weight: bold;'>Asset:</td><td style='padding: 8px;'>{symbol}</td></tr><tr><td style='padding: 8px; font-weight: bold;'>Profit/Loss:</td><td style='padding: 8px; font-size: 24px; color: {profit_color};'><strong>{profit_emoji} ${potential_profit:.2f} ({potential_profit_percentage:+.2f}%)</strong></td></tr><tr><td style='padding: 8px; font-weight: bold;'>Order ID:</td><td style='padding: 8px;'>{order_id}</td></tr><tr><td style='padding: 8px; font-weight: bold;'>Time:</td><td style='padding: 8px;'>{timestamp}</td></tr><tr><td style='padding: 8px; font-weight: bold;'>Type:</td><td style='padding: 8px;'>Market Sell</td></tr></table><p style='margin-top: 20px; padding: 10px; background-color: #d4edda; border-left: 3px solid #28a745;'>✅ Position closed. Check your Coinbase account for complete details.</p></div>"
+                )
+            except Exception as email_error:
+                print(f"WARNING: Failed to send sell order email notification: {email_error}")
         else:
             print(f"Unexpected response structure - could not find order_id: {dumps(order_data_dict)}")
     except Exception as e:

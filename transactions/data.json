@@ -1594,5 +1594,119 @@
       "starting_capital": 3250,
       "wallet_allocation_pct": 74.05327788353576
     }
+  },
+  {
+    "symbol": "BTC-USD",
+    "buy_price": 87381.11,
+    "sell_price": 90137.99,
+    "potential_profit_percentage": 1.4945573795763145,
+    "timestamp": "2025-12-29T04:55:48.914825+00:00",
+    "gross_profit": 64.38894208121201,
+    "taxes": 15.453346099490881,
+    "exchange_fees": 12.508520982692,
+    "total_profit": 36.42707499902913,
+    "time_held_position": "50.23 hours",
+    "time_held_seconds": 180820.514415,
+    "buy_timestamp": "2025-12-27T02:42:08.400443Z",
+    "buy_screenshot_path": "./screenshots/BTC-USD_1h-candles_buy_20251226184205.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 2.992955352747082,
+      "current_trend": "sideways",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $87535.28, sell $93272.00 = 6.55% gross, 4.58% net after costs. Risk/reward 3.83. Aligned support across timeframes."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 87535.28,
+      "minor_support": 91939.37,
+      "major_resistance": 106624.54,
+      "minor_resistance": 93272.0,
+      "buy_in_price_target": 87535.28,
+      "actual_entry_price": 87381.11,
+      "stop_loss_set": 86000.0,
+      "profit_target_percentage": 2.0,
+      "actual_profit_percentage": 1.4945573795763145,
+      "risk_reward_ratio": 3.83,
+      "price_vs_support": "-0.18% above major support",
+      "price_vs_resistance": "22.02% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1766724486.211168,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "sideways",
+      "volume_confirmation": null,
+      "reasoning": "Buy $87535.28, sell $93272.00 = 6.55% gross, 4.58% net after costs. Risk/reward 3.83. Aligned support across timeframes.",
+      "trade_invalidation_price": 85500.0
+    },
+    "exit_analysis": {
+      "exit_trigger": "intelligent_rotation",
+      "profit_target_percentage": 2.0,
+      "actual_profit_percentage": 1.4945573795763145
+    },
+    "position_sizing": {
+      "buy_amount_usd": 2425.189688306781,
+      "actual_shares": 0.02775416,
+      "entry_position_value": 2437.315254457188,
+      "starting_capital": 3250,
+      "wallet_allocation_pct": 74.99431552175963
+    }
+  },
+  {
+    "symbol": "ALGO-USD",
+    "buy_price": 0.11057223,
+    "sell_price": 0.1152,
+    "potential_profit_percentage": 2.2685522233652633,
+    "timestamp": "2026-01-01T14:51:02.008712+00:00",
+    "gross_profit": 89.9658375903,
+    "taxes": 21.591801021671998,
+    "exchange_fees": 12.716928000000001,
+    "total_profit": 55.657108568628004,
+    "time_held_position": "21.47 hours",
+    "time_held_seconds": 77282.607926,
+    "buy_timestamp": "2025-12-31T17:22:59.400827Z",
+    "buy_screenshot_path": "./screenshots/ALGO-USD_1h-candles_buy_20251231092256.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 4.857928505957836,
+      "current_trend": "sideways",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $0.115, sell $0.125 = 8.7% gross, 5.6% net after costs. Risk/reward 3.33. Price near minor support with stable volume."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 0.10533138,
+      "minor_support": 0.115,
+      "major_resistance": 0.33439883,
+      "minor_resistance": 0.125,
+      "buy_in_price_target": 0.11057223,
+      "actual_entry_price": 0.11057223,
+      "stop_loss_set": 0.1075,
+      "profit_target_percentage": 2.0,
+      "actual_profit_percentage": 2.2685522233652633,
+      "risk_reward_ratio": 3.33,
+      "price_vs_support": "4.98% above major support",
+      "price_vs_resistance": "202.43% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1766728817.65471,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "sideways",
+      "volume_confirmation": null,
+      "reasoning": "Buy $0.115, sell $0.125 = 8.7% gross, 5.6% net after costs. Risk/reward 3.33. Price near minor support with stable volume.",
+      "trade_invalidation_price": 0.11
+    },
+    "exit_analysis": {
+      "exit_trigger": "profit_target",
+      "profit_target_percentage": 2.0,
+      "actual_profit_percentage": 2.2685522233652633
+    },
+    "position_sizing": {
+      "buy_amount_usd": 2437.5,
+      "actual_shares": 22078.0,
+      "entry_position_value": 2453.4197624097,
+      "starting_capital": 4000,
+      "wallet_allocation_pct": 61.3354940602425
+    }
   }
 ]

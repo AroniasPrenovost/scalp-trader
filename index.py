@@ -115,6 +115,8 @@ INTERVAL_SAVE_DATA_EVERY_X_MINUTES = (INTERVAL_SECONDS / 60)
 DATA_RETENTION_HOURS = config['data_retention']['max_hours'] # 730 # 1 month #
 
 EXPECTED_DATA_POINTS = int((DATA_RETENTION_HOURS * 60) / INTERVAL_SAVE_DATA_EVERY_X_MINUTES)
+# Allow 99% of expected data points to account for minor gaps (e.g., script restarts, network issues)
+MINIMUM_DATA_POINTS = int(EXPECTED_DATA_POINTS * 0.99)
 
 #
 #
@@ -768,11 +770,14 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                         analysis = None
                     elif should_refresh and ENABLE_AI_ANALYSIS:
                         print(f"Generating new AI analysis for {symbol}...")
-                        # Check if we have enough data points
-                        if actual_coin_prices_list_length < EXPECTED_DATA_POINTS:
-                            print(f"Insufficient price data for analysis ({actual_coin_prices_list_length}/{EXPECTED_DATA_POINTS} points). Waiting for more data...")
+                        # Check if we have enough data points (with 99% tolerance for minor gaps)
+                        if actual_coin_prices_list_length < MINIMUM_DATA_POINTS:
+                            print(f"Insufficient price data for analysis ({actual_coin_prices_list_length}/{EXPECTED_DATA_POINTS} points, minimum: {MINIMUM_DATA_POINTS}). Waiting for more data...")
                             analysis = None
                         else:
+                            # Show warning if not at full expected data but still proceeding
+                            if actual_coin_prices_list_length < EXPECTED_DATA_POINTS:
+                                print(f"⚠️  Using {actual_coin_prices_list_length}/{EXPECTED_DATA_POINTS} data points (minor gaps detected, but sufficient for analysis)")
                             # Generate multi-timeframe charts for LLM analysis
                             print(f"Generating multi-timeframe charts for {symbol}...")
                             chart_paths = plot_multi_timeframe_charts(
