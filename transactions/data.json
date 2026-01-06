@@ -1708,5 +1708,176 @@
       "starting_capital": 4000,
       "wallet_allocation_pct": 61.3354940602425
     }
+  },
+  {
+    "symbol": "XRP-USD",
+    "buy_price": 2.0932053621852247,
+    "sell_price": 2.1347,
+    "potential_profit_percentage": 0.6136055483972216,
+    "timestamp": "2026-01-05T01:31:54.534697+00:00",
+    "gross_profit": 43.471084016392524,
+    "taxes": 10.433060163934206,
+    "exchange_fees": 14.953573500000001,
+    "total_profit": 18.08445035245832,
+    "time_held_position": "3.69 hours",
+    "time_held_seconds": 13288.751319,
+    "buy_timestamp": "2026-01-04T21:50:25.783402Z",
+    "buy_screenshot_path": "./screenshots/XRP-USD_1h-candles_buy_20260104135022.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 3.7463126843657846,
+      "current_trend": "bullish",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $2.02, sell $2.12 = 4.95% gross, 2.0% net after costs. Risk/reward ratio 3.33 meets criteria."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 1.85,
+      "minor_support": 2.0,
+      "major_resistance": 2.3,
+      "minor_resistance": 2.15,
+      "buy_in_price_target": 2.0932053621852247,
+      "actual_entry_price": 2.0932053621852247,
+      "stop_loss_set": 2.05,
+      "profit_target_percentage": 1.8,
+      "actual_profit_percentage": 0.6136055483972216,
+      "risk_reward_ratio": 3.33,
+      "price_vs_support": "13.15% above major support",
+      "price_vs_resistance": "9.88% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1767561362.350512,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "bullish",
+      "volume_confirmation": null,
+      "reasoning": "Buy $2.02, sell $2.12 = 4.95% gross, 2.0% net after costs. Risk/reward ratio 3.33 meets criteria.",
+      "trade_invalidation_price": 1.98
+    },
+    "exit_analysis": {
+      "exit_trigger": "intelligent_rotation",
+      "profit_target_percentage": 1.8,
+      "actual_profit_percentage": 0.6136055483972216
+    },
+    "position_sizing": {
+      "buy_amount_usd": 2934.0776462639205,
+      "actual_shares": 1401.0,
+      "entry_position_value": 2947.2436159836075,
+      "starting_capital": 4000,
+      "wallet_allocation_pct": 73.68109039959019
+    }
+  },
+  {
+    "symbol": "DOGE-USD",
+    "buy_price": 0.1510072513,
+    "sell_price": 0.14839,
+    "potential_profit_percentage": -2.1776744381963984,
+    "timestamp": "2026-01-05T09:09:40.662097+00:00",
+    "gross_profit": -66.06311323183536,
+    "taxes": -15.855147175640486,
+    "exchange_fees": 14.5348005,
+    "total_profit": -64.74276655619488,
+    "time_held_position": "7.63 hours",
+    "time_held_seconds": 27460.940471,
+    "buy_timestamp": "2026-01-05T01:31:59.721651Z",
+    "buy_screenshot_path": "./screenshots/DOGE-USD_1h-candles_buy_20260104173157.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 2.707787408452601,
+      "current_trend": "bullish",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $0.1460, sell $0.1550 = 6.16% gross, 2.5% net after costs. Aligned support across timeframes."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 0.145,
+      "minor_support": 0.1475,
+      "major_resistance": 0.16,
+      "minor_resistance": 0.155,
+      "buy_in_price_target": 0.1510072513,
+      "actual_entry_price": 0.1510072513,
+      "stop_loss_set": 0.1485,
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": -2.1776744381963984,
+      "risk_reward_ratio": 3.0,
+      "price_vs_support": "4.14% above major support",
+      "price_vs_resistance": "5.96% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1767563785.54646,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "bullish",
+      "volume_confirmation": null,
+      "reasoning": "Buy $0.1460, sell $0.1550 = 6.16% gross, 2.5% net after costs. Aligned support across timeframes.",
+      "trade_invalidation_price": 0.142
+    },
+    "exit_analysis": {
+      "exit_trigger": "stop_loss",
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": -2.1776744381963984
+    },
+    "position_sizing": {
+      "buy_amount_usd": 2958.5178605067003,
+      "actual_shares": 19590.0,
+      "entry_position_value": 2973.023213231835,
+      "starting_capital": 4000,
+      "wallet_allocation_pct": 74.32558033079589
+    }
+  },
+  {
+    "symbol": "XRP-USD",
+    "buy_price": 2.1820033256054074,
+    "sell_price": 2.3016,
+    "potential_profit_percentage": 3.241982185679181,
+    "timestamp": "2026-01-05T20:04:28.218933+00:00",
+    "gross_profit": 146.72698798486363,
+    "taxes": 35.21447711636727,
+    "exchange_fees": 15.535800000000002,
+    "total_profit": 95.97671086849635,
+    "time_held_position": "3.52 hours",
+    "time_held_seconds": 12668.849483,
+    "buy_timestamp": "2026-01-05T16:33:19.369472Z",
+    "buy_screenshot_path": "./screenshots/XRP-USD_1h-candles_buy_20260105083314.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 9.307359307359295,
+      "current_trend": "bullish",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $2.09, sell $2.20 = 5.26% gross, 3.0% net after costs. Risk/reward 2.2. Aligned timeframes, bullish trend, support at $2.0856."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 1.854971,
+      "minor_support": 2.0856,
+      "major_resistance": 2.4945,
+      "minor_resistance": 2.3018,
+      "buy_in_price_target": 2.1820033256054074,
+      "actual_entry_price": 2.1820033256054074,
+      "stop_loss_set": 2.12,
+      "profit_target_percentage": 3.0,
+      "actual_profit_percentage": 3.241982185679181,
+      "risk_reward_ratio": 2.2,
+      "price_vs_support": "17.63% above major support",
+      "price_vs_resistance": "14.32% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1767584602.51598,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "bullish",
+      "volume_confirmation": null,
+      "reasoning": "Buy $2.09, sell $2.20 = 5.26% gross, 3.0% net after costs. Risk/reward 2.2. Aligned timeframes, bullish trend, support at $2.0856.",
+      "trade_invalidation_price": 2.03
+    },
+    "exit_analysis": {
+      "exit_trigger": "profit_target",
+      "profit_target_percentage": 3.0,
+      "actual_profit_percentage": 3.241982185679181
+    },
+    "position_sizing": {
+      "buy_amount_usd": 2947.6409840282645,
+      "actual_shares": 1350.0,
+      "entry_position_value": 2960.4330120151367,
+      "starting_capital": 4000,
+      "wallet_allocation_pct": 74.01082530037841
+    }
   }
 ]

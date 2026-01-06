@@ -488,12 +488,14 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                     print(f"{'='*100}{Colors.ENDC}\n")
 
                     # Find the best opportunity across all enabled assets
+                    min_score = market_rotation_config.get('min_opportunity_score', 50)
                     best_opportunity = find_best_opportunity(
                         config=config,
                         coinbase_client=coinbase_client,
                         enabled_symbols=enabled_wallets,
                         interval_seconds=INTERVAL_SECONDS,
-                        data_retention_hours=DATA_RETENTION_HOURS
+                        data_retention_hours=DATA_RETENTION_HOURS,
+                        min_score=min_score
                     )
 
                     # Optionally print detailed report
@@ -1388,6 +1390,13 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                         intelligent_rotation_config = market_rotation_config.get('intelligent_rotation', {})
                         intelligent_rotation_enabled = intelligent_rotation_config.get('enabled', False)
 
+                        # Show rotation check status even when conditions aren't met
+                        if market_rotation_enabled:
+                            if not best_opportunity:
+                                print(f"\n{Colors.CYAN}🔄 ROTATION CHECK: Skipping - no alternative opportunities available{Colors.ENDC}\n")
+                            elif not intelligent_rotation_enabled:
+                                print(f"\n{Colors.CYAN}🔄 ROTATION CHECK: Skipping - intelligent rotation disabled in config{Colors.ENDC}\n")
+
                         if market_rotation_enabled and intelligent_rotation_enabled and best_opportunity:
                             # Only consider rotation if we're currently profitable
                             min_profit_for_rotation = intelligent_rotation_config.get('min_profit_to_consider_rotation', 0.5)
@@ -1475,7 +1484,8 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
 
                                 print()  # Blank line for readability
                             else:
-                                print(f"\n{Colors.CYAN}ℹ️  Profit {net_profit_percentage:.2f}% below rotation threshold ({min_profit_for_rotation}%) - not considering rotation{Colors.ENDC}\n")
+                                # Profit is below rotation threshold
+                                print(f"\n{Colors.CYAN}🔄 ROTATION CHECK: Skipping - profit {net_profit_percentage:.2f}% below threshold ({min_profit_for_rotation}%){Colors.ENDC}\n")
 
                         # Execute intelligent rotation if triggered
                         if should_rotate_position:
@@ -1559,22 +1569,19 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
 
                                 # IMMEDIATE ROTATION: Recalculate best opportunity after exit
                                 print(f"\n{Colors.BOLD}{Colors.CYAN}🔄 CAPITAL FREED - Recalculating best opportunity...{Colors.ENDC}\n")
+                                min_score = market_rotation_config.get('min_opportunity_score', 50)
                                 best_opportunity = find_best_opportunity(
                                     config=config,
                                     coinbase_client=coinbase_client,
                                     enabled_symbols=enabled_wallets,
                                     interval_seconds=INTERVAL_SECONDS,
-                                    data_retention_hours=DATA_RETENTION_HOURS
+                                    data_retention_hours=DATA_RETENTION_HOURS,
+                                    min_score=min_score
                                 )
                                 if best_opportunity:
-                                    min_score = market_rotation_config.get('min_opportunity_score', 50)
-                                    if best_opportunity['score'] >= min_score:
-                                        best_opportunity_symbol = best_opportunity['symbol']
-                                        print(f"{Colors.GREEN}✅ NEW BEST OPPORTUNITY: {best_opportunity_symbol} (score: {best_opportunity['score']:.1f}){Colors.ENDC}")
-                                        print(f"   Will enter {best_opportunity_symbol} when we reach it in this iteration\n")
-                                    else:
-                                        best_opportunity_symbol = None
-                                        print(f"{Colors.YELLOW}⚠️  Best opportunity score {best_opportunity['score']:.1f} below minimum {min_score} - waiting{Colors.ENDC}\n")
+                                    best_opportunity_symbol = best_opportunity['symbol']
+                                    print(f"{Colors.GREEN}✅ NEW BEST OPPORTUNITY: {best_opportunity_symbol} (score: {best_opportunity['score']:.1f}){Colors.ENDC}")
+                                    print(f"   Will enter {best_opportunity_symbol} when we reach it in this iteration\n")
                                 else:
                                     best_opportunity_symbol = None
                                     print(f"{Colors.YELLOW}⚠️  No tradeable opportunities found - capital will remain idle{Colors.ENDC}\n")
@@ -1667,22 +1674,19 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 # This allows us to enter the next-best trade in the same iteration
                                 if market_rotation_enabled:
                                     print(f"\n{Colors.BOLD}{Colors.CYAN}🔄 CAPITAL FREED - Recalculating best opportunity...{Colors.ENDC}\n")
+                                    min_score = market_rotation_config.get('min_opportunity_score', 50)
                                     best_opportunity = find_best_opportunity(
                                         config=config,
                                         coinbase_client=coinbase_client,
                                         enabled_symbols=enabled_wallets,
                                         interval_seconds=INTERVAL_SECONDS,
-                                        data_retention_hours=DATA_RETENTION_HOURS
+                                        data_retention_hours=DATA_RETENTION_HOURS,
+                                        min_score=min_score
                                     )
                                     if best_opportunity:
-                                        min_score = market_rotation_config.get('min_opportunity_score', 50)
-                                        if best_opportunity['score'] >= min_score:
-                                            best_opportunity_symbol = best_opportunity['symbol']
-                                            print(f"{Colors.GREEN}✅ NEW BEST OPPORTUNITY: {best_opportunity_symbol} (score: {best_opportunity['score']:.1f}){Colors.ENDC}")
-                                            print(f"   Will enter {best_opportunity_symbol} when we reach it in this iteration\n")
-                                        else:
-                                            best_opportunity_symbol = None
-                                            print(f"{Colors.YELLOW}⚠️  Best opportunity score {best_opportunity['score']:.1f} below minimum {min_score} - waiting{Colors.ENDC}\n")
+                                        best_opportunity_symbol = best_opportunity['symbol']
+                                        print(f"{Colors.GREEN}✅ NEW BEST OPPORTUNITY: {best_opportunity_symbol} (score: {best_opportunity['score']:.1f}){Colors.ENDC}")
+                                        print(f"   Will enter {best_opportunity_symbol} when we reach it in this iteration\n")
                                     else:
                                         best_opportunity_symbol = None
                                         print(f"{Colors.YELLOW}⚠️  No tradeable opportunities found - capital will remain idle{Colors.ENDC}\n")
@@ -1771,22 +1775,19 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 # This allows us to enter the next-best trade in the same iteration
                                 if market_rotation_enabled:
                                     print(f"\n{Colors.BOLD}{Colors.CYAN}🔄 CAPITAL FREED - Recalculating best opportunity...{Colors.ENDC}\n")
+                                    min_score = market_rotation_config.get('min_opportunity_score', 50)
                                     best_opportunity = find_best_opportunity(
                                         config=config,
                                         coinbase_client=coinbase_client,
                                         enabled_symbols=enabled_wallets,
                                         interval_seconds=INTERVAL_SECONDS,
-                                        data_retention_hours=DATA_RETENTION_HOURS
+                                        data_retention_hours=DATA_RETENTION_HOURS,
+                                        min_score=min_score
                                     )
                                     if best_opportunity:
-                                        min_score = market_rotation_config.get('min_opportunity_score', 50)
-                                        if best_opportunity['score'] >= min_score:
-                                            best_opportunity_symbol = best_opportunity['symbol']
-                                            print(f"{Colors.GREEN}✅ NEW BEST OPPORTUNITY: {best_opportunity_symbol} (score: {best_opportunity['score']:.1f}){Colors.ENDC}")
-                                            print(f"   Will enter {best_opportunity_symbol} when we reach it in this iteration\n")
-                                        else:
-                                            best_opportunity_symbol = None
-                                            print(f"{Colors.YELLOW}⚠️  Best opportunity score {best_opportunity['score']:.1f} below minimum {min_score} - waiting{Colors.ENDC}\n")
+                                        best_opportunity_symbol = best_opportunity['symbol']
+                                        print(f"{Colors.GREEN}✅ NEW BEST OPPORTUNITY: {best_opportunity_symbol} (score: {best_opportunity['score']:.1f}){Colors.ENDC}")
+                                        print(f"   Will enter {best_opportunity_symbol} when we reach it in this iteration\n")
                                     else:
                                         best_opportunity_symbol = None
                                         print(f"{Colors.YELLOW}⚠️  No tradeable opportunities found - capital will remain idle{Colors.ENDC}\n")
@@ -1831,6 +1832,16 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                     total_trades = len(summary_transactions)
                     wins = len([t for t in summary_transactions if t.get('total_profit', 0) > 0])
 
+                    # Calculate total volume traded in USD (sum of all buy orders)
+                    total_volume_usd = 0
+                    for tx in summary_transactions:
+                        # Each transaction represents a completed buy/sell cycle
+                        # Use buy_price and a standard position size to estimate volume
+                        buy_price = tx.get('buy_price', 0)
+                        # Assuming each trade uses the starting capital
+                        if buy_price > 0:
+                            total_volume_usd += summary_starting_capital
+
                     # Determine status
                     status = "NO POSITION"
                     if summary_has_position:
@@ -1851,7 +1862,8 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                         'status': status,
                         'has_position': summary_has_position,
                         'total_trades': total_trades,
-                        'wins': wins
+                        'wins': wins,
+                        'total_volume_usd': total_volume_usd
                     })
 
                 # Sort by P&L percentage (highest to lowest), then by total profit USD as tie-breaker
@@ -1870,12 +1882,21 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                     # Calculate win rate
                     if asset['total_trades'] > 0:
                         win_pct = (asset['wins'] / asset['total_trades']) * 100
-                        win_rate_str = f" | {asset['wins']}/{asset['total_trades']} ({win_pct:.0f}%)"
+                        win_rate_str = f"{asset['wins']}/{asset['total_trades']} ({win_pct:>3.0f}%)"
                     else:
-                        win_rate_str = f" | 0/0 (0%)"
+                        win_rate_str = f"0/0 (  0%)"
 
                     profit_color = Colors.GREEN if asset['total_profit_usd'] > 0 else (Colors.RED if asset['total_profit_usd'] < 0 else Colors.YELLOW)
-                    print(f"  {position_indicator} {idx:2d}. {asset['symbol']:10s} | {profit_color}${asset['total_profit_usd']:>+8.2f}{Colors.ENDC} | {pnl_color}P&L: {asset['pnl_pct']:>+6.2f}%{Colors.ENDC}{win_rate_str} | {asset['status']}")
+
+                    # Format columns with consistent width
+                    symbol_col = f"{asset['symbol']:<10s}"
+                    profit_col = f"{profit_color}${asset['total_profit_usd']:>+8.2f}{Colors.ENDC}"
+                    volume_col = f"${asset['total_volume_usd']:>8,.0f}"
+                    pnl_col = f"{pnl_color}{asset['pnl_pct']:>+6.2f}%{Colors.ENDC}"
+                    win_col = f"{win_rate_str:>12s}"
+                    status_col = f"{asset['status']:<20s}"
+
+                    print(f"  {position_indicator} {idx:2d}. {symbol_col} | {profit_col} | Vol: {volume_col} | P&L: {pnl_col} | W/L: {win_col} | {status_col}")
 
                 # Calculate and display lifetime total
                 total_lifetime_profit = sum(asset['total_profit_usd'] for asset in asset_performance)

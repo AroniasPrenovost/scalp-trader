@@ -250,7 +250,7 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
     return result
 
 
-def find_best_opportunity(config, coinbase_client, enabled_symbols, interval_seconds, data_retention_hours):
+def find_best_opportunity(config, coinbase_client, enabled_symbols, interval_seconds, data_retention_hours, min_score=0):
     """
     Scan all enabled assets and return the SINGLE best trade opportunity.
 
@@ -260,6 +260,7 @@ def find_best_opportunity(config, coinbase_client, enabled_symbols, interval_sec
         enabled_symbols: List of symbol strings to scan (e.g. ['BTC-USD', 'ETH-USD'])
         interval_seconds: Data collection interval (for calculating volatility window)
         data_retention_hours: Max age of historical data
+        min_score: Minimum score threshold to consider (default: 0, no filtering)
 
     Returns:
         Dictionary with best opportunity (same format as score_opportunity),
@@ -310,8 +311,8 @@ def find_best_opportunity(config, coinbase_client, enabled_symbols, interval_sec
             print(f"  ⚠️  Error scoring {symbol}: {e}")
             continue
 
-    # Filter to only tradeable opportunities (score > 0, can_trade = True)
-    tradeable = [opp for opp in opportunities if opp['can_trade'] and opp['score'] > 0]
+    # Filter to only tradeable opportunities (can_trade = True, score >= min_score)
+    tradeable = [opp for opp in opportunities if opp['can_trade'] and opp['score'] >= min_score]
 
     if not tradeable:
         return None
