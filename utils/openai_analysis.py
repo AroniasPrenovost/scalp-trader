@@ -168,7 +168,7 @@ VOLATILITY TRADING RULES:
 
         adaptive_strategy_context = f"""
 
-ADAPTIVE MEAN REVERSION STRATEGY (PRIMARY STRATEGY - PROVEN PROFITABLE):
+ADAPTIVE MEAN REVERSION STRATEGY (CORE FOUNDATION - PROVEN PROFITABLE):
 - Market Trend: {adaptive_signal['trend'].upper()}
 - Strategy Signal: {adaptive_signal['signal'].upper()}
 - Deviation from 24h MA: {adaptive_signal['deviation_from_ma']:+.2f}%
@@ -179,33 +179,41 @@ ADAPTIVE MEAN REVERSION STRATEGY (PRIMARY STRATEGY - PROVEN PROFITABLE):
 
         if adaptive_signal['signal'] == 'buy':
             adaptive_strategy_context += f"""
-✅ STRONG BUY SIGNAL - ADAPTIVE STRATEGY CONFIRMATION:
+✅ AMR BUY SIGNAL DETECTED - YOUR ROLE: VALIDATE & ENHANCE
+
+AMR Baseline (53.3% win rate, proven profitable):
 - Entry Price: ${adaptive_signal['entry_price']:.4f}
 - Stop Loss: ${adaptive_signal['stop_loss']:.4f} (-1.7%)
 - Profit Target: ${adaptive_signal['profit_target']:.4f} (+1.7%)
 - Risk/Reward: 1:1 (symmetric)
 
-This is a HIGH-PROBABILITY setup based on backtested profitable strategy:
-• 53.3% win rate over 5 weeks
-• Only trades uptrend/sideways markets (avoids downtrend losses)
-• Mean reversion at 2-3% dip below 24h MA
+YOUR TASK AS AI VALIDATOR:
+1. Analyze the multi-timeframe charts - do they CONFIRM or CONTRADICT this AMR signal?
+2. Check for major resistance levels that could block the profit target
+3. Validate support levels align with the AMR entry/stop prices
+4. Set confidence_level based on chart confirmation:
+   - "high": Charts strongly confirm AMR signal (clear support, no resistance ahead)
+   - "medium": Charts neutral or mixed signals (some support, minor concerns)
+   - "low": Charts show warning signs (major resistance near entry, weak support)
 
-YOU SHOULD SET:
-- buy_in_price: ${adaptive_signal['entry_price']:.4f}
-- stop_loss: ${adaptive_signal['stop_loss']:.4f}
-- sell_price: ${adaptive_signal['profit_target']:.4f}
-- profit_target_percentage: 1.7
-- confidence_level: "high"
-- trade_recommendation: "buy"
+5. You may REFINE the entry/stop/target prices by ±0.5% if charts show better levels
+6. If charts strongly contradict AMR (e.g., major resistance at entry), set confidence to "low"
+
+IMPORTANT: Use AMR prices as your baseline. Only adjust if charts provide clear evidence.
 
 """
         else:
             adaptive_strategy_context += f"""
-⚠ NO SIGNAL from adaptive strategy.
-Reason: {adaptive_signal['reasoning']}
+⚠ NO AMR SIGNAL - DOWNTREND OR NO SETUP
 
-If market trend is DOWNTREND, you should set trade_recommendation to "no_trade" to avoid losses.
-Only override this if you have EXCEPTIONAL technical confirmation for a trade.
+AMR Status: {adaptive_signal['reasoning']}
+
+YOUR TASK AS AI VALIDATOR:
+- If market trend is DOWNTREND: Set trade_recommendation to "no_trade" (enforce downtrend filter)
+- If no AMR signal but you see EXCEPTIONAL chart setup: You may recommend "buy" but set confidence to "medium" (not "high")
+- In most cases: Set trade_recommendation to "no_trade" and explain why in reasoning
+
+DO NOT override downtrend filter unless you see exceptional multi-timeframe bullish reversal confirmation.
 
 """
     except Exception as e:
@@ -491,37 +499,38 @@ Output ONLY valid JSON with no markdown formatting or explanatory text outside t
         analysis_result['analyzed_at'] = time.time()
         analysis_result['model_used'] = response.model
 
-        # ENFORCE ADAPTIVE MEAN REVERSION STRATEGY
-        # If adaptive strategy gave a signal, enforce it strictly
+        # TRACK AMR ALIGNMENT (for metrics and debugging)
+        # Store AMR signal data alongside AI analysis for opportunity scorer to use
         if adaptive_signal:
-            if adaptive_signal['signal'] == 'buy':
-                # Adaptive strategy says BUY - override LLM if it disagrees
-                if analysis_result.get('trade_recommendation') != 'buy':
-                    print(f"⚠️  LLM recommended '{analysis_result.get('trade_recommendation')}' but adaptive strategy says BUY. Enforcing adaptive strategy.")
+            analysis_result['amr_signal_data'] = {
+                'signal': adaptive_signal['signal'],
+                'trend': adaptive_signal['trend'],
+                'entry_price': adaptive_signal.get('entry_price'),
+                'stop_loss': adaptive_signal.get('stop_loss'),
+                'profit_target': adaptive_signal.get('profit_target'),
+                'deviation_from_ma': adaptive_signal.get('deviation_from_ma'),
+                'reasoning': adaptive_signal.get('reasoning')
+            }
 
-                # Enforce adaptive strategy values
-                analysis_result['buy_in_price'] = adaptive_signal['entry_price']
-                analysis_result['stop_loss'] = adaptive_signal['stop_loss']
-                analysis_result['sell_price'] = adaptive_signal['profit_target']
-                analysis_result['profit_target_percentage'] = 1.7
-                analysis_result['trade_recommendation'] = 'buy'
-                analysis_result['confidence_level'] = 'high'
-                analysis_result['risk_reward_ratio'] = 1.0
-                analysis_result['adaptive_strategy_enforced'] = True
-                analysis_result['reasoning'] = f"ADAPTIVE STRATEGY: {adaptive_signal['reasoning']}"
+            # Log alignment between AMR and AI for analysis
+            amr_buy = adaptive_signal['signal'] == 'buy'
+            ai_buy = analysis_result.get('trade_recommendation') == 'buy'
+            ai_conf = analysis_result.get('confidence_level', 'low')
 
-                print(f"✓ Adaptive strategy BUY signal enforced: Entry ${adaptive_signal['entry_price']:.4f}, Stop ${adaptive_signal['stop_loss']:.4f}, Target ${adaptive_signal['profit_target']:.4f}")
-
-            elif adaptive_signal['trend'] == 'downtrend':
-                # Adaptive strategy detected DOWNTREND - enforce no_trade
-                if analysis_result.get('trade_recommendation') == 'buy':
-                    print(f"⚠️  LLM recommended BUY but adaptive strategy detected DOWNTREND. Enforcing no_trade.")
-
-                analysis_result['trade_recommendation'] = 'no_trade'
-                analysis_result['adaptive_strategy_enforced'] = True
-                analysis_result['reasoning'] = f"DOWNTREND DETECTED: {adaptive_signal['reasoning']}"
-
-                print(f"✓ Adaptive strategy DOWNTREND enforcement: no_trade")
+            if amr_buy and ai_buy:
+                print(f"✓ AMR + AI ALIGNED: Both recommend BUY (AI confidence: {ai_conf})")
+            elif amr_buy and not ai_buy:
+                print(f"⚠️  AMR says BUY but AI says {analysis_result.get('trade_recommendation').upper()} (conf: {ai_conf})")
+                print(f"   AMR: {adaptive_signal['reasoning'][:100]}")
+                print(f"   AI: {analysis_result.get('reasoning', 'No reasoning')[:100]}")
+            elif not amr_buy and ai_buy:
+                print(f"⚠️  AI says BUY but AMR says {adaptive_signal['signal'].upper()} (trend: {adaptive_signal['trend']})")
+                print(f"   Note: Opportunity scorer will reject this (requires AMR buy signal)")
+            else:
+                print(f"✓ AMR + AI ALIGNED: Both recommend NO TRADE (AMR: {adaptive_signal['trend']}, AI: {ai_conf})")
+        else:
+            analysis_result['amr_signal_data'] = None
+            print(f"⚠️  AMR signal unavailable - AI analysis proceeding without AMR context")
 
         # Override buy_amount_usd with volatility-adjusted position sizing if enabled
         if config and range_percentage_from_min is not None and trading_context:

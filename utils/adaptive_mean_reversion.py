@@ -14,8 +14,6 @@ Backtested Performance (5 weeks):
 - 523% improvement vs original range strategy
 """
 
-import numpy as np
-
 
 def detect_market_trend(prices, lookback=168):
     """
@@ -100,8 +98,8 @@ def check_adaptive_buy_signal(prices, current_price):
         }
 
     # Calculate 24h and 48h moving averages
-    ma_24h = np.mean(prices[-24:])
-    ma_48h = np.mean(prices[-48:])
+    ma_24h = sum(prices[-24:]) / len(prices[-24:])
+    ma_48h = sum(prices[-48:]) / len(prices[-48:])
 
     # Calculate deviation from 24h MA
     deviation_from_ma = (current_price - ma_24h) / ma_24h
