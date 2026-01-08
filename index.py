@@ -1249,11 +1249,12 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                         print(f"Calculated shares to buy: {shares_to_buy} fractional shares (${buy_amount} / ${current_price})")
 
                                     if shares_to_buy > 0:
-                                        # Use market orders for immediate execution
-                                        # This ensures orders fill instantly instead of waiting for price to drop to AI target
-                                        print(f"Placing MARKET buy order for {shares_to_buy} shares at current price ${current_price:.4f}")
-                                        print(f"  (AI recommended entry was ${BUY_AT_PRICE:.4f}, but using market order for guaranteed fill)")
-                                        place_market_buy_order(coinbase_client, symbol, shares_to_buy)
+                                        # Use limit orders at AI's recommended entry price
+                                        # This ensures we get the price the AI analyzed, improving risk/reward accuracy
+                                        limit_price = BUY_AT_PRICE
+                                        print(f"Placing LIMIT buy order for {shares_to_buy} shares at AI target price ${limit_price:.4f}")
+                                        print(f"  (Current price: ${current_price:.4f}, waiting for price to reach AI entry target)")
+                                        place_limit_buy_order(coinbase_client, symbol, shares_to_buy, limit_price)
 
                                         # Store screenshot path AND original analysis for later use in transaction record
                                         # This will be retrieved from the ledger when we sell
@@ -1549,14 +1550,21 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 if ignore_profit_advantage and (not require_downturn or downturn_triggered):
                                     # Simple mode: If we're profitable and new opportunity is good, rotate
                                     # (or downturn mode: only rotate if downturn triggered)
-                                    print(f"  {Colors.GREEN}✓ Current profit: ${net_profit_after_all_costs_usd:.2f} ({net_profit_percentage:.2f}%){Colors.ENDC}")
-                                    print(f"  {Colors.GREEN}✓ New opportunity quality: {best_opp_score:.1f} >= {min_new_opp_score}{Colors.ENDC}")
-                                    if require_downturn:
-                                        print(f"  {Colors.GREEN}✓ Downturn from peak detected - securing profit{Colors.ENDC}")
+
+                                    # CRITICAL: Only rotate if we're actually profitable
+                                    min_profit_pct = early_profit_config.get('min_profit_percentage', 0.45)
+                                    if net_profit_percentage < min_profit_pct:
+                                        print(f"  {Colors.RED}✗ Cannot rotate - profit {net_profit_percentage:.2f}% below minimum ({min_profit_pct}%){Colors.ENDC}")
+                                        print(f"  {Colors.YELLOW}→ Early profit rotation requires net profit >= {min_profit_pct}%{Colors.ENDC}")
                                     else:
-                                        print(f"  {Colors.GREEN}✓ Taking profit now rather than risk giving it back{Colors.ENDC}")
-                                    should_rotate_position = True
-                                    rotation_reason = f"Early profit rotation to {best_opp_symbol}: Secured ${net_profit_after_all_costs_usd:.2f} profit, rotating to fresh {best_opp_score:.1f} score setup"
+                                        print(f"  {Colors.GREEN}✓ Current profit: ${net_profit_after_all_costs_usd:.2f} ({net_profit_percentage:.2f}%){Colors.ENDC}")
+                                        print(f"  {Colors.GREEN}✓ New opportunity quality: {best_opp_score:.1f} >= {min_new_opp_score}{Colors.ENDC}")
+                                        if require_downturn:
+                                            print(f"  {Colors.GREEN}✓ Downturn from peak detected - securing profit{Colors.ENDC}")
+                                        else:
+                                            print(f"  {Colors.GREEN}✓ Taking profit now rather than risk giving it back{Colors.ENDC}")
+                                        should_rotate_position = True
+                                        rotation_reason = f"Early profit rotation to {best_opp_symbol}: Secured ${net_profit_after_all_costs_usd:.2f} profit, rotating to fresh {best_opp_score:.1f} score setup"
                                 else:
                                     # Still check profit advantage
                                     new_opp_entry = best_opportunity.get('entry_price', 0)
