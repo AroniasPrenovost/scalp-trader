@@ -1487,9 +1487,108 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 # Profit is below rotation threshold
                                 print(f"\n{Colors.CYAN}🔄 ROTATION CHECK: Skipping - profit {net_profit_percentage:.2f}% below threshold ({min_profit_for_rotation}%){Colors.ENDC}\n")
 
-                        # Execute intelligent rotation if triggered
+                        # EARLY PROFIT ROTATION: Take profits early when good opportunities appear
+                        # This prevents the scenario where position goes: negative → +$6 → negative
+                        early_profit_config = market_rotation_config.get('early_profit_rotation', {})
+                        early_profit_enabled = early_profit_config.get('enabled', False)
+
+                        if market_rotation_enabled and early_profit_enabled and best_opportunity and not should_rotate_position:
+                            min_new_opp_score = early_profit_config.get('min_new_opportunity_score', 80)
+                            ignore_profit_advantage = early_profit_config.get('ignore_profit_advantage_requirement', True)
+
+                            # Peak-based downturn detection
+                            require_downturn = early_profit_config.get('require_downturn_from_peak', False)
+                            min_peak_profit_usd = early_profit_config.get('min_peak_profit_usd', 6.0)
+                            downturn_threshold_usd = early_profit_config.get('downturn_threshold_usd', 3.0)
+
+                            best_opp_score = best_opportunity.get('score', 0)
+                            best_opp_symbol = best_opportunity.get('symbol')
+
+                            # Check if new opportunity is high quality and different from current position
+                            if best_opp_symbol != symbol and best_opp_score >= min_new_opp_score:
+                                print(f"\n{Colors.BOLD}{Colors.CYAN}💰 EARLY PROFIT ROTATION CHECK{Colors.ENDC}")
+                                print(f"  Current position ({symbol}): Profit ${net_profit_after_all_costs_usd:.2f} ({net_profit_percentage:.2f}%)")
+                                print(f"  New opportunity ({best_opp_symbol}): Score {best_opp_score:.1f}/100")
+                                print(f"  Minimum new opportunity score: {min_new_opp_score}")
+
+                                # Check peak-based downturn if enabled
+                                downturn_triggered = False
+                                if require_downturn:
+                                    from utils.position_tracker import should_exit_on_downturn, get_peak_profit
+
+                                    should_exit, peak_info = should_exit_on_downturn(
+                                        symbol=symbol,
+                                        current_profit_usd=net_profit_after_all_costs_usd,
+                                        current_profit_pct=net_profit_percentage,
+                                        min_peak_profit_usd=min_peak_profit_usd,
+                                        downturn_threshold_usd=downturn_threshold_usd
+                                    )
+
+                                    if peak_info:
+                                        peak_profit_usd = peak_info['peak_profit_usd']
+                                        downturn_amount = peak_profit_usd - net_profit_after_all_costs_usd
+
+                                        print(f"\n  {Colors.CYAN}PEAK DOWNTURN ANALYSIS:{Colors.ENDC}")
+                                        print(f"  Peak profit reached: ${peak_profit_usd:.2f}")
+                                        print(f"  Current profit: ${net_profit_after_all_costs_usd:.2f}")
+                                        print(f"  Downturn from peak: ${downturn_amount:.2f}")
+                                        print(f"  Minimum peak to consider: ${min_peak_profit_usd:.2f}")
+                                        print(f"  Downturn threshold: ${downturn_threshold_usd:.2f}")
+
+                                        if should_exit:
+                                            print(f"  {Colors.GREEN}✓ Downturn trigger met - exiting to preserve gains{Colors.ENDC}")
+                                            downturn_triggered = True
+                                        else:
+                                            if peak_profit_usd < min_peak_profit_usd:
+                                                print(f"  {Colors.YELLOW}⏳ Peak not high enough yet (${peak_profit_usd:.2f} < ${min_peak_profit_usd:.2f}){Colors.ENDC}")
+                                            else:
+                                                print(f"  {Colors.YELLOW}⏳ Downturn not significant enough (${downturn_amount:.2f} < ${downturn_threshold_usd:.2f}){Colors.ENDC}")
+                                            print(f"  {Colors.YELLOW}→ Holding position - waiting for larger downturn{Colors.ENDC}")
+
+                                # Decision logic
+                                if ignore_profit_advantage and (not require_downturn or downturn_triggered):
+                                    # Simple mode: If we're profitable and new opportunity is good, rotate
+                                    # (or downturn mode: only rotate if downturn triggered)
+                                    print(f"  {Colors.GREEN}✓ Current profit: ${net_profit_after_all_costs_usd:.2f} ({net_profit_percentage:.2f}%){Colors.ENDC}")
+                                    print(f"  {Colors.GREEN}✓ New opportunity quality: {best_opp_score:.1f} >= {min_new_opp_score}{Colors.ENDC}")
+                                    if require_downturn:
+                                        print(f"  {Colors.GREEN}✓ Downturn from peak detected - securing profit{Colors.ENDC}")
+                                    else:
+                                        print(f"  {Colors.GREEN}✓ Taking profit now rather than risk giving it back{Colors.ENDC}")
+                                    should_rotate_position = True
+                                    rotation_reason = f"Early profit rotation to {best_opp_symbol}: Secured ${net_profit_after_all_costs_usd:.2f} profit, rotating to fresh {best_opp_score:.1f} score setup"
+                                else:
+                                    # Still check profit advantage
+                                    new_opp_entry = best_opportunity.get('entry_price', 0)
+                                    new_opp_target = best_opportunity.get('profit_target', 0)
+
+                                    if new_opp_entry > 0 and new_opp_target > 0:
+                                        new_opp_upside = ((new_opp_target - new_opp_entry) / new_opp_entry) * 100
+                                        current_remaining_upside = effective_profit_target - net_profit_percentage
+
+                                        print(f"  Current remaining upside: {current_remaining_upside:.2f}%")
+                                        print(f"  New opportunity upside: {new_opp_upside:.2f}%")
+
+                                        # CRITICAL: Only rotate if we're in positive net profit
+                                        if net_profit_after_all_costs_usd <= 0:
+                                            print(f"  {Colors.RED}✗ Cannot rotate - position at loss (${net_profit_after_all_costs_usd:.2f}){Colors.ENDC}")
+                                            print(f"  {Colors.YELLOW}→ Rotation only allowed when net profit > $0{Colors.ENDC}")
+                                        elif new_opp_upside >= current_remaining_upside:
+                                            print(f"  {Colors.GREEN}✓ New opportunity has equal or better upside{Colors.ENDC}")
+                                            should_rotate_position = True
+                                            rotation_reason = f"Early profit rotation to {best_opp_symbol}: Secured ${net_profit_after_all_costs_usd:.2f}, rotating to {new_opp_upside:.2f}% upside opportunity"
+                                        else:
+                                            print(f"  {Colors.YELLOW}✗ Current position has better remaining upside - holding{Colors.ENDC}")
+
+                                print()  # Blank line for readability
+
+                        # Execute rotation if triggered (either intelligent or early profit)
                         if should_rotate_position:
-                            print(f'{Colors.BOLD}{Colors.CYAN}🔄 INTELLIGENT ROTATION TRIGGERED{Colors.ENDC}')
+                            # Determine rotation type for logging
+                            rotation_type = 'early_profit_rotation' if 'Early profit rotation' in rotation_reason else 'intelligent_rotation'
+                            rotation_emoji = '💰' if rotation_type == 'early_profit_rotation' else '🔄'
+
+                            print(f'{Colors.BOLD}{Colors.CYAN}{rotation_emoji} ROTATION TRIGGERED{Colors.ENDC}')
                             print(f'{Colors.CYAN}Reason: {rotation_reason}{Colors.ENDC}')
                             print(f'{Colors.GREEN}Exiting {symbol} with {net_profit_percentage:.2f}% profit to enter {best_opportunity["symbol"]}{Colors.ENDC}')
 
@@ -1550,15 +1649,19 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                     buy_screenshot_path=buy_screenshot_path,
                                     analysis=analysis,
                                     entry_market_conditions=entry_market_conditions,
-                                    exit_trigger='intelligent_rotation',
+                                    exit_trigger=rotation_type,
                                     position_sizing_data=position_sizing_data
                                 )
+
+                                # Clear position state (peak profit tracking)
+                                from utils.position_tracker import clear_position_state
+                                clear_position_state(symbol)
 
                                 # Update core learnings
                                 from utils.trade_context import load_transaction_history
                                 trade_outcome = {
                                     'profit': net_profit_after_all_costs_usd,
-                                    'exit_trigger': 'intelligent_rotation',
+                                    'exit_trigger': rotation_type,
                                     'confidence_level': analysis.get('confidence_level', 'unknown'),
                                     'market_trend': analysis.get('market_trend', 'unknown')
                                 }
@@ -1656,6 +1759,10 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                     exit_trigger='stop_loss',
                                     position_sizing_data=position_sizing_data
                                 )
+
+                                # Clear position state (peak profit tracking)
+                                from utils.position_tracker import clear_position_state
+                                clear_position_state(symbol)
 
                                 # Update core learnings based on trade outcome
                                 from utils.trade_context import load_transaction_history
@@ -1757,6 +1864,10 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                     exit_trigger='profit_target',
                                     position_sizing_data=position_sizing_data
                                 )
+
+                                # Clear position state (peak profit tracking)
+                                from utils.position_tracker import clear_position_state
+                                clear_position_state(symbol)
 
                                 # Update core learnings based on trade outcome
                                 from utils.trade_context import load_transaction_history

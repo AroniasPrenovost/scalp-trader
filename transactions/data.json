@@ -1879,5 +1879,347 @@
       "starting_capital": 4000,
       "wallet_allocation_pct": 74.01082530037841
     }
+  },
+  {
+    "symbol": "XRP-USD",
+    "buy_price": 2.3121,
+    "sell_price": 2.4008,
+    "potential_profit_percentage": 2.006404119706818,
+    "timestamp": "2026-01-06T02:25:12.930694+00:00",
+    "gross_profit": 100.66704750000008,
+    "taxes": 24.16009140000002,
+    "exchange_fees": 15.665219999999998,
+    "total_profit": 60.841736100000055,
+    "time_held_position": "6.22 hours",
+    "time_held_seconds": 22380.473824,
+    "buy_timestamp": "2026-01-05T20:12:12.456891Z",
+    "buy_screenshot_path": "./screenshots/XRP-USD_1h-candles_buy_20260105121208.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 12.075900250792593,
+      "current_trend": "bullish",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $2.0858, sell $2.3016 = 10.35% gross, 2.0% net after costs. Risk/reward ratio 3.0."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 2.0141,
+      "minor_support": 2.0858,
+      "major_resistance": 2.4945,
+      "minor_resistance": 2.3016,
+      "buy_in_price_target": 2.3121,
+      "actual_entry_price": 2.3121,
+      "stop_loss_set": 2.2,
+      "profit_target_percentage": 2.0,
+      "actual_profit_percentage": 2.006404119706818,
+      "risk_reward_ratio": 3.0,
+      "price_vs_support": "14.80% above major support",
+      "price_vs_resistance": "7.89% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1767643728.2419698,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "bullish",
+      "volume_confirmation": null,
+      "reasoning": "Buy $2.0858, sell $2.3016 = 10.35% gross, 2.0% net after costs. Risk/reward ratio 3.0.",
+      "trade_invalidation_price": 2.0
+    },
+    "exit_analysis": {
+      "exit_trigger": "profit_target",
+      "profit_target_percentage": 2.0,
+      "actual_profit_percentage": 2.006404119706818
+    },
+    "position_sizing": {
+      "buy_amount_usd": 3019.6235171796366,
+      "actual_shares": 1305.0,
+      "entry_position_value": 3032.3769525,
+      "starting_capital": 4000,
+      "wallet_allocation_pct": 75.8094238125
+    }
+  },
+  {
+    "symbol": "ADA-USD",
+    "buy_price": 0.4276,
+    "sell_price": 0.41,
+    "potential_profit_percentage": -3.7292210602739426,
+    "timestamp": "2026-01-06T16:38:25.508671+00:00",
+    "gross_profit": -138.5607600000003,
+    "taxes": -33.25458240000007,
+    "exchange_fees": 7.195499999999999,
+    "total_profit": -112.50167760000025,
+    "time_held_position": "14.22 hours",
+    "time_held_seconds": 51186.589799,
+    "buy_timestamp": "2026-01-06T02:25:18.947070Z",
+    "buy_screenshot_path": "./screenshots/ADA-USD_1h-candles_buy_20260105182515.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 6.248468512619447,
+      "current_trend": "bullish",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $0.3810, sell $0.4200 = 10.24% gross, 6.79% net after costs. Risk/reward 3.9, aligned across timeframes, volume stable."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 0.35,
+      "minor_support": 0.38,
+      "major_resistance": 0.5,
+      "minor_resistance": 0.42,
+      "buy_in_price_target": 0.4276,
+      "actual_entry_price": 0.4276,
+      "stop_loss_set": 0.41,
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": -3.7292210602739426,
+      "risk_reward_ratio": 3.86,
+      "price_vs_support": "22.17% above major support",
+      "price_vs_resistance": "16.93% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1767555516.089827,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "bullish",
+      "volume_confirmation": null,
+      "reasoning": "Buy $0.3810, sell $0.4200 = 10.24% gross, 6.79% net after costs. Risk/reward 3.9, aligned across timeframes, volume stable.",
+      "trade_invalidation_price": 0.365
+    },
+    "exit_analysis": {
+      "exit_trigger": "stop_loss",
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": -3.7292210602739426
+    },
+    "position_sizing": {
+      "buy_amount_usd": 3000.0,
+      "actual_shares": 7020.0,
+      "entry_position_value": 3016.76076,
+      "starting_capital": 4800,
+      "wallet_allocation_pct": 62.8491825
+    }
+  },
+  {
+    "symbol": "AVAX-USD",
+    "buy_price": 14.47,
+    "sell_price": 14.48,
+    "potential_profit_percentage": -0.38668360198329066,
+    "timestamp": "2026-01-07T01:21:09.444883+00:00",
+    "gross_profit": -5.418224999999893,
+    "taxes": -1.3003739999999744,
+    "exchange_fees": 7.4934,
+    "total_profit": -11.61125099999992,
+    "time_held_position": "8.71 hours",
+    "time_held_seconds": 31349.848941,
+    "buy_timestamp": "2026-01-06T16:38:39.595966Z",
+    "buy_screenshot_path": "./screenshots/AVAX-USD_1h-candles_buy_20260106083829.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 3.3698369833482524,
+      "current_trend": "bullish",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $13.90, sell $15.00 = 7.91% gross, 2.5% net after costs. Risk/reward ratio 3.67, aligned across timeframes."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 13.5,
+      "minor_support": 13.8,
+      "major_resistance": 16.5,
+      "minor_resistance": 15.2,
+      "buy_in_price_target": 14.47,
+      "actual_entry_price": 14.47,
+      "stop_loss_set": 14.1,
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": -0.38668360198329066,
+      "risk_reward_ratio": 3.67,
+      "price_vs_support": "7.19% above major support",
+      "price_vs_resistance": "14.03% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1767556348.9417758,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "bullish",
+      "volume_confirmation": null,
+      "reasoning": "Buy $13.90, sell $15.00 = 7.91% gross, 2.5% net after costs. Risk/reward ratio 3.67, aligned across timeframes.",
+      "trade_invalidation_price": 13.5
+    },
+    "exit_analysis": {
+      "exit_trigger": "early_profit_rotation",
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": -0.38668360198329066
+    },
+    "position_sizing": {
+      "buy_amount_usd": 3000.0,
+      "actual_shares": 207.0,
+      "entry_position_value": 3002.778225,
+      "starting_capital": 4800,
+      "wallet_allocation_pct": 62.5578796875
+    }
+  },
+  {
+    "symbol": "XRP-USD",
+    "buy_price": 2.268592353024134,
+    "sell_price": 2.20924,
+    "potential_profit_percentage": -2.4157801284959253,
+    "timestamp": "2026-01-07T14:28:47.542585+00:00",
+    "gross_profit": -105.07851559321762,
+    "taxes": -25.218843742372226,
+    "exchange_fees": 8.9253296,
+    "total_profit": -88.78500145084539,
+    "time_held_position": "13.07 hours",
+    "time_held_seconds": 47066.61857,
+    "buy_timestamp": "2026-01-07T01:24:20.924054Z",
+    "buy_screenshot_path": "./screenshots/XRP-USD_1h-candles_buy_20260106172417.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 6.926212983289272,
+      "current_trend": "bullish",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $2.3016, sell $2.4008 = 4.3% gross, 2.5% net after costs. Risk/reward ratio 2.0. Aligned timeframes and support."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 2.182,
+      "minor_support": 2.3016,
+      "major_resistance": 2.6095,
+      "minor_resistance": 2.4008,
+      "buy_in_price_target": 2.268592353024134,
+      "actual_entry_price": 2.268592353024134,
+      "stop_loss_set": 2.1507075574811694,
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": -2.4157801284959253,
+      "risk_reward_ratio": 2.0,
+      "price_vs_support": "3.97% above major support",
+      "price_vs_resistance": "15.03% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1767666951.405096,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "bullish",
+      "volume_confirmation": null,
+      "reasoning": "Buy $2.3016, sell $2.4008 = 4.3% gross, 2.5% net after costs. Risk/reward ratio 2.0. Aligned timeframes and support.",
+      "trade_invalidation_price": 2.17
+    },
+    "exit_analysis": {
+      "exit_trigger": "early_profit_rotation",
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": -2.4157801284959253
+    },
+    "position_sizing": {
+      "buy_amount_usd": 3665.254819254637,
+      "actual_shares": 1616.0,
+      "entry_position_value": 3675.2103555932176,
+      "starting_capital": 4800,
+      "wallet_allocation_pct": 76.56688240819204
+    }
+  },
+  {
+    "symbol": "ADA-USD",
+    "buy_price": 0.4037915198,
+    "sell_price": 0.4065,
+    "potential_profit_percentage": 0.06793240761050333,
+    "timestamp": "2026-01-07T14:42:49.599092+00:00",
+    "gross_profit": 14.816991213760502,
+    "taxes": 3.5560778913025204,
+    "exchange_fees": 8.86271625,
+    "total_profit": 2.398197072457982,
+    "time_held_position": "0.16 hours",
+    "time_held_seconds": 592.081827,
+    "buy_timestamp": "2026-01-07T14:32:57.517292Z",
+    "buy_screenshot_path": "./screenshots/ADA-USD_1h-candles_buy_20260107063249.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 6.561808798230524,
+      "current_trend": "sideways",
+      "confidence_level": "high",
+      "entry_reasoning": "ADAPTIVE STRATEGY: Uptrend market: price $0.4099 is 2.62% below 24h MA $0.4209. Mean reversion opportunity."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 0.4029,
+      "minor_support": 0.4099,
+      "major_resistance": 0.4259,
+      "minor_resistance": 0.4215,
+      "buy_in_price_target": 0.4037915198,
+      "actual_entry_price": 0.4037915198,
+      "stop_loss_set": 0.39692706396340005,
+      "profit_target_percentage": 1.7,
+      "actual_profit_percentage": 0.06793240761050333,
+      "risk_reward_ratio": 1.0,
+      "price_vs_support": "0.22% above major support",
+      "price_vs_resistance": "5.48% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1767717746.368932,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "sideways",
+      "volume_confirmation": null,
+      "reasoning": "ADAPTIVE STRATEGY: Uptrend market: price $0.4099 is 2.62% below 24h MA $0.4209. Mean reversion opportunity.",
+      "trade_invalidation_price": 0.4
+    },
+    "exit_analysis": {
+      "exit_trigger": "early_profit_rotation",
+      "profit_target_percentage": 1.7,
+      "actual_profit_percentage": 0.06793240761050333
+    },
+    "position_sizing": {
+      "buy_amount_usd": 3515.6237418,
+      "actual_shares": 8721.0,
+      "entry_position_value": 3530.2695087862394,
+      "starting_capital": 4800,
+      "wallet_allocation_pct": 73.54728143304665
+    }
+  },
+  {
+    "symbol": "ALGO-USD",
+    "buy_price": 0.138328717,
+    "sell_price": 0.1345,
+    "potential_profit_percentage": -2.5303127112255206,
+    "timestamp": "2026-01-08T03:45:59.823563+00:00",
+    "gross_profit": -91.8774242841323,
+    "taxes": -22.050581828191753,
+    "exchange_fees": 7.40052625,
+    "total_profit": -77.22736870594055,
+    "time_held_position": "13.05 hours",
+    "time_held_seconds": 46979.04798,
+    "buy_timestamp": "2026-01-07T14:43:00.775605Z",
+    "buy_screenshot_path": "./screenshots/ALGO-USD_1h-candles_buy_20260107064253.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 4.881656804733745,
+      "current_trend": "bullish",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $0.1305, sell $0.1375 = 5.36% gross, 2.5% net after costs. Risk/reward 2.8, aligned across timeframes."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 0.1285,
+      "minor_support": 0.1301,
+      "major_resistance": 0.1998,
+      "minor_resistance": 0.136,
+      "buy_in_price_target": 0.138328717,
+      "actual_entry_price": 0.138328717,
+      "stop_loss_set": 0.1345,
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": -2.5303127112255206,
+      "risk_reward_ratio": 2.8,
+      "price_vs_support": "7.65% above major support",
+      "price_vs_resistance": "44.44% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1767558215.504632,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "bullish",
+      "volume_confirmation": null,
+      "reasoning": "Buy $0.1305, sell $0.1375 = 5.36% gross, 2.5% net after costs. Risk/reward 2.8, aligned across timeframes.",
+      "trade_invalidation_price": 0.1275
+    },
+    "exit_analysis": {
+      "exit_trigger": "stop_loss",
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": -2.5303127112255206
+    },
+    "position_sizing": {
+      "buy_amount_usd": 3041.7428314264707,
+      "actual_shares": 22009.0,
+      "entry_position_value": 3052.0879242841324,
+      "starting_capital": 4800,
+      "wallet_allocation_pct": 63.58516508925276
+    }
   }
 ]
