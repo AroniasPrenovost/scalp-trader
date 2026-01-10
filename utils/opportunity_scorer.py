@@ -300,14 +300,17 @@ def find_best_opportunity(config, coinbase_client, enabled_symbols, interval_sec
         return tradeable[0]
 
 
-def print_opportunity_report(opportunities_list, best_opportunity=None):
+def print_opportunity_report(opportunities_list, best_opportunity=None, racing_opportunities=None):
     """
     Print a formatted report of all opportunities and highlight the best one.
 
     Args:
         opportunities_list: List of all scored opportunities
         best_opportunity: The selected best opportunity (optional)
+        racing_opportunities: List of racing opportunities being monitored (optional)
     """
+    if racing_opportunities is None:
+        racing_opportunities = []
     from utils.time_helpers import print_local_time
 
     print("\n" + "="*120)
@@ -366,11 +369,19 @@ def print_opportunity_report(opportunities_list, best_opportunity=None):
         else:
             status = "Waiting"
 
-        # Highlight the best opportunity
-        if best_opportunity and opp['symbol'] == best_opportunity['symbol']:
-            print(f"→ {rank:<4} {symbol:<12} {score:<8} {signal:<12} {strategy:<18} {trend:<12} {ai_indicator:<8} {age_str:<10} {refresh_str:<10} {status:<20} ⭐ SELECTED")
-        else:
-            print(f"  {rank:<4} {symbol:<12} {score:<8} {signal:<12} {strategy:<18} {trend:<12} {ai_indicator:<8} {age_str:<10} {refresh_str:<10} {status:<20}")
+        # Determine status indicator
+        indicator = ""
+        if not opp['can_trade']:
+            # In position - show star
+            indicator = "⭐"
+        elif any(race_opp['symbol'] == symbol for race_opp in racing_opportunities):
+            # In the running - show car
+            indicator = "🏎️"
+        # else: show nothing (blank)
+
+        # Highlight selected opportunity with arrow
+        prefix = "→" if best_opportunity and opp['symbol'] == best_opportunity['symbol'] else " "
+        print(f"{prefix} {rank:<4} {symbol:<12} {score:<8} {signal:<12} {strategy:<18} {trend:<12} {ai_indicator:<8} {age_str:<10} {refresh_str:<10} {status:<20} {indicator}")
 
     print()
 

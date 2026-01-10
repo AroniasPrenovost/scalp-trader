@@ -505,7 +505,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                     print(f"{'='*100}{Colors.ENDC}\n")
 
                     # Find opportunities based on mode
-                    min_score = market_rotation_config.get('min_opportunity_score', 50)
+                    min_score = market_rotation_config.get('min_score_for_entry', 50)
 
                     if rotation_mode == 'order_racing' and not active_position_symbols:
                         # Order racing mode: get multiple opportunities
@@ -718,16 +718,28 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 print(f"  Error scoring {symbol}: {e}")
                                 continue
 
-                        print_opportunity_report(all_opportunities, best_opportunity)
+                        print_opportunity_report(all_opportunities, best_opportunity, racing_opportunities)
 
                     if best_opportunity:
                         best_opportunity_symbol = best_opportunity['symbol']
-                        min_score = market_rotation_config.get('min_opportunity_score', 50)
+                        min_score = market_rotation_config.get('min_score_for_entry', 50)
 
                         if best_opportunity['score'] >= min_score:
                             if active_position_symbols:
+                                # Get current price for distance calculation
+                                current_coin = next((c for c in coinbase_data_dictionary if c['product_id'] == best_opportunity_symbol), None)
+                                current_price = float(current_coin['price']) if current_coin else None
+
+                                # Calculate distance from entry
+                                distance_str = ""
+                                if current_price and best_opportunity['entry_price']:
+                                    distance_pct = ((current_price - best_opportunity['entry_price']) / best_opportunity['entry_price']) * 100
+                                    color = Colors.GREEN if distance_pct <= 0 else Colors.YELLOW
+                                    distance_str = f" | Current: ${current_price:.4f} ({color}{distance_pct:+.2f}%{Colors.ENDC} from entry)"
+
                                 print(f"{Colors.BOLD}{Colors.GREEN}🎯 BEST NEXT OPPORTUNITY: {best_opportunity_symbol}{Colors.ENDC}")
                                 print(f"   Score: {best_opportunity['score']:.1f}/100 | Strategy: {best_opportunity['strategy'].replace('_', ' ').title()}")
+                                print(f"   Entry: ${best_opportunity['entry_price']:.4f} | Stop: ${best_opportunity['stop_loss']:.4f} | Target: ${best_opportunity['profit_target']:.4f}{distance_str}")
                                 print(f"   {Colors.YELLOW}⏸  Waiting for active position(s) to close: {', '.join(active_position_symbols)}{Colors.ENDC}")
                                 print(f"   {Colors.CYAN}→ Will trade {best_opportunity_symbol} immediately after exit{Colors.ENDC}\n")
                                 best_opportunity_symbol = None  # Don't enter new trade while position open
@@ -737,13 +749,35 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 if rotation_mode == 'order_racing' and len(racing_opportunities) > 1:
                                     print(f"{Colors.BOLD}{Colors.GREEN}🏁 ORDER RACING: Placing limit orders on {len(racing_opportunities)} opportunities{Colors.ENDC}")
                                     for i, opp in enumerate(racing_opportunities, 1):
-                                        print(f"   #{i}. {opp['symbol']} - Score: {opp['score']:.1f}/100 | Entry: ${opp['entry_price']:.4f} | Target: ${opp['profit_target']:.4f}")
+                                        # Get current price for this opportunity
+                                        current_coin = next((c for c in coinbase_data_dictionary if c['product_id'] == opp['symbol']), None)
+                                        current_price = float(current_coin['price']) if current_coin else None
+
+                                        # Calculate distance from entry
+                                        distance_str = ""
+                                        if current_price and opp['entry_price']:
+                                            distance_pct = ((current_price - opp['entry_price']) / opp['entry_price']) * 100
+                                            color = Colors.GREEN if distance_pct <= 0 else Colors.YELLOW
+                                            distance_str = f" | Current: ${current_price:.4f} ({color}{distance_pct:+.2f}%{Colors.ENDC})"
+
+                                        print(f"   #{i}. {opp['symbol']} - Score: {opp['score']:.1f}/100 | Entry: ${opp['entry_price']:.4f} | Target: ${opp['profit_target']:.4f}{distance_str}")
                                     print(f"   {Colors.YELLOW}⚡ First order to fill wins - others will be auto-cancelled{Colors.ENDC}")
                                     print()
                                 else:
+                                    # Get current price for distance calculation
+                                    current_coin = next((c for c in coinbase_data_dictionary if c['product_id'] == best_opportunity_symbol), None)
+                                    current_price = float(current_coin['price']) if current_coin else None
+
+                                    # Calculate distance from entry
+                                    distance_str = ""
+                                    if current_price and best_opportunity['entry_price']:
+                                        distance_pct = ((current_price - best_opportunity['entry_price']) / best_opportunity['entry_price']) * 100
+                                        color = Colors.GREEN if distance_pct <= 0 else Colors.YELLOW
+                                        distance_str = f" | Current: ${current_price:.4f} ({color}{distance_pct:+.2f}%{Colors.ENDC} from entry)"
+
                                     print(f"{Colors.BOLD}{Colors.GREEN}✅ TRADING NOW: {best_opportunity_symbol}{Colors.ENDC}")
                                     print(f"   Score: {best_opportunity['score']:.1f}/100 | Strategy: {best_opportunity['strategy'].replace('_', ' ').title()}")
-                                    print(f"   Entry: ${best_opportunity['entry_price']:.4f} | Stop: ${best_opportunity['stop_loss']:.4f} | Target: ${best_opportunity['profit_target']:.4f}")
+                                    print(f"   Entry: ${best_opportunity['entry_price']:.4f} | Stop: ${best_opportunity['stop_loss']:.4f} | Target: ${best_opportunity['profit_target']:.4f}{distance_str}")
                                     if best_opportunity['risk_reward_ratio']:
                                         print(f"   Risk/Reward: 1:{best_opportunity['risk_reward_ratio']:.2f}")
                                     print()
@@ -803,7 +837,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                     elif is_racing_opportunity:
                         opp_index = next((i+1 for i, opp in enumerate(racing_opportunities) if opp['symbol'] == symbol), 0)
                         print(f"\n{Colors.BOLD}{Colors.YELLOW}{'='*100}")
-                        print(f"  🏁 RACING OPPORTUNITY #{opp_index}: {symbol} - Placing Limit Order")
+                        print(f"  🏁 RACING OPPORTUNITY #{opp_index}: {symbol} - Monitoring for Entry")
                         print(f"{'='*100}{Colors.ENDC}")
                         format_wallet_metrics(symbol, wallet_metrics)
                     elif market_rotation_enabled and symbol == best_opportunity_symbol:
@@ -1415,11 +1449,11 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                             # This is a racing opportunity - find its data
                             current_opportunity = next((opp for opp in racing_opportunities if opp['symbol'] == symbol), None)
                             if current_opportunity and current_opportunity.get('signal') == 'buy':
-                                min_score = market_rotation_config.get('min_opportunity_score', 50)
+                                min_score = market_rotation_config.get('min_score_for_entry', 50)
                                 if current_opportunity.get('score', 0) >= min_score:
                                     opp_index = next((i+1 for i, opp in enumerate(racing_opportunities) if opp['symbol'] == symbol), 0)
                                     print(f"\n{Colors.BOLD}{Colors.YELLOW}{'='*60}")
-                                    print(f"  🏁 RACING OPPORTUNITY #{opp_index} - PLACING LIMIT ORDER")
+                                    print(f"  🏁 RACING OPPORTUNITY #{opp_index} - MONITORING FOR ENTRY")
                                     print(f"{'='*60}{Colors.ENDC}")
                                     print(f"{Colors.BOLD}{Colors.CYAN}Strategy: {current_opportunity['strategy'].replace('_', ' ').title()}{Colors.ENDC}")
                                     print(f"Score: {current_opportunity['score']:.1f}/100 | Confidence: {current_opportunity['confidence'].upper()}")
@@ -1434,7 +1468,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                             # Just verify it's actually a quality trade with a valid signal and meets minimum score
                             current_opportunity = best_opportunity
                             if best_opportunity and best_opportunity.get('signal') == 'buy':
-                                min_score = market_rotation_config.get('min_opportunity_score', 50)
+                                min_score = market_rotation_config.get('min_score_for_entry', 50)
                                 if best_opportunity.get('score', 0) >= min_score:
                                     print(f"\n{Colors.BOLD}{Colors.GREEN}{'='*60}")
                                     print(f"  ✓ BEST OPPORTUNITY - EXECUTING BUY")
@@ -2014,7 +2048,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
 
                                 # IMMEDIATE ROTATION: Recalculate best opportunity after exit
                                 print(f"\n{Colors.BOLD}{Colors.CYAN}🔄 CAPITAL FREED - Recalculating best opportunity...{Colors.ENDC}\n")
-                                min_score = market_rotation_config.get('min_opportunity_score', 50)
+                                min_score = market_rotation_config.get('min_score_for_entry', 50)
                                 best_opportunity = find_best_opportunity(
                                     config=config,
                                     coinbase_client=coinbase_client,
@@ -2123,7 +2157,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 # This allows us to enter the next-best trade in the same iteration
                                 if market_rotation_enabled:
                                     print(f"\n{Colors.BOLD}{Colors.CYAN}🔄 CAPITAL FREED - Recalculating best opportunity...{Colors.ENDC}\n")
-                                    min_score = market_rotation_config.get('min_opportunity_score', 50)
+                                    min_score = market_rotation_config.get('min_score_for_entry', 50)
                                     best_opportunity = find_best_opportunity(
                                         config=config,
                                         coinbase_client=coinbase_client,
@@ -2228,7 +2262,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 # This allows us to enter the next-best trade in the same iteration
                                 if market_rotation_enabled:
                                     print(f"\n{Colors.BOLD}{Colors.CYAN}🔄 CAPITAL FREED - Recalculating best opportunity...{Colors.ENDC}\n")
-                                    min_score = market_rotation_config.get('min_opportunity_score', 50)
+                                    min_score = market_rotation_config.get('min_score_for_entry', 50)
                                     best_opportunity = find_best_opportunity(
                                         config=config,
                                         coinbase_client=coinbase_client,

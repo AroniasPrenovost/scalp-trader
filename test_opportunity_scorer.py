@@ -126,7 +126,7 @@ def main():
     print()
 
     if best_opportunity:
-        min_score = config.get('market_rotation', {}).get('min_opportunity_score', 50)
+        min_score = config.get('market_rotation', {}).get('min_score_for_entry', 50)
 
         print(f"Best opportunity: {best_opportunity['symbol']}")
         print(f"Score: {best_opportunity['score']:.1f}/100")

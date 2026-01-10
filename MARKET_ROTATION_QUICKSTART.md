@@ -58,7 +58,7 @@ Check `config.json`:
   "market_rotation": {
     "enabled": true,
     "total_trading_capital_usd": 3000,
-    "min_opportunity_score": 50
+    "min_score_for_entry": 50
   }
 }
 ```
@@ -123,7 +123,7 @@ Every 5 minutes:
 
 ### Minimum Score Threshold
 ```json
-"min_opportunity_score": 50
+"min_score_for_entry": 50
 ```
 - Below 50 = skip (setup not strong enough)
 - 50-70 = decent setup
@@ -225,7 +225,7 @@ A: Run `python backfill_historical_data.py` to download historical data.
 3. ✅ Watch the opportunity reports for a few hours
 4. ✅ Enable live trading for 1-2 coins
 5. ✅ Monitor performance for a week
-6. ✅ Adjust `min_opportunity_score` if needed
+6. ✅ Adjust `min_score_for_entry` if needed
 7. ✅ Enable more coins once comfortable
 
 ## Summary

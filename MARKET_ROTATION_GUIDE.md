@@ -37,7 +37,7 @@ In `config.json`:
     "mode": "single_best_opportunity",
     "scan_all_enabled_assets": true,
     "total_trading_capital_usd": 2500,
-    "min_opportunity_score": 50,
+    "min_score_for_entry": 50,
     "print_opportunity_report": true
   }
 }
@@ -47,7 +47,7 @@ In `config.json`:
 - `enabled`: Turn market rotation on/off
 - `mode`: "single_best_opportunity" = only trade the best one
 - `total_trading_capital_usd`: Your full trading capital per trade
-- `min_opportunity_score`: Skip trades if best score is below this (50 = reasonable threshold)
+- `min_score_for_entry`: Skip trades if best score is below this (50 = reasonable threshold)
 - `print_opportunity_report`: Show detailed report of all opportunities each iteration
 
 ### Add Coins to Monitor
@@ -161,7 +161,7 @@ Uses GPT-4 Vision to analyze multi-timeframe charts and detect nuanced patterns.
 
 3. **Selects the best one**
    - Sorts by score (highest first)
-   - Picks #1 if score ≥ min_opportunity_score
+   - Picks #1 if score ≥ min_score_for_entry
    - Skips trading if no good setups
 
 4. **Executes trade logic**
@@ -264,7 +264,7 @@ In `config.json`:
 {
   "market_rotation": {
     "enabled": true,
-    "min_opportunity_score": 50
+    "min_score_for_entry": 50
   }
 }
 ```
@@ -329,7 +329,7 @@ When confident, set `ready_to_trade: true` for coins you want to trade:
 ## Best Practices
 
 ### 1. Start Conservative
-- Begin with `min_opportunity_score: 60` (higher threshold)
+- Begin with `min_score_for_entry: 60` (higher threshold)
 - Only trade when setups are excellent
 - Lower to 50 once you gain confidence
 
@@ -360,11 +360,11 @@ When confident, set `ready_to_trade: true` for coins you want to trade:
 
 **Fix:**
 - Wait for market conditions to improve
-- Check if `min_opportunity_score` is too high
+- Check if `min_score_for_entry` is too high
 - Verify strategies are enabled in config
 
 ### "Skipping all trades - best score below minimum"
-**Cause:** Best setup score < `min_opportunity_score`
+**Cause:** Best setup score < `min_score_for_entry`
 
 **Fix:**
 - This is GOOD - system is protecting you from mediocre trades
