@@ -912,28 +912,12 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                     max_price = max(recent_prices)
                     range_percentage_from_min = calculate_percentage_from_min(min_price, max_price)
 
-                    #
-                    #
-                    #
-                    #
-                    if ENABLE_CHART_SNAPSHOT:
-                        # Load analysis for snapshot if available (analysis will be loaded later in the code flow)
-                        snapshot_analysis = load_analysis_from_file(symbol)
-
-                        # Generate all timeframe charts (5 price + 1 volume) for comprehensive market view
-                        print(f"Generating snapshot charts for {symbol}...")
-                        chart_paths = plot_multi_timeframe_charts(
-                            current_timestamp=time.time(),
-                            interval=INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
-                            symbol=symbol,
-                            price_data=coin_prices_LIST,
-                            volume_data=coin_volume_24h_LIST,
-                            analysis=snapshot_analysis
-                        )
-                        if chart_paths:
-                            print(f"✓ Generated {len(chart_paths)} snapshot charts: {', '.join(chart_paths.keys())}")
-                        else:
-                            print(f"Warning: No snapshot charts generated (insufficient data)")
+                    # NOTE: Chart generation removed from monitoring loop to avoid redundant snapshots
+                    # Charts are already generated when needed:
+                    # 1. During LLM analysis (when analysis is performed)
+                    # 2. On buy/sell events (for trade documentation)
+                    # 3. On post-fill adjustments (when fill price differs significantly)
+                    # Generating charts every monitoring iteration was causing unnecessary file creation
 
                     # Check for open or pending positions BEFORE applying volatility filter
                     # This ensures we can sell existing positions even when volatility is low
@@ -1451,10 +1435,6 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                             if current_opportunity and current_opportunity.get('signal') == 'buy':
                                 min_score = market_rotation_config.get('min_score_for_entry', 50)
                                 if current_opportunity.get('score', 0) >= min_score:
-                                    opp_index = next((i+1 for i, opp in enumerate(racing_opportunities) if opp['symbol'] == symbol), 0)
-                                    print(f"\n{Colors.BOLD}{Colors.YELLOW}{'='*60}")
-                                    print(f"  🏁 RACING OPPORTUNITY #{opp_index} - MONITORING FOR ENTRY")
-                                    print(f"{'='*60}{Colors.ENDC}")
                                     print(f"{Colors.BOLD}{Colors.CYAN}Strategy: {current_opportunity['strategy'].replace('_', ' ').title()}{Colors.ENDC}")
                                     print(f"Score: {current_opportunity['score']:.1f}/100 | Confidence: {current_opportunity['confidence'].upper()}")
                                     print(f"Trend: {current_opportunity.get('trend', 'unknown').title()}")
@@ -1513,26 +1493,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 print(f"{Colors.GREEN}AI Analysis: ✓ BUY recommendation with HIGH confidence{Colors.ENDC}")
 
                             print(f"{Colors.GREEN}Market Price: ${current_price:.2f} (AI target: ${BUY_AT_PRICE:.2f}){Colors.ENDC}\n")
-                            # Filter data to match snapshot chart (3 months = 2160 hours)
-                            buy_chart_hours = 2160  # 90 days
-                            buy_chart_data_points = int((buy_chart_hours * 60) / INTERVAL_SAVE_DATA_EVERY_X_MINUTES)
-                            buy_chart_prices = coin_prices_LIST[-buy_chart_data_points:] if len(coin_prices_LIST) > buy_chart_data_points else coin_prices_LIST
-                            buy_chart_min = min(buy_chart_prices)
-                            buy_chart_max = max(buy_chart_prices)
-                            buy_chart_range_pct = calculate_percentage_from_min(buy_chart_min, buy_chart_max)
 
-                            buy_screenshot_path = plot_graph(
-                                time.time(),
-                                INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
-                                symbol,
-                                buy_chart_prices,
-                                buy_chart_min,
-                                buy_chart_max,
-                                buy_chart_range_pct,
-                                entry_price,
-                                analysis=analysis,
-                                buy_event=True
-                            )
                             if READY_TO_TRADE:
                                 # Get buy amount from LLM analysis - required
                                 if analysis and 'buy_amount_usd' in analysis:
@@ -1556,6 +1517,28 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
 
                                         if current_price <= target_price:
                                             print(f"{Colors.GREEN}✓ Price target reached! Current: ${current_price:.4f} <= Target: ${target_price:.4f}{Colors.ENDC}")
+
+                                            # Generate chart snapshot for trade documentation (only when buy is executed)
+                                            buy_chart_hours = 2160  # 90 days
+                                            buy_chart_data_points = int((buy_chart_hours * 60) / INTERVAL_SAVE_DATA_EVERY_X_MINUTES)
+                                            buy_chart_prices = coin_prices_LIST[-buy_chart_data_points:] if len(coin_prices_LIST) > buy_chart_data_points else coin_prices_LIST
+                                            buy_chart_min = min(buy_chart_prices)
+                                            buy_chart_max = max(buy_chart_prices)
+                                            buy_chart_range_pct = calculate_percentage_from_min(buy_chart_min, buy_chart_max)
+
+                                            buy_screenshot_path = plot_graph(
+                                                time.time(),
+                                                INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                                                symbol,
+                                                buy_chart_prices,
+                                                buy_chart_min,
+                                                buy_chart_max,
+                                                buy_chart_range_pct,
+                                                entry_price,
+                                                analysis=analysis,
+                                                buy_event=True
+                                            )
+
                                             print(f"Placing MARKET buy order for {shares_to_buy} shares at ${current_price:.4f}")
                                             place_market_buy_order(coinbase_client, symbol, shares_to_buy)
                                         else:
