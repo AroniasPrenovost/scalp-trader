@@ -598,7 +598,7 @@ def save_analysis_to_file(symbol, analysis_data):
         with open(file_path, 'w') as f:
             json.dump(analysis_data, f, indent=4)
 
-        print(f"✓ Analysis saved to: {file_path}")
+        # print(f"✓ Analysis saved to: {file_path}")
         return file_path
 
     except Exception as e:
@@ -913,7 +913,7 @@ def should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours=1, l
 
         if hours_since_analysis < minimum_cooldown_hours:
             # Too soon after last analysis - skip dynamic checks entirely
-            print(f"Analysis recommended no_trade {hours_since_analysis:.1f} hours ago. Will refresh in {no_trade_refresh_hours - hours_since_analysis:.1f} hours.")
+            # print(f"Analysis recommended no_trade {hours_since_analysis:.1f} hours ago. Will refresh in {no_trade_refresh_hours - hours_since_analysis:.1f} hours.")
             return False
 
         # After minimum cooldown, check if dynamic conditions warrant immediate refresh
@@ -937,7 +937,7 @@ def should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours=1, l
             print(f"Analysis is {hours_since_analysis:.1f} hours old and recommended no_trade. Refreshing...")
             return True
         else:
-            print(f"Analysis recommended no_trade {hours_since_analysis:.1f} hours ago. Will refresh in {no_trade_refresh_hours - hours_since_analysis:.1f} hours.")
+            # print(f"Analysis recommended no_trade {hours_since_analysis:.1f} hours ago. Will refresh in {no_trade_refresh_hours - hours_since_analysis:.1f} hours.")
             return False
 
     # Check confidence level and apply wait times
@@ -952,7 +952,7 @@ def should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours=1, l
             print(f"Analysis is {hours_since_analysis:.1f} hours old with LOW confidence. Refreshing...")
             return True
         else:
-            print(f"Analysis has LOW confidence from {hours_since_analysis:.1f} hours ago. Will refresh in {low_confidence_wait_hours - hours_since_analysis:.1f} hours.")
+            # print(f"Analysis has LOW confidence from {hours_since_analysis:.1f} hours ago. Will refresh in {low_confidence_wait_hours - hours_since_analysis:.1f} hours.")
             return False
 
     # Medium confidence: wait 1 hour before re-analyzing
@@ -961,7 +961,7 @@ def should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours=1, l
             print(f"Analysis is {hours_since_analysis:.1f} hours old with MEDIUM confidence. Refreshing...")
             return True
         else:
-            print(f"Analysis has MEDIUM confidence from {hours_since_analysis:.1f} hours ago. Will refresh in {medium_confidence_wait_hours - hours_since_analysis:.1f} hours.")
+            # print(f"Analysis has MEDIUM confidence from {hours_since_analysis:.1f} hours ago. Will refresh in {medium_confidence_wait_hours - hours_since_analysis:.1f} hours.")
             return False
 
     # High confidence: Check if it's too old and needs refresh

@@ -220,9 +220,9 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
     return result
 
 
-def find_best_opportunity(config, coinbase_client, enabled_symbols, interval_seconds, data_retention_hours, min_score=0):
+def find_best_opportunity(config, coinbase_client, enabled_symbols, interval_seconds, data_retention_hours, min_score=0, return_multiple=False, max_opportunities=5):
     """
-    Scan all enabled assets and return the SINGLE best trade opportunity.
+    Scan all enabled assets and return the best trade opportunity/opportunities.
 
     Args:
         config: Full config dict
@@ -231,10 +231,12 @@ def find_best_opportunity(config, coinbase_client, enabled_symbols, interval_sec
         interval_seconds: Data collection interval (for calculating volatility window)
         data_retention_hours: Max age of historical data
         min_score: Minimum score threshold to consider (default: 0, no filtering)
+        return_multiple: If True, return list of top opportunities (up to max_opportunities)
+        max_opportunities: Maximum number of opportunities to return when return_multiple=True
 
     Returns:
-        Dictionary with best opportunity (same format as score_opportunity),
-        or None if no opportunities found
+        If return_multiple=False: Dictionary with best opportunity, or None if no opportunities found
+        If return_multiple=True: List of top opportunities (up to max_opportunities), or empty list if none found
     """
 
     opportunities = []
@@ -285,12 +287,17 @@ def find_best_opportunity(config, coinbase_client, enabled_symbols, interval_sec
     tradeable = [opp for opp in opportunities if opp['can_trade'] and opp['score'] >= min_score]
 
     if not tradeable:
-        return None
+        return [] if return_multiple else None
 
     # Sort by score (highest first)
     tradeable.sort(key=lambda x: x['score'], reverse=True)
 
-    return tradeable[0]  # Return the best one
+    if return_multiple:
+        # Return top N opportunities
+        return tradeable[:max_opportunities]
+    else:
+        # Return single best opportunity
+        return tradeable[0]
 
 
 def print_opportunity_report(opportunities_list, best_opportunity=None):

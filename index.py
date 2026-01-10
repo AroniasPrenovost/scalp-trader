@@ -466,38 +466,70 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                 market_rotation_config = config.get('market_rotation', {})
                 market_rotation_enabled = market_rotation_config.get('enabled', False)
 
-                best_opportunity_symbol = None  # Will hold the symbol we should trade
+                best_opportunity_symbol = None  # Will hold the symbol we should trade (single best mode)
+                racing_opportunities = []       # Will hold multiple opportunities (order racing mode)
                 active_position_symbols = []    # Track which assets have active positions
+                pending_order_symbols = []      # Track which assets have pending orders (for racing mode)
 
-                # First, check for any existing active positions
+                # First, check for any existing active positions and pending orders
                 for symbol in enabled_wallets:
                     last_order = get_last_order_from_local_json_ledger(symbol)
                     last_order_type = detect_stored_coinbase_order_type(last_order)
                     if last_order_type in ['placeholder', 'buy']:
                         active_position_symbols.append(symbol)
+                        # Check if it's a pending order (placeholder) or filled buy
+                        if last_order_type == 'placeholder':
+                            pending_order_symbols.append(symbol)
 
                 if market_rotation_enabled:
                     from utils.opportunity_scorer import find_best_opportunity, print_opportunity_report, score_opportunity
 
+                    rotation_mode = market_rotation_config.get('mode', 'single_best_opportunity')
+                    max_concurrent_orders = market_rotation_config.get('max_concurrent_orders', 5)
+
                     print(f"\n{Colors.BOLD}{Colors.CYAN}{'='*100}")
-                    print(f"🔍 MARKET ROTATION: Scanning {len(enabled_wallets)} assets for best opportunity...")
+                    if rotation_mode == 'order_racing':
+                        print(f"🏁 ORDER RACING MODE: Scanning {len(enabled_wallets)} assets (will place up to {max_concurrent_orders} limit orders)")
+                    else:
+                        print(f"🔍 MARKET ROTATION: Scanning {len(enabled_wallets)} assets for best opportunity...")
+
                     if active_position_symbols:
-                        print(f"📊 ACTIVE POSITION(S): {Colors.GREEN}{', '.join(active_position_symbols)}{Colors.CYAN} (managing these)")
+                        if pending_order_symbols:
+                            print(f"📊 PENDING ORDERS: {Colors.YELLOW}{', '.join(pending_order_symbols)}{Colors.CYAN} (waiting for fill)")
+                        filled_positions = [s for s in active_position_symbols if s not in pending_order_symbols]
+                        if filled_positions:
+                            print(f"📊 FILLED POSITIONS: {Colors.GREEN}{', '.join(filled_positions)}{Colors.CYAN} (managing these)")
                         print(f"🔎 MONITORING: {', '.join([s for s in enabled_wallets if s not in active_position_symbols])} (scanning for next opportunity)")
                     else:
                         print(f"💰 NO ACTIVE POSITIONS - Capital ready to deploy")
                     print(f"{'='*100}{Colors.ENDC}\n")
 
-                    # Find the best opportunity across all enabled assets
+                    # Find opportunities based on mode
                     min_score = market_rotation_config.get('min_opportunity_score', 50)
-                    best_opportunity = find_best_opportunity(
-                        config=config,
-                        coinbase_client=coinbase_client,
-                        enabled_symbols=enabled_wallets,
-                        interval_seconds=INTERVAL_SECONDS,
-                        data_retention_hours=DATA_RETENTION_HOURS,
-                        min_score=min_score
-                    )
+
+                    if rotation_mode == 'order_racing' and not active_position_symbols:
+                        # Order racing mode: get multiple opportunities
+                        racing_opportunities = find_best_opportunity(
+                            config=config,
+                            coinbase_client=coinbase_client,
+                            enabled_symbols=enabled_wallets,
+                            interval_seconds=INTERVAL_SECONDS,
+                            data_retention_hours=DATA_RETENTION_HOURS,
+                            min_score=min_score,
+                            return_multiple=True,
+                            max_opportunities=max_concurrent_orders
+                        )
+                        best_opportunity = racing_opportunities[0] if racing_opportunities else None
+                    else:
+                        # Single best mode or we already have positions
+                        best_opportunity = find_best_opportunity(
+                            config=config,
+                            coinbase_client=coinbase_client,
+                            enabled_symbols=enabled_wallets,
+                            interval_seconds=INTERVAL_SECONDS,
+                            data_retention_hours=DATA_RETENTION_HOURS,
+                            min_score=min_score
+                        )
 
                     # Optionally print detailed report
                     if market_rotation_config.get('print_opportunity_report', True):
@@ -699,13 +731,22 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 print(f"   {Colors.YELLOW}⏸  Waiting for active position(s) to close: {', '.join(active_position_symbols)}{Colors.ENDC}")
                                 print(f"   {Colors.CYAN}→ Will trade {best_opportunity_symbol} immediately after exit{Colors.ENDC}\n")
                                 best_opportunity_symbol = None  # Don't enter new trade while position open
+                                racing_opportunities = []  # Clear racing opportunities
                             else:
-                                print(f"{Colors.BOLD}{Colors.GREEN}✅ TRADING NOW: {best_opportunity_symbol}{Colors.ENDC}")
-                                print(f"   Score: {best_opportunity['score']:.1f}/100 | Strategy: {best_opportunity['strategy'].replace('_', ' ').title()}")
-                                print(f"   Entry: ${best_opportunity['entry_price']:.4f} | Stop: ${best_opportunity['stop_loss']:.4f} | Target: ${best_opportunity['profit_target']:.4f}")
-                                if best_opportunity['risk_reward_ratio']:
-                                    print(f"   Risk/Reward: 1:{best_opportunity['risk_reward_ratio']:.2f}")
-                                print()
+                                # Show appropriate message based on mode
+                                if rotation_mode == 'order_racing' and len(racing_opportunities) > 1:
+                                    print(f"{Colors.BOLD}{Colors.GREEN}🏁 ORDER RACING: Placing limit orders on {len(racing_opportunities)} opportunities{Colors.ENDC}")
+                                    for i, opp in enumerate(racing_opportunities, 1):
+                                        print(f"   #{i}. {opp['symbol']} - Score: {opp['score']:.1f}/100 | Entry: ${opp['entry_price']:.4f} | Target: ${opp['profit_target']:.4f}")
+                                    print(f"   {Colors.YELLOW}⚡ First order to fill wins - others will be auto-cancelled{Colors.ENDC}")
+                                    print()
+                                else:
+                                    print(f"{Colors.BOLD}{Colors.GREEN}✅ TRADING NOW: {best_opportunity_symbol}{Colors.ENDC}")
+                                    print(f"   Score: {best_opportunity['score']:.1f}/100 | Strategy: {best_opportunity['strategy'].replace('_', ' ').title()}")
+                                    print(f"   Entry: ${best_opportunity['entry_price']:.4f} | Stop: ${best_opportunity['stop_loss']:.4f} | Target: ${best_opportunity['profit_target']:.4f}")
+                                    if best_opportunity['risk_reward_ratio']:
+                                        print(f"   Risk/Reward: 1:{best_opportunity['risk_reward_ratio']:.2f}")
+                                    print()
                         else:
                             print(f"{Colors.YELLOW}⚠️  Best opportunity {best_opportunity_symbol} has score {best_opportunity['score']:.1f} below minimum {min_score}")
                             print(f"   Skipping all NEW trades this iteration - waiting for better setups")
@@ -713,13 +754,16 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 print(f"   {Colors.CYAN}✓ Continuing to manage active position(s): {', '.join(active_position_symbols)}{Colors.ENDC}")
                             print()
                             best_opportunity_symbol = None  # Don't trade anything
+                            racing_opportunities = []  # Clear racing opportunities
                     else:
-                        print(f"{Colors.YELLOW}⚠️  No tradeable opportunities found - all assets have open positions or no valid setups")
-                        if active_position_symbols:
-                            print(f"   {Colors.CYAN}✓ Continuing to manage active position(s): {', '.join(active_position_symbols)}{Colors.ENDC}")
-                        else:
-                            print(f"   Waiting for market conditions to improve")
-                        print()
+                        # No tradeable opportunities - message already printed by print_opportunity_report()
+                        # print(f"{Colors.YELLOW}⚠️  No tradeable opportunities found - all assets have open positions or no valid setups")
+                        # if active_position_symbols:
+                        #     print(f"   {Colors.CYAN}✓ Continuing to manage active position(s): {', '.join(active_position_symbols)}{Colors.ENDC}")
+                        # else:
+                        #     print(f"   Waiting for market conditions to improve")
+                        # print()
+                        racing_opportunities = []  # Clear racing opportunities
 
                 for coin in coinbase_data_dictionary:
                     # set data from coinbase data
@@ -747,7 +791,8 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
 
                     # ENHANCED LOGGING: Show clearly if this is an active trade or just monitoring
                     # Only show detailed logging for open positions or selected opportunities
-                    show_detailed_logs = has_open_position or (market_rotation_enabled and symbol == best_opportunity_symbol)
+                    is_racing_opportunity = any(opp['symbol'] == symbol for opp in racing_opportunities)
+                    show_detailed_logs = has_open_position or (market_rotation_enabled and symbol == best_opportunity_symbol) or is_racing_opportunity
 
                     if has_open_position:
                         print(f"\n{Colors.BOLD}{Colors.GREEN}{'='*100}")
@@ -755,6 +800,12 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                         print(f"{'='*100}{Colors.ENDC}")
                         format_wallet_metrics(symbol, wallet_metrics)
                         print(f"{Colors.CYAN}📊 Monitoring other assets in background for next opportunity after exit{Colors.ENDC}\n")
+                    elif is_racing_opportunity:
+                        opp_index = next((i+1 for i, opp in enumerate(racing_opportunities) if opp['symbol'] == symbol), 0)
+                        print(f"\n{Colors.BOLD}{Colors.YELLOW}{'='*100}")
+                        print(f"  🏁 RACING OPPORTUNITY #{opp_index}: {symbol} - Placing Limit Order")
+                        print(f"{'='*100}{Colors.ENDC}")
+                        format_wallet_metrics(symbol, wallet_metrics)
                     elif market_rotation_enabled and symbol == best_opportunity_symbol:
                         print(f"\n{Colors.BOLD}{Colors.GREEN}{'='*100}")
                         print(f"  🎯 SELECTED OPPORTUNITY: {symbol} - Evaluating Entry")
@@ -762,17 +813,23 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                         format_wallet_metrics(symbol, wallet_metrics)
                     # Else: silent monitoring - no output for non-selected opportunities
 
-                    # MARKET ROTATION: Only ENTER trades on the best opportunity
+                    # MARKET ROTATION: Only ENTER trades on the best opportunity or racing opportunities
                     # But we still analyze every wallet to:
                     # 1. Manage existing open positions (sell logic)
                     # 2. Keep scoring updated for next opportunity selection
                     # 3. Provide visibility into all market conditions
                     should_allow_new_entry = True
-                    if market_rotation_enabled and best_opportunity_symbol:
-                        if symbol != best_opportunity_symbol and not has_open_position:
+                    if market_rotation_enabled:
+                        # Allow entry if: symbol is best opportunity OR symbol is in racing opportunities
+                        is_selected = (symbol == best_opportunity_symbol) or is_racing_opportunity
+                        if not is_selected and not has_open_position:
                             should_allow_new_entry = False
                             if show_detailed_logs:
-                                print(f"{Colors.CYAN}💡 Analyzing {symbol} (best opportunity: {best_opportunity_symbol} - will only enter {best_opportunity_symbol} if conditions met){Colors.ENDC}\n")
+                                if best_opportunity_symbol:
+                                    print(f"{Colors.CYAN}💡 Analyzing {symbol} (best opportunity: {best_opportunity_symbol} - will only enter selected opportunities){Colors.ENDC}\n")
+                                elif racing_opportunities:
+                                    racing_symbols = ', '.join([opp['symbol'] for opp in racing_opportunities])
+                                    print(f"{Colors.CYAN}💡 Analyzing {symbol} (racing opportunities: {racing_symbols}){Colors.ENDC}\n")
 
                     # Check cooldown period after sell
                     if cooldown_hours_after_sell > 0:
@@ -1119,6 +1176,38 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
 
                             # Check if order is filled
                             if order_status == 'FILLED':
+                                print(f"{Colors.GREEN}✓ ORDER FILLED!{Colors.ENDC}")
+
+                                # ORDER RACING: If this was a racing order, cancel all other pending orders
+                                if rotation_mode == 'order_racing' and pending_order_symbols and len(pending_order_symbols) > 1:
+                                    print(f"\n{Colors.BOLD}{Colors.YELLOW}🏁 RACING ORDER FILLED - Cancelling other pending orders...{Colors.ENDC}")
+                                    for racing_symbol in pending_order_symbols:
+                                        if racing_symbol != symbol:  # Don't try to cancel the order that just filled
+                                            try:
+                                                racing_last_order = get_last_order_from_local_json_ledger(racing_symbol)
+                                                if racing_last_order:
+                                                    # Extract order ID
+                                                    racing_order_id = None
+                                                    if 'order_id' in racing_last_order:
+                                                        racing_order_id = racing_last_order['order_id']
+                                                    elif 'success_response' in racing_last_order and 'order_id' in racing_last_order['success_response']:
+                                                        racing_order_id = racing_last_order['success_response']['order_id']
+                                                    elif 'response' in racing_last_order and 'order_id' in racing_last_order['response']:
+                                                        racing_order_id = racing_last_order['response']['order_id']
+
+                                                    if racing_order_id:
+                                                        print(f"  Cancelling {racing_symbol} order {racing_order_id}...")
+                                                        cancel_result = cancel_order(coinbase_client, racing_order_id)
+                                                        if cancel_result:
+                                                            # Clear the ledger for this symbol since order was cancelled
+                                                            clear_order_ledger(racing_symbol)
+                                                            print(f"  {Colors.GREEN}✓ Cancelled {racing_symbol} racing order{Colors.ENDC}")
+                                                        else:
+                                                            print(f"  {Colors.YELLOW}⚠️  Failed to cancel {racing_symbol} order - may have already filled{Colors.ENDC}")
+                                            except Exception as e:
+                                                print(f"  {Colors.RED}Error cancelling {racing_symbol} order: {e}{Colors.ENDC}")
+                                    print(f"{Colors.GREEN}✓ Racing order cleanup complete - {symbol} won the race!{Colors.ENDC}\n")
+
                                 # Preserve the original analysis and screenshot from the placeholder before replacing
                                 # These need to persist until the sell transaction is recorded
                                 if 'original_analysis' in last_order:
@@ -1309,21 +1398,41 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                     print(f"  Nearest support zone: ${strongest_zone['zone_price_avg']:.2f} ({range_signal['distance_from_zone_avg']:+.2f}% away)")
 
                         # Check all buy conditions
-                        # Note: If market rotation is enabled and this is the selected best opportunity,
+                        # Note: If market rotation is enabled and this is the selected best opportunity or racing opportunity,
                         # we trust the opportunity scorer's strategy validation
                         # Otherwise, fall back to the traditional checks (AI + range strategy)
 
                         is_selected_opportunity = market_rotation_enabled and symbol == best_opportunity_symbol
                         should_execute_buy = False  # Track if we should execute the buy
+                        current_opportunity = None  # Will hold the opportunity data for this symbol
 
                         if not should_allow_new_entry:
                             if show_detailed_logs:
-                                print(f"\n{Colors.YELLOW}STATUS: {symbol} is not the best opportunity - skipping NEW entry (best: {best_opportunity_symbol}){Colors.ENDC}")
-                            # When market rotation is enabled, ONLY the best opportunity can trigger new buys
+                                print(f"\n{Colors.YELLOW}STATUS: {symbol} is not a selected opportunity - skipping NEW entry{Colors.ENDC}")
+                            # When market rotation is enabled, ONLY selected opportunities can trigger new buys
                             # Do not fall through to traditional buy logic
+                        elif is_racing_opportunity:
+                            # This is a racing opportunity - find its data
+                            current_opportunity = next((opp for opp in racing_opportunities if opp['symbol'] == symbol), None)
+                            if current_opportunity and current_opportunity.get('signal') == 'buy':
+                                min_score = market_rotation_config.get('min_opportunity_score', 50)
+                                if current_opportunity.get('score', 0) >= min_score:
+                                    opp_index = next((i+1 for i, opp in enumerate(racing_opportunities) if opp['symbol'] == symbol), 0)
+                                    print(f"\n{Colors.BOLD}{Colors.YELLOW}{'='*60}")
+                                    print(f"  🏁 RACING OPPORTUNITY #{opp_index} - PLACING LIMIT ORDER")
+                                    print(f"{'='*60}{Colors.ENDC}")
+                                    print(f"{Colors.BOLD}{Colors.CYAN}Strategy: {current_opportunity['strategy'].replace('_', ' ').title()}{Colors.ENDC}")
+                                    print(f"Score: {current_opportunity['score']:.1f}/100 | Confidence: {current_opportunity['confidence'].upper()}")
+                                    print(f"Trend: {current_opportunity.get('trend', 'unknown').title()}")
+                                    should_execute_buy = True
+                                else:
+                                    print(f"\n{Colors.YELLOW}STATUS: Racing opportunity {symbol} score {current_opportunity['score']:.1f} below minimum {min_score} - skipping{Colors.ENDC}")
+                            else:
+                                print(f"\n{Colors.YELLOW}STATUS: Racing opportunity {symbol} no longer has valid buy signal - skipping{Colors.ENDC}")
                         elif is_selected_opportunity:
                             # This is the best opportunity selected by the scorer - it already validated the strategy
                             # Just verify it's actually a quality trade with a valid signal and meets minimum score
+                            current_opportunity = best_opportunity
                             if best_opportunity and best_opportunity.get('signal') == 'buy':
                                 min_score = market_rotation_config.get('min_opportunity_score', 50)
                                 if best_opportunity.get('score', 0) >= min_score:
@@ -1407,12 +1516,22 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                         print(f"Calculated shares to buy: {shares_to_buy} fractional shares (${buy_amount} / ${current_price})")
 
                                     if shares_to_buy > 0:
-                                        # Use limit orders at AI's recommended entry price
-                                        # This ensures we get the price the AI analyzed, improving risk/reward accuracy
-                                        limit_price = BUY_AT_PRICE
-                                        print(f"Placing LIMIT buy order for {shares_to_buy} shares at AI target price ${limit_price:.4f}")
-                                        print(f"  (Current price: ${current_price:.4f}, waiting for price to reach AI entry target)")
-                                        place_limit_buy_order(coinbase_client, symbol, shares_to_buy, limit_price)
+                                        # Check if current price has reached AI's recommended entry price
+                                        # Execute market order immediately when price is at or below target
+                                        target_price = BUY_AT_PRICE
+
+                                        if current_price <= target_price:
+                                            print(f"{Colors.GREEN}✓ Price target reached! Current: ${current_price:.4f} <= Target: ${target_price:.4f}{Colors.ENDC}")
+                                            print(f"Placing MARKET buy order for {shares_to_buy} shares at ${current_price:.4f}")
+                                            place_market_buy_order(coinbase_client, symbol, shares_to_buy)
+                                        else:
+                                            price_diff = ((current_price - target_price) / target_price) * 100
+                                            print(f"{Colors.YELLOW}⏳ Watching price: Current ${current_price:.4f} is {price_diff:.2f}% above target ${target_price:.4f}{Colors.ENDC}")
+                                            print(f"   Will execute market order when price reaches target or below")
+                                            # Don't place any order yet - just continue monitoring
+                                            print(f"   Continuing to monitor {symbol}...")
+                                            print('\n')
+                                            continue
 
                                         # Store screenshot path AND original analysis for later use in transaction record
                                         # This will be retrieved from the ledger when we sell
