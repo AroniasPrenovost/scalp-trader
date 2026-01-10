@@ -499,6 +499,10 @@ Output ONLY valid JSON with no markdown formatting or explanatory text outside t
         analysis_result['analyzed_at'] = time.time()
         analysis_result['model_used'] = response.model
 
+        # Store chart paths so they can be referenced later
+        if chart_paths:
+            analysis_result['chart_paths'] = chart_paths
+
         # TRACK AMR ALIGNMENT (for metrics and debugging)
         # Store AMR signal data alongside AI analysis for opportunity scorer to use
         if adaptive_signal:

@@ -7,17 +7,18 @@ Returns the SINGLE best opportunity to trade right now.
 This enables active capital rotation: always put money in the best setup,
 rather than spreading capital across multiple mediocre opportunities.
 
-UNIFIED STRATEGY: Adaptive AI Strategy
-- Core: Adaptive Mean Reversion (53.3% win rate, proven profitable)
-- Enhancement: AI validation and confidence adjustment via GPT-4 Vision
-- Result: Single consistent strategy that's measurable and profitable
+STRATEGY: AI-Only Strategy
+- Primary: GPT-4 Vision analysis with multi-timeframe chart analysis
+- Bonus: Adaptive Mean Reversion (AMR) alignment (adds confidence when present)
+- Requirement: Only trades on HIGH confidence AI signals
 
 Scoring considers:
-1. Adaptive Mean Reversion signal (core requirement)
-2. AI confidence level (validates and enhances the setup)
-3. Market trend (uptrend > sideways > downtrend)
+1. AI confidence level (must be HIGH to trade)
+2. AI trade recommendation (must be BUY)
+3. Market trend (bullish > sideways > bearish)
 4. Risk/reward ratio (minimum 2:1, prefer 3:1+)
-5. Recent performance (avoid assets that just stopped us out)
+5. AMR alignment (bonus points if AMR also signals buy)
+6. Volatility (penalty for low volatility markets)
 """
 
 import time
@@ -29,12 +30,12 @@ from utils.coinbase import get_asset_price, get_last_order_from_local_json_ledge
 
 def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current_price, range_percentage_from_min):
     """
-    Score a single asset's trade opportunity quality using the Unified Adaptive AI Strategy.
+    Score a single asset's trade opportunity quality using AI-Only Strategy.
 
     Strategy Flow:
-    1. Adaptive Mean Reversion provides core signal (trend, entry, stop, target)
-    2. AI Analysis validates and enhances (adjusts confidence, refines prices)
-    3. Unified scoring combines both into single measurable strategy
+    1. AI Analysis provides primary signal (must be HIGH confidence BUY)
+    2. AMR signal checked for alignment bonus (optional, not required)
+    3. Scoring based on AI confidence, trend, risk/reward, and volatility
 
     Args:
         symbol: Asset symbol (e.g. 'BTC-USD')
@@ -49,18 +50,18 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
         {
             'symbol': 'BTC-USD',
             'score': 85.5,  # 0-100, higher = better opportunity
-            'strategy': 'adaptive_ai',  # unified strategy name
+            'strategy': 'adaptive_ai',  # strategy name
             'signal': 'buy' or 'no_signal',
-            'confidence': 'high',  # from AI validation
+            'confidence': 'high',  # from AI analysis
             'trend': 'uptrend',
-            'reasoning': 'AMR: 2.5% dip from MA in uptrend. AI: High confidence, clear support',
+            'reasoning': 'AI only: Buy $92000, sell $95000 = 3.26% gross, 2.0% net after costs',
             'entry_price': 50000.0,
             'stop_loss': 49000.0,
             'profit_target': 52000.0,
             'risk_reward_ratio': 2.0,
             'can_trade': True,  # False if position already open or recent stop loss
-            'amr_signal': {...},  # Raw AMR signal details
-            'ai_validation': {...}  # AI analysis details (if available)
+            'amr_signal': {...},  # Raw AMR signal details (for reference)
+            'ai_validation': {...}  # AI analysis details (primary signal)
         }
     """
 
@@ -103,13 +104,13 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
     result['trend'] = trend
 
     # ========================================
-    # UNIFIED ADAPTIVE AI STRATEGY
+    # AI-ONLY STRATEGY (AMR removed)
     # ========================================
-    # Step 1: Get Adaptive Mean Reversion signal (CORE)
+    # Get Adaptive Mean Reversion signal for reference only (not required)
     adaptive_signal = check_adaptive_buy_signal(coin_prices_list, current_price)
     result['amr_signal'] = adaptive_signal
 
-    # Step 2: Get AI Analysis (ENHANCEMENT)
+    # Get AI Analysis (PRIMARY signal source)
     ai_analysis = load_analysis_from_file(symbol)
     if ai_analysis:
         result['ai_validation'] = {
@@ -123,77 +124,48 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
         }
 
     # ========================================
-    # UNIFIED SCORING LOGIC
+    # AI-ONLY SCORING LOGIC
     # ========================================
     score = 0
 
-    # REQUIREMENT: Adaptive Mean Reversion must signal BUY to proceed
-    if not adaptive_signal or adaptive_signal['signal'] != 'buy':
-        # No AMR signal = no trade
+    # REQUIREMENT: AI must recommend BUY with HIGH confidence
+    if not ai_analysis or ai_analysis.get('trade_recommendation') != 'buy':
         result['signal'] = 'no_signal'
         result['score'] = 0
-        result['reasoning'] = adaptive_signal['reasoning'] if adaptive_signal else "No AMR signal"
-
-        # If downtrend, make it explicit
-        if adaptive_signal and adaptive_signal['trend'] == 'downtrend':
-            result['reasoning'] = f"AMR: Downtrend detected - {adaptive_signal['reasoning']}"
-
+        result['reasoning'] = ai_analysis.get('reasoning', 'No AI analysis available') if ai_analysis else 'No AI analysis available'
         return result
 
-    # AMR signal is BUY - start scoring
-    score = 60  # Base score for AMR buy signal
+    # AI confidence check - only trade on HIGH confidence
+    ai_conf = ai_analysis.get('confidence_level', 'low')
+    if ai_conf != 'high':
+        result['signal'] = 'no_signal'
+        result['score'] = 0
+        result['reasoning'] = f"AI confidence too low ({ai_conf}) - {ai_analysis.get('reasoning', '')}"
+        return result
 
-    # Use AMR entry/stop/target as defaults
-    result['entry_price'] = adaptive_signal['entry_price']
-    result['stop_loss'] = adaptive_signal['stop_loss']
-    result['profit_target'] = adaptive_signal['profit_target']
+    # AI recommends BUY with HIGH confidence - start scoring
+    score = 70  # Base score for AI high confidence buy
+
+    # Use AI prices
+    result['entry_price'] = ai_analysis.get('buy_in_price')
+    result['stop_loss'] = ai_analysis.get('stop_loss')
+    result['profit_target'] = ai_analysis.get('sell_price')
     result['signal'] = 'buy'
+    result['confidence'] = 'high'
 
     # Bonus for trend alignment
-    if adaptive_signal['trend'] == 'uptrend':
-        score += 10
-    elif adaptive_signal['trend'] == 'sideways':
+    market_trend = ai_analysis.get('market_trend', 'sideways')
+    if market_trend == 'bullish':
+        score += 15
+    elif market_trend == 'sideways':
         score += 5
 
-    # Bonus for optimal dip depth (2-3% is AMR sweet spot)
-    deviation = abs(adaptive_signal.get('deviation_from_ma', 0))
-    if 2.0 <= deviation <= 3.0:
+    # AMR bonus (if AMR also agrees, add extra confidence)
+    if adaptive_signal and adaptive_signal['signal'] == 'buy':
         score += 10
-    elif 1.5 <= deviation <= 3.5:
-        score += 5
-
-    # AI VALIDATION LAYER
-    if result['ai_validation']:
-        ai_conf = result['ai_validation']['confidence']
-        ai_rec = result['ai_validation']['signal']
-
-        # AI confidence bonus/penalty
-        if ai_conf == 'high' and ai_rec == 'buy':
-            score += 20
-            result['confidence'] = 'high'
-
-            # Use AI-refined prices if available and reasonable
-            ai_entry = result['ai_validation']['entry_price']
-            ai_stop = result['ai_validation']['stop_loss']
-            ai_target = result['ai_validation']['profit_target']
-
-            if ai_entry and ai_stop and ai_target:
-                # Only use AI prices if they're within ±2% of AMR prices (prevent wild adjustments)
-                entry_diff_pct = abs(ai_entry - result['entry_price']) / result['entry_price'] * 100
-                if entry_diff_pct <= 2.0:
-                    result['entry_price'] = ai_entry
-                    result['stop_loss'] = ai_stop
-                    result['profit_target'] = ai_target
-
-        elif ai_conf == 'medium' or ai_rec == 'no_trade':
-            score += 5
-            result['confidence'] = 'medium'
-        elif ai_conf == 'low':
-            score -= 10
-            result['confidence'] = 'low'
+        result['reasoning'] = f"AI + AMR aligned: {ai_analysis.get('reasoning', '')}"
     else:
-        # No AI validation available - use AMR confidence
-        result['confidence'] = 'high' if adaptive_signal['trend'] == 'uptrend' else 'medium'
+        result['reasoning'] = f"AI only: {ai_analysis.get('reasoning', '')}"
 
     # Calculate risk/reward ratio
     if result['entry_price'] and result['stop_loss'] and result['profit_target']:
@@ -214,12 +186,6 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
 
     # Final score
     result['score'] = min(100, score)  # Cap at 100
-
-    # Build comprehensive reasoning
-    amr_reasoning = adaptive_signal.get('reasoning', 'AMR buy signal')
-    ai_reasoning = result['ai_validation']['reasoning'] if result['ai_validation'] else 'No AI validation'
-
-    result['reasoning'] = f"AMR: {amr_reasoning[:80]}... | AI: {ai_reasoning[:80]}..." if len(amr_reasoning) > 80 else f"AMR: {amr_reasoning} | AI: {ai_reasoning}"
 
     return result
 
@@ -325,7 +291,7 @@ def print_opportunity_report(opportunities_list, best_opportunity=None):
         symbol = opp['symbol']
         score = f"{opp['score']:.1f}" if opp['score'] > 0 else "-"
         signal = opp['signal'].upper()
-        strategy = "Adaptive AI"  # Always show unified strategy
+        strategy = "AI Strategy"  # AI-only strategy
         trend = opp['trend'].title()
 
         # AI validation indicator
@@ -353,7 +319,7 @@ def print_opportunity_report(opportunities_list, best_opportunity=None):
         print("="*100)
         print(f"🎯 BEST OPPORTUNITY: {best_opportunity['symbol']}")
         print("="*100)
-        print(f"Strategy: Adaptive AI (AMR + GPT-4 Vision)")
+        print(f"Strategy: AI Strategy (GPT-4 Vision + AMR bonus)")
         print(f"Score: {best_opportunity['score']:.1f}/100")
         print(f"Confidence: {best_opportunity['confidence'].upper()}")
         print(f"Trend: {best_opportunity['trend'].title()}")

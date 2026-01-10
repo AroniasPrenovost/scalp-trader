@@ -153,7 +153,9 @@ def calculate_volatility_adjusted_position_size(
     if not position_config.get('volatility_scaling_enabled', False):
         if confidence_level == 'high':
             base_percentage = position_config.get('base_position_size_high_confidence', 75)
-            return current_usd_value * (base_percentage / 100)
+            base_position = starting_capital_usd * (base_percentage / 100)
+            # Limit to current available capital
+            return min(base_position, current_usd_value)
         else:
             # Medium/Low confidence should not trade
             return 0
@@ -173,9 +175,9 @@ def calculate_volatility_adjusted_position_size(
     high_vol_multiplier = position_config.get('high_volatility_position_multiplier', 0.65)
     extreme_vol_multiplier = position_config.get('extreme_volatility_position_multiplier', 0.5)
 
-    # Base position size for HIGH confidence
+    # Base position size for HIGH confidence (use starting capital, not current balance)
     base_percentage = position_config.get('base_position_size_high_confidence', 75)
-    base_position = current_usd_value * (base_percentage / 100)
+    base_position = starting_capital_usd * (base_percentage / 100)
 
     # Apply volatility multiplier
     if range_percentage_from_min < low_vol_max:
@@ -195,21 +197,26 @@ def calculate_volatility_adjusted_position_size(
         adjusted_position = base_position * extreme_vol_multiplier
         vol_category = "EXTREME"
 
-    # Ensure we never exceed 75% of current capital
-    max_position = current_usd_value * 0.75
+    # Ensure we never exceed current available capital (can't trade with money we don't have)
+    max_position = current_usd_value
     final_position = min(adjusted_position, max_position)
 
     # Apply minimum position size to ensure fee efficiency
     min_position = position_config.get('minimum_position_size_usd', 0)
     if min_position > 0 and final_position < min_position:
         print(f"Position Sizing: Volatility={range_percentage_from_min:.1f}% ({vol_category})")
-        print(f"  Base position: ${base_position:.2f} ({base_percentage}% of ${current_usd_value:.2f})")
-        print(f"  Volatility-adjusted: ${final_position:.2f}")
+        print(f"  Base position: ${base_position:.2f} ({base_percentage}% of starting capital ${starting_capital_usd:.2f})")
+        print(f"  Volatility-adjusted: ${adjusted_position:.2f}")
+        print(f"  Final position: ${final_position:.2f} (limited by current balance: ${current_usd_value:.2f})")
         print(f"  ⚠️  Position too small (< ${min_position}) - fees would eat profits. Skipping trade.")
         return 0  # Don't trade if position would be too small
 
     print(f"Position Sizing: Volatility={range_percentage_from_min:.1f}% ({vol_category})")
-    print(f"  Base position: ${base_position:.2f} ({base_percentage}% of ${current_usd_value:.2f})")
-    print(f"  Volatility-adjusted: ${final_position:.2f}")
+    print(f"  Base position: ${base_position:.2f} ({base_percentage}% of starting capital ${starting_capital_usd:.2f})")
+    print(f"  Volatility-adjusted: ${adjusted_position:.2f}")
+    if final_position < adjusted_position:
+        print(f"  Final position: ${final_position:.2f} (limited by current balance: ${current_usd_value:.2f})")
+    else:
+        print(f"  Final position: ${final_position:.2f}")
 
     return final_position

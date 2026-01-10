@@ -2221,5 +2221,62 @@
       "starting_capital": 4800,
       "wallet_allocation_pct": 63.58516508925276
     }
+  },
+  {
+    "symbol": "LINK-USD",
+    "buy_price": 13.2,
+    "sell_price": 13.261,
+    "potential_profit_percentage": 0.005050505050498966,
+    "timestamp": "2026-01-09T01:12:42.741043+00:00",
+    "gross_profit": 10.10149999999976,
+    "taxes": 2.4243599999999423,
+    "exchange_fees": 7.5256175,
+    "total_profit": 0.15152249999981748,
+    "time_held_position": "17.93 hours",
+    "time_held_seconds": 64552.897929,
+    "buy_timestamp": "2026-01-08T07:16:49.843138Z",
+    "buy_screenshot_path": "./screenshots/LINK-USD_1h-candles_buy_20260107231647.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 3.3409785932721667,
+      "current_trend": "bullish",
+      "confidence_level": "high",
+      "entry_reasoning": "Buy $13.20, sell $15.50 = 17.42% gross, 11.24% net after costs. Risk/reward 5.75. All timeframes bullish, price near support."
+    },
+    "technical_signals_at_entry": {
+      "major_support": 12.0,
+      "minor_support": 13.0,
+      "major_resistance": 27.3876,
+      "minor_resistance": 15.5,
+      "buy_in_price_target": 13.2,
+      "actual_entry_price": 13.2,
+      "stop_loss_set": 12.8,
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": 0.005050505050498966,
+      "risk_reward_ratio": 5.75,
+      "price_vs_support": "10.00% above major support",
+      "price_vs_resistance": "107.48% below major resistance"
+    },
+    "ai_model_data": {
+      "model_used": "gpt-4o-2024-08-06",
+      "analyzed_at": 1767556333.162344,
+      "confidence_level": "high",
+      "trade_recommendation": "buy",
+      "market_trend": "bullish",
+      "volume_confirmation": null,
+      "reasoning": "Buy $13.20, sell $15.50 = 17.42% gross, 11.24% net after costs. Risk/reward 5.75. All timeframes bullish, price near support.",
+      "trade_invalidation_price": 12.7
+    },
+    "exit_analysis": {
+      "exit_trigger": "early_profit_rotation",
+      "profit_target_percentage": 2.5,
+      "actual_profit_percentage": 0.005050505050498966
+    },
+    "position_sizing": {
+      "buy_amount_usd": 3000.0,
+      "actual_shares": 227.0,
+      "entry_position_value": 3000.1455,
+      "starting_capital": 4800,
+      "wallet_allocation_pct": 62.50303125
+    }
   }
 ]
