@@ -902,7 +902,21 @@ def should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours=1, l
     # Check if the analysis recommended 'no_trade'
     trade_recommendation = existing_analysis.get('trade_recommendation', 'buy')
     if trade_recommendation == 'no_trade':
-        # First check if dynamic conditions warrant immediate refresh
+        # Check how old the analysis is first
+        analyzed_at = existing_analysis.get('analyzed_at', 0)
+        current_time = time.time()
+        hours_since_analysis = (current_time - analyzed_at) / 3600
+
+        # Enforce minimum cooldown period before allowing dynamic refresh
+        # This prevents constant refreshes immediately after a fresh analysis
+        minimum_cooldown_hours = 0.1  # 6 minutes minimum between refreshes
+
+        if hours_since_analysis < minimum_cooldown_hours:
+            # Too soon after last analysis - skip dynamic checks entirely
+            print(f"Analysis recommended no_trade {hours_since_analysis:.1f} hours ago. Will refresh in {no_trade_refresh_hours - hours_since_analysis:.1f} hours.")
+            return False
+
+        # After minimum cooldown, check if dynamic conditions warrant immediate refresh
         if coin_data and config:
             from utils.dynamic_refresh import should_trigger_dynamic_refresh
             should_refresh, reason = should_trigger_dynamic_refresh(
@@ -918,11 +932,7 @@ def should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours=1, l
                 print(f"Dynamic refresh triggered for no_trade analysis: {reason}")
                 return True
 
-        # Check how old the analysis is
-        analyzed_at = existing_analysis.get('analyzed_at', 0)
-        current_time = time.time()
-        hours_since_analysis = (current_time - analyzed_at) / 3600
-
+        # Check if time-based refresh is needed
         if hours_since_analysis >= no_trade_refresh_hours:
             print(f"Analysis is {hours_since_analysis:.1f} hours old and recommended no_trade. Refreshing...")
             return True
@@ -955,8 +965,7 @@ def should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours=1, l
             return False
 
     # High confidence: Check if it's too old and needs refresh
-    # Even high confidence analyses should expire after a reasonable time (e.g., 24 hours)
-    high_confidence_max_age_hours = 24  # Refresh high confidence after 24 hours
+    # Use the configured max age from the parameter (don't hardcode)
     analyzed_at = existing_analysis.get('analyzed_at', 0)
     current_time = time.time()
     hours_since_analysis = (current_time - analyzed_at) / 3600

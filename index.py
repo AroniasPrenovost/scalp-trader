@@ -598,8 +598,19 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                             analysis=None
                                         )
 
-                                        # Build trading context
-                                        trading_context = build_trading_context(symbol, config)
+                                        # Build trading context with correct parameters
+                                        # Extract settings from config for this wallet
+                                        wallet_settings = next((w for w in config['wallets'] if w['symbol'] == symbol), {})
+                                        max_historical_trades = wallet_settings.get('max_historical_trades', 10)
+                                        include_screenshots = wallet_settings.get('include_screenshots', True)
+                                        starting_capital = wallet_settings.get('starting_capital_usd', 0)
+
+                                        trading_context = build_trading_context(
+                                            symbol,
+                                            max_trades=max_historical_trades,
+                                            include_screenshots=include_screenshots,
+                                            starting_capital_usd=starting_capital
+                                        )
 
                                         # Calculate volatility (ensure all data is numeric)
                                         volatility_window_hours = 24

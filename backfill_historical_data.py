@@ -311,6 +311,8 @@ def backfill_wallet_data(wallet, config):
 
 def main():
     """Main backfill execution function"""
+    import sys
+
     print("=" * 60)
     print("CoinGecko Historical Data Backfill")
     print("=" * 60)
@@ -337,17 +339,30 @@ def main():
         print("COINGECKO_API_KEY=your_api_key_here")
         return
 
+    # Check if a specific symbol was provided as command line argument
+    target_symbol = None
+    if len(sys.argv) > 1:
+        target_symbol = sys.argv[1]
+        print(f"\n🎯 Target symbol specified: {target_symbol}")
+
     # Get enabled wallets
     wallets = config.get('wallets', [])
     enabled_wallets = [wallet for wallet in wallets if wallet.get('enabled', False)]
 
-    if not enabled_wallets:
-        print("\nNo enabled wallets found in config.json")
-        return
-
-    print(f"\nFound {len(enabled_wallets)} enabled wallet(s) to backfill:")
-    for wallet in enabled_wallets:
-        print(f"  - {wallet.get('symbol')}")
+    # Filter to target symbol if specified
+    if target_symbol:
+        enabled_wallets = [wallet for wallet in enabled_wallets if wallet.get('symbol') == target_symbol]
+        if not enabled_wallets:
+            print(f"\nERROR: Symbol '{target_symbol}' not found or not enabled in config.json")
+            return
+        print(f"✓ Found wallet for {target_symbol}")
+    else:
+        if not enabled_wallets:
+            print("\nNo enabled wallets found in config.json")
+            return
+        print(f"\nFound {len(enabled_wallets)} enabled wallet(s) to backfill:")
+        for wallet in enabled_wallets:
+            print(f"  - {wallet.get('symbol')}")
 
     # Backfill each enabled wallet
     for wallet in enabled_wallets:
