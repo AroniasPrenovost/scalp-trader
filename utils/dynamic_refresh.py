@@ -16,7 +16,18 @@ def calculate_rsi(prices, period=14):
     if len(prices) < period + 1:
         return None
 
-    prices_array = np.array(prices)
+    # Clean prices to ensure all numeric values
+    clean_prices = []
+    for p in prices:
+        try:
+            clean_prices.append(float(p))
+        except (ValueError, TypeError):
+            continue
+
+    if len(clean_prices) < period + 1:
+        return None
+
+    prices_array = np.array(clean_prices, dtype=float)
     deltas = np.diff(prices_array)
 
     gains = np.where(deltas > 0, deltas, 0)
@@ -93,11 +104,26 @@ def should_trigger_dynamic_refresh(
         return True, f"Price moved {price_change_pct:.2f}% since last analysis (threshold: {price_change_threshold}%)"
 
     # Check 2: Volume spike detection
-    if len(volume_history) >= 5:
-        recent_avg_volume = np.mean(volume_history[-24:]) if len(volume_history) >= 24 else np.mean(volume_history)
-        if current_volume > recent_avg_volume * volume_spike_multiplier:
-            volume_increase_pct = ((current_volume / recent_avg_volume) - 1) * 100
-            return True, f"Volume spike detected: {volume_increase_pct:.1f}% above average (threshold: {(volume_spike_multiplier-1)*100:.0f}%)"
+    if len(volume_history) >= 5 and current_volume is not None:
+        # Clean volume data to ensure all numeric
+        clean_volumes = []
+        for v in volume_history:
+            try:
+                clean_volumes.append(float(v))
+            except (ValueError, TypeError):
+                continue
+
+        # Ensure current_volume is numeric
+        try:
+            current_volume_float = float(current_volume)
+        except (ValueError, TypeError):
+            current_volume_float = None
+
+        if len(clean_volumes) >= 5 and current_volume_float is not None:
+            recent_avg_volume = np.mean(clean_volumes[-24:]) if len(clean_volumes) >= 24 else np.mean(clean_volumes)
+            if current_volume_float > recent_avg_volume * volume_spike_multiplier:
+                volume_increase_pct = ((current_volume_float / recent_avg_volume) - 1) * 100
+                return True, f"Volume spike detected: {volume_increase_pct:.1f}% above average (threshold: {(volume_spike_multiplier-1)*100:.0f}%)"
 
     # Check 3: RSI approaching extremes
     if len(price_history) >= 15:

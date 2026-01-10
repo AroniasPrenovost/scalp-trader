@@ -80,7 +80,9 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
         'risk_reward_ratio': None,
         'can_trade': True,
         'amr_signal': None,
-        'ai_validation': None
+        'ai_validation': None,
+        'analysis_age_hours': None,
+        'next_refresh_hours': None
     }
 
     # Check if we already have a position open for this asset
@@ -122,6 +124,34 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
             'reasoning': ai_analysis.get('reasoning', ''),
             'enforced': ai_analysis.get('adaptive_strategy_enforced', False)
         }
+
+        # Calculate analysis age and next refresh time
+        analyzed_at = ai_analysis.get('analyzed_at', 0)
+        if analyzed_at > 0:
+            current_time = time.time()
+            analysis_age_hours = (current_time - analyzed_at) / 3600
+            result['analysis_age_hours'] = analysis_age_hours
+
+            # Calculate next refresh based on recommendation/confidence
+            trade_recommendation = ai_analysis.get('trade_recommendation', 'buy')
+            confidence_level = ai_analysis.get('confidence_level', 'low')
+
+            # Default refresh intervals (should match those in should_refresh_analysis and config.json)
+            no_trade_refresh_hours = config.get('no_trade_refresh_hours', 1) if config else 1
+            low_confidence_wait_hours = config.get('low_confidence_wait_hours', 1) if config else 1
+            medium_confidence_wait_hours = config.get('medium_confidence_wait_hours', 1) if config else 1
+            high_confidence_max_age_hours = config.get('high_confidence_max_age_hours', 2) if config else 2
+
+            if trade_recommendation == 'no_trade':
+                next_refresh_hours = max(0, no_trade_refresh_hours - analysis_age_hours)
+            elif confidence_level == 'low':
+                next_refresh_hours = max(0, low_confidence_wait_hours - analysis_age_hours)
+            elif confidence_level == 'medium':
+                next_refresh_hours = max(0, medium_confidence_wait_hours - analysis_age_hours)
+            else:  # high confidence
+                next_refresh_hours = max(0, high_confidence_max_age_hours - analysis_age_hours)
+
+            result['next_refresh_hours'] = next_refresh_hours
 
     # ========================================
     # AI-ONLY SCORING LOGIC
@@ -273,29 +303,51 @@ def print_opportunity_report(opportunities_list, best_opportunity=None):
     """
     from utils.time_helpers import print_local_time
 
-    print("\n" + "="*100)
+    print("\n" + "="*120)
     print("OPPORTUNITY SCANNER - Market Rotation Analysis")
-    print("="*100)
+    print("="*120)
     print_local_time()
     print()
 
     # Sort by score
     sorted_opps = sorted(opportunities_list, key=lambda x: x['score'], reverse=True)
 
-    # Print summary table
-    print(f"{'Rank':<6} {'Symbol':<12} {'Score':<8} {'Signal':<12} {'Strategy':<18} {'Trend':<12} {'AI':<8} {'Status':<20}")
-    print("-"*100)
+    # Print summary table with new columns
+    print(f"{'Rank':<6} {'Symbol':<12} {'Score':<8} {'Signal':<12} {'Strategy':<18} {'Trend':<12} {'AI':<8} {'Age':<10} {'Expires':<10} {'Status':<20}")
+    print("-"*120)
 
     for i, opp in enumerate(sorted_opps, 1):
         rank = f"#{i}"
         symbol = opp['symbol']
-        score = f"{opp['score']:.1f}" if opp['score'] > 0 else "-"
+        score = f"{opp['score']:.1f}"  # Always show score, even if 0
         signal = opp['signal'].upper()
         strategy = "AI Strategy"  # AI-only strategy
         trend = opp['trend'].title()
 
         # AI validation indicator
         ai_indicator = "✓" if opp.get('ai_validation') else "-"
+
+        # Analysis age
+        age_hours = opp.get('analysis_age_hours')
+        if age_hours is not None:
+            if age_hours < 1:
+                age_str = f"{age_hours * 60:.0f}m"
+            else:
+                age_str = f"{age_hours:.1f}h"
+        else:
+            age_str = "-"
+
+        # Next refresh time
+        refresh_hours = opp.get('next_refresh_hours')
+        if refresh_hours is not None:
+            if refresh_hours == 0:
+                refresh_str = "now"
+            elif refresh_hours < 1:
+                refresh_str = f"{refresh_hours * 60:.0f}m"
+            else:
+                refresh_str = f"{refresh_hours:.1f}h"
+        else:
+            refresh_str = "-"
 
         # Status
         if not opp['can_trade']:
@@ -309,16 +361,16 @@ def print_opportunity_report(opportunities_list, best_opportunity=None):
 
         # Highlight the best opportunity
         if best_opportunity and opp['symbol'] == best_opportunity['symbol']:
-            print(f"→ {rank:<4} {symbol:<12} {score:<8} {signal:<12} {strategy:<18} {trend:<12} {ai_indicator:<8} {status:<20} ⭐ SELECTED")
+            print(f"→ {rank:<4} {symbol:<12} {score:<8} {signal:<12} {strategy:<18} {trend:<12} {ai_indicator:<8} {age_str:<10} {refresh_str:<10} {status:<20} ⭐ SELECTED")
         else:
-            print(f"  {rank:<4} {symbol:<12} {score:<8} {signal:<12} {strategy:<18} {trend:<12} {ai_indicator:<8} {status:<20}")
+            print(f"  {rank:<4} {symbol:<12} {score:<8} {signal:<12} {strategy:<18} {trend:<12} {ai_indicator:<8} {age_str:<10} {refresh_str:<10} {status:<20}")
 
     print()
 
     if best_opportunity:
-        print("="*100)
+        print("="*120)
         print(f"🎯 BEST OPPORTUNITY: {best_opportunity['symbol']}")
-        print("="*100)
+        print("="*120)
         print(f"Strategy: AI Strategy (GPT-4 Vision + AMR bonus)")
         print(f"Score: {best_opportunity['score']:.1f}/100")
         print(f"Confidence: {best_opportunity['confidence'].upper()}")
@@ -340,10 +392,10 @@ def print_opportunity_report(opportunities_list, best_opportunity=None):
             print(f"AI Validation: {ai['confidence'].upper()} confidence, {ai['signal'].upper()}")
 
         print(f"\nReasoning: {best_opportunity['reasoning']}")
-        print("="*100)
+        print("="*120)
     else:
         print("⚠️  NO TRADEABLE OPPORTUNITIES FOUND")
         print("   All assets either have positions open or lack strong setups")
-        print("="*100)
+        print("="*120)
 
     print()

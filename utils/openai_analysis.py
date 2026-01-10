@@ -864,7 +864,7 @@ VALIDATION:
         return None
 
 
-def should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours=1, low_confidence_wait_hours=2, medium_confidence_wait_hours=1, coin_data=None, config=None):
+def should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours=1, low_confidence_wait_hours=1, medium_confidence_wait_hours=1, high_confidence_max_age_hours=2, coin_data=None, config=None):
     """
     Determines if a new analysis should be performed, considering both time-based
     and dynamic market condition triggers.
@@ -873,8 +873,9 @@ def should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours=1, l
         symbol: The trading pair symbol
         last_order_type: The type of the last order ('none', 'buy', 'sell', 'placeholder')
         no_trade_refresh_hours: Hours to wait before refreshing a 'no_trade' analysis (default: 1)
-        low_confidence_wait_hours: Hours to wait before refreshing a 'low' confidence analysis (default: 2)
+        low_confidence_wait_hours: Hours to wait before refreshing a 'low' confidence analysis (default: 1)
         medium_confidence_wait_hours: Hours to wait before refreshing a 'medium' confidence analysis (default: 1)
+        high_confidence_max_age_hours: Hours after which high confidence analyses expire (default: 2)
         coin_data: Optional dict with current price and volume data for dynamic refresh checks
         config: Optional config dict for dynamic refresh settings
 
@@ -935,7 +936,7 @@ def should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours=1, l
     current_time = time.time()
     hours_since_analysis = (current_time - analyzed_at) / 3600
 
-    # Low confidence: wait 2 hours before re-analyzing
+    # Low confidence: wait 1 hour before re-analyzing (faster to catch improving conditions)
     if confidence_level == 'low':
         if hours_since_analysis >= low_confidence_wait_hours:
             print(f"Analysis is {hours_since_analysis:.1f} hours old with LOW confidence. Refreshing...")
@@ -953,11 +954,20 @@ def should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours=1, l
             print(f"Analysis has MEDIUM confidence from {hours_since_analysis:.1f} hours ago. Will refresh in {medium_confidence_wait_hours - hours_since_analysis:.1f} hours.")
             return False
 
-    # High confidence: proceed immediately, no waiting
+    # High confidence: Check if it's too old and needs refresh
+    # Even high confidence analyses should expire after a reasonable time (e.g., 24 hours)
+    high_confidence_max_age_hours = 24  # Refresh high confidence after 24 hours
+    analyzed_at = existing_analysis.get('analyzed_at', 0)
+    current_time = time.time()
+    hours_since_analysis = (current_time - analyzed_at) / 3600
+
+    if hours_since_analysis >= high_confidence_max_age_hours:
+        print(f"Analysis is {hours_since_analysis:.1f} hours old with HIGH confidence. Refreshing due to age...")
+        return True
+
+    # If not too old, keep using existing high confidence analysis
     # If we just sold, we should have deleted the analysis file, so we'd be caught
     # by the "not existing_analysis" check above
-    # If analysis exists and we have 'none' or 'sell' status, keep using existing analysis
-    # Only refresh if explicitly deleted or doesn't exist
     if last_order_type in ['none', 'sell']:
         return False
 

@@ -302,8 +302,9 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
         min_profit_target_percentage = config.get('min_profit_target_percentage', 3.0)
         no_trade_refresh_hours = config.get('no_trade_refresh_hours', 1.0)
         cooldown_hours_after_sell = config.get('cooldown_hours_after_sell', 0)
-        low_confidence_wait_hours = config.get('low_confidence_wait_hours', 2.0)
+        low_confidence_wait_hours = config.get('low_confidence_wait_hours', 1.0)
         medium_confidence_wait_hours = config.get('medium_confidence_wait_hours', 1.0)
+        high_confidence_max_age_hours = config.get('high_confidence_max_age_hours', 2.0)
         limit_order_timeout_minutes = config.get('limit_order_timeout_minutes', 60)
 
         # Volatility filter configuration
@@ -500,6 +501,151 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
 
                     # Optionally print detailed report
                     if market_rotation_config.get('print_opportunity_report', True):
+                        # PROACTIVE REFRESH: Check if any analyses need refresh before scoring
+                        print("🔄 Checking for stale analyses...")
+                        for symbol in enabled_wallets:
+                            try:
+                                # Get last order type to determine refresh eligibility
+                                last_order = get_last_order_from_local_json_ledger(symbol)
+                                last_order_type = detect_stored_coinbase_order_type(last_order)
+
+                                # Get coin data for dynamic refresh checks
+                                coin_prices_list_raw = get_property_values_from_crypto_file(
+                                    coinbase_data_directory, symbol, 'price', max_age_hours=DATA_RETENTION_HOURS
+                                )
+                                coin_volume_24h_LIST_raw = get_property_values_from_crypto_file(
+                                    coinbase_data_directory, symbol, 'volume_24h', max_age_hours=DATA_RETENTION_HOURS
+                                )
+
+                                # Clean price data to ensure all floats
+                                coin_prices_list = []
+                                for p in coin_prices_list_raw:
+                                    try:
+                                        coin_prices_list.append(float(p))
+                                    except (ValueError, TypeError):
+                                        continue
+
+                                # Clean volume data to ensure all floats
+                                coin_volume_24h_LIST = []
+                                for v in coin_volume_24h_LIST_raw:
+                                    try:
+                                        coin_volume_24h_LIST.append(float(v))
+                                    except (ValueError, TypeError):
+                                        continue
+
+                                current_price = get_asset_price(coinbase_client, symbol)
+
+                                # Get current volume from coinbase data
+                                current_volume_24h = 0
+                                for coin_entry in coinbase_data_dictionary:
+                                    if coin_entry['product_id'] == symbol:
+                                        current_volume_24h = coin_entry.get('volume_24h', 0)
+                                        break
+
+                                coin_data = {
+                                    'current_price': current_price,
+                                    'coin_prices_list': coin_prices_list,
+                                    'coin_volume_24h_LIST': coin_volume_24h_LIST,
+                                    'current_volume_24h': current_volume_24h
+                                }
+
+                                # Check if refresh is needed
+                                should_refresh = should_refresh_analysis(
+                                    symbol,
+                                    last_order_type,
+                                    no_trade_refresh_hours,
+                                    low_confidence_wait_hours,
+                                    medium_confidence_wait_hours,
+                                    high_confidence_max_age_hours,
+                                    coin_data=coin_data,
+                                    config=config
+                                )
+
+                                # If refresh needed and AI is enabled, generate new analysis
+                                if should_refresh:
+                                    # Check if AI analysis is enabled for this symbol
+                                    ai_enabled = False
+                                    for wallet in config['wallets']:
+                                        if symbol == wallet['symbol'] and wallet.get('enable_ai_analysis', False):
+                                            ai_enabled = True
+                                            break
+
+                                    if ai_enabled and coin_prices_list and len(coin_prices_list) >= MINIMUM_DATA_POINTS:
+                                        print(f"  ↻ Refreshing analysis for {symbol}...")
+
+                                        # Clean price and volume data before chart generation
+                                        clean_coin_prices = []
+                                        for p in coin_prices_list:
+                                            try:
+                                                clean_coin_prices.append(float(p))
+                                            except (ValueError, TypeError):
+                                                continue
+
+                                        clean_coin_volumes = []
+                                        for v in coin_volume_24h_LIST:
+                                            try:
+                                                clean_coin_volumes.append(float(v))
+                                            except (ValueError, TypeError):
+                                                continue
+
+                                        # Generate charts with cleaned data
+                                        chart_paths = plot_multi_timeframe_charts(
+                                            current_timestamp=time.time(),
+                                            interval=INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                                            symbol=symbol,
+                                            price_data=clean_coin_prices,
+                                            volume_data=clean_coin_volumes if clean_coin_volumes else None,
+                                            analysis=None
+                                        )
+
+                                        # Build trading context
+                                        trading_context = build_trading_context(symbol, config)
+
+                                        # Calculate volatility (ensure all data is numeric)
+                                        volatility_window_hours = 24
+                                        volatility_data_points = int(volatility_window_hours / (INTERVAL_SECONDS / 3600))
+                                        recent_prices = coin_prices_list[-volatility_data_points:] if len(coin_prices_list) >= volatility_data_points else coin_prices_list
+
+                                        # Clean any remaining non-numeric values
+                                        clean_recent_prices = []
+                                        for p in recent_prices:
+                                            try:
+                                                clean_recent_prices.append(float(p))
+                                            except (ValueError, TypeError):
+                                                continue
+
+                                        if len(clean_recent_prices) > 0:
+                                            min_price = min(clean_recent_prices)
+                                            max_price = max(clean_recent_prices)
+                                            range_pct = calculate_percentage_from_min(min_price, max_price)
+                                        else:
+                                            print(f"  ⚠️  No valid price data for {symbol}, skipping refresh")
+                                            continue
+
+                                        # Run AI analysis
+                                        analysis = analyze_market_with_openai(
+                                            symbol=symbol,
+                                            coin_data=coin_data,
+                                            exchange_fee_percentage=coinbase_spot_taker_fee,
+                                            tax_rate_percentage=federal_tax_rate,
+                                            min_profit_target_percentage=min_profit_target_percentage,
+                                            chart_paths=chart_paths,
+                                            trading_context=trading_context,
+                                            range_percentage_from_min=range_pct,
+                                            config=config
+                                        )
+
+                                        if analysis:
+                                            save_analysis_to_file(symbol, analysis)
+                                            print(f"  ✓ Analysis refreshed for {symbol}")
+                            except Exception as e:
+                                import traceback
+                                print(f"  ⚠️  Error refreshing {symbol}: {e}")
+                                print(f"  Traceback: {traceback.format_exc()}")
+                                continue
+
+                        print()
+
                         # Score all opportunities for the report
                         all_opportunities = []
                         for symbol in enabled_wallets:
@@ -763,6 +909,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                         no_trade_refresh_hours,
                         low_confidence_wait_hours,
                         medium_confidence_wait_hours,
+                        high_confidence_max_age_hours,
                         coin_data=coin_data,
                         config=config
                     )

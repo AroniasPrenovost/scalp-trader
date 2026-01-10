@@ -88,45 +88,83 @@ def create_time_labels(num_points, interval_minutes, current_timestamp):
 
 def calculate_moving_average(prices, period):
     """Calculate simple moving average"""
-    if len(prices) < period:
-        return [None] * len(prices)
+    # Clean prices to ensure all numeric
+    clean_prices = []
+    for p in prices:
+        try:
+            clean_prices.append(float(p))
+        except (ValueError, TypeError):
+            clean_prices.append(None)
+
+    if len(clean_prices) < period:
+        return [None] * len(clean_prices)
 
     ma = []
-    for i in range(len(prices)):
+    for i in range(len(clean_prices)):
         if i < period - 1:
             ma.append(None)
         else:
-            ma.append(np.mean(prices[i - period + 1:i + 1]))
+            # Filter out None values before calculating mean
+            window = [p for p in clean_prices[i - period + 1:i + 1] if p is not None]
+            if len(window) >= period * 0.8:  # Need at least 80% of window
+                ma.append(np.mean(window))
+            else:
+                ma.append(None)
     return ma
 
 
 def calculate_bollinger_bands(prices, period=20, std_dev=2):
     """Calculate Bollinger Bands"""
-    if len(prices) < period:
-        return [None] * len(prices), [None] * len(prices), [None] * len(prices)
+    # Clean prices to ensure all numeric
+    clean_prices = []
+    for p in prices:
+        try:
+            clean_prices.append(float(p))
+        except (ValueError, TypeError):
+            clean_prices.append(None)
 
-    ma = calculate_moving_average(prices, period)
+    if len(clean_prices) < period:
+        return [None] * len(clean_prices), [None] * len(clean_prices), [None] * len(clean_prices)
+
+    ma = calculate_moving_average(clean_prices, period)
     upper = []
     lower = []
 
-    for i in range(len(prices)):
+    for i in range(len(clean_prices)):
         if i < period - 1 or ma[i] is None:
             upper.append(None)
             lower.append(None)
         else:
-            std = np.std(prices[i - period + 1:i + 1])
-            upper.append(ma[i] + (std_dev * std))
-            lower.append(ma[i] - (std_dev * std))
+            # Filter out None values before calculating std
+            window = [p for p in clean_prices[i - period + 1:i + 1] if p is not None]
+            if len(window) >= period * 0.8:
+                std = np.std(window)
+                upper.append(ma[i] + (std_dev * std))
+                lower.append(ma[i] - (std_dev * std))
+            else:
+                upper.append(None)
+                lower.append(None)
 
     return ma, upper, lower
 
 
 def calculate_rsi(prices, period=14):
     """Calculate Relative Strength Index"""
-    if len(prices) < period + 1:
-        return [None] * len(prices)
+    # Clean prices to ensure all numeric
+    clean_prices = []
+    for p in prices:
+        try:
+            clean_prices.append(float(p))
+        except (ValueError, TypeError):
+            clean_prices.append(None)
 
-    deltas = np.diff(prices)
+    # Filter out None values
+    valid_prices = [p for p in clean_prices if p is not None]
+
+    if len(valid_prices) < period + 1:
+        return [None] * len(clean_prices)
+
+    deltas = np.diff(valid_prices)
     gains = []
     losses = []
 
@@ -154,6 +192,10 @@ def calculate_rsi(prices, period=14):
                 rsi = 100 - (100 / (1 + rs))
 
             rsi_values.append(rsi)
+
+    # Pad result to match original length
+    while len(rsi_values) < len(clean_prices):
+        rsi_values.append(None)
 
     return rsi_values
 
