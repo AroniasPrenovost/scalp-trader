@@ -64,17 +64,33 @@ def analyze_market_with_openai(symbol, coin_data, exchange_fee_percentage=0, tax
     if chart_paths:
         timeframe_context = """
 
-IMPORTANT - MULTI-TIMEFRAME ANALYSIS FRAMEWORK:
-You are being provided with FIVE charts showing different lookback windows for comprehensive analysis.
+IMPORTANT - MULTI-TIMEFRAME ANALYSIS FRAMEWORK FOR SCALPING:
+You are being provided with SIX charts optimized for SCALPING strategy (targeting 1.5-2% moves).
 NOTE: All charts use 1-hour interval data points - the difference is the lookback window (how much historical data is shown).
 
-DATA STRUCTURE:
-- Base interval: 1 hour (each data point represents 1 hour of price action)
-- 6-month chart: ~4,380 hourly data points (182.5 days × 24 hours)
-- 90-day chart: ~2,160 hourly data points (90 days × 24 hours)
-- 30-day chart: ~720 hourly data points (30 days × 24 hours)
-- 14-day chart: ~336 hourly data points (14 days × 24 hours)
-- 72-hour chart: 72 hourly data points (3 days × 24 hours)
+⚡ CRITICAL SCALPING EXECUTION MODEL:
+This strategy uses MARKET ORDERS for immediate execution when current price reaches suggested entry.
+- Your buy_in_price should be VERY CLOSE to current price (within 0.3-1.0%) if the setup is good NOW
+- DO NOT predict future dips - if current price is NOT at a good technical level, recommend "no_trade"
+- Target: 1.5-2% NET profit moves that complete within 2-8 hours of execution
+- The 4-HOUR and 72-HOUR charts are your PRIMARY tools for entry price decisions
+- Use 14d/30d/90d/6mo charts ONLY for trend confirmation and major resistance identification
+
+DATA STRUCTURE (ordered by priority for entry decisions):
+- 4-hour chart: 4 hourly data points (last 4 hours) ← PRIMARY for micro entry timing
+- 72-hour chart: 72 hourly data points (3 days) ← PRIMARY for recent momentum
+- 14-day chart: ~336 hourly data points (14 days) ← SECONDARY for swing context
+- 30-day chart: ~720 hourly data points (30 days) ← Trend confirmation only
+- 90-day chart: ~2,160 hourly data points (90 days) ← Trend confirmation only
+- 6-month chart: ~4,380 hourly data points (182.5 days) ← Major support/resistance only
+
+4-HOUR CHART (Micro View) - Immediate Entry Timing ⚡ PRIMARY:
+- This shows the MOST RECENT 4 hours of price action (4 hourly candles)
+- Identify CURRENT price position relative to micro support/resistance
+- Is price bouncing NOW? Breaking out NOW? Or stuck in chop?
+- Look for immediate momentum: last 1-2 candles showing reversal or continuation
+- This tells you if THIS MOMENT is a good entry point
+- If current price is not at a clear technical level on this chart, recommend "no_trade"
 
 6-MONTH CHART (Full Historical View) - Macro Trends & Context:
 - Identify major long-term support/resistance levels and trend channels
@@ -112,25 +128,33 @@ DATA STRUCTURE:
 - Verify if short-term swing momentum aligns with 30-day and longer-term trends
 - This determines if NOW is a good time to enter based on recent swing price action
 
-72-HOUR CHART (Recent View) - Entry/Exit Timing & Context:
-- Identify precise entry zone and immediate micro support/resistance over past 3 days
-- Look for recent momentum shifts or reversal signals with better context than 24h
-- Check if price is bouncing off key technical levels RIGHT NOW
+72-HOUR CHART (Recent View) - Entry/Exit Timing & Context ⚡ PRIMARY:
+- Shows past 3 days (72 hours) of hourly price action
+- Identify precise entry zone and immediate micro support/resistance
+- Look for recent momentum shifts or reversal signals over the past 72 hours
+- Check if price is bouncing off key technical levels in this recent window
 - Assess immediate risk/reward: is current price near support (good entry) or resistance (poor entry)?
 - Note volume spikes in last 72 hours that signal buyer/seller interest
 - Confirm RSI trends and extreme conditions with more data points for validation
-- This fine-tunes your EXACT entry price and timing with better short-term context
+- This provides short-term context for the 4-hour micro view
 
-MULTI-TIMEFRAME DECISION LOGIC:
-✓ All 5 timeframes bullish + volume confirmation = HIGH confidence long candidate
-✓ 6mo uptrend + 90d uptrend + 30d uptrend + 14d pullback to support + 72h showing reversal = HIGH confidence entry
-✓ 6mo uptrend + 90d uptrend + 30d consolidation near support + 14d breakout + 72h momentum = HIGH confidence entry
-✗ Timeframe conflict (e.g., 72h/14d bullish but 30d/90d/6mo bearish) = NO TRADE (wait for alignment)
-✗ Price approaching major 6-month or 90-day resistance = NO TRADE or significantly reduce confidence
-✗ 6-month downtrend + 90d downtrend + 14d bounce = Counter-trend risk, NO TRADE unless exceptional setup
-✗ 30-day trend weak/sideways + mixed signals = NO TRADE (wait for clarity)
+MULTI-TIMEFRAME DECISION LOGIC FOR SCALPING:
+✓ 4h + 72h show good entry NOW + 14d/30d/90d/6mo trend aligned = HIGH confidence BUY
+✓ 4h shows bounce at support + 72h confirms reversal + longer timeframes bullish = HIGH confidence BUY
+✓ 4h shows breakout + 72h shows momentum + no major resistance ahead (30d/90d/6mo) = HIGH confidence BUY
+✗ 4h shows price mid-range or at resistance = NO TRADE (wait for pullback or breakout)
+✗ 72h shows choppy/sideways action = NO TRADE (wait for clear direction)
+✗ 4h/72h bullish but 30d/90d/6mo show major resistance nearby (<2% away) = NO TRADE
+✗ Timeframe conflict (short-term bullish but medium/long-term bearish) = NO TRADE
+✗ Current price is >1% away from nearest technical level on 4h/72h charts = NO TRADE (wait for setup)
 
-Base your primary trading decision on the 14-DAY chart (immediate swing context), but REQUIRE validation from 30-day, 90-day, and 6-month charts. Use 72-hour chart for fine-tuning entry timing with better short-term context.
+SCALPING DECISION PRIORITY:
+1. Check 4-HOUR chart: Is current price at a clear technical level RIGHT NOW? (bounce, breakout, support test)
+2. Check 72-HOUR chart: Does recent momentum support the entry? Any immediate obstacles?
+3. Check 14-DAY chart: Is the swing direction aligned?
+4. Check 30d/90d/6mo charts: Any major resistance within 2% that would block profit target?
+5. If ALL above conditions pass → recommend BUY with buy_in_price near current price
+6. If ANY condition fails → recommend "no_trade" and wait for better setup
 """
 
     # Build volatility context
@@ -333,21 +357,21 @@ CRITICAL REQUIREMENTS:
    - Typically below stop_loss by a small margin
    - Example: If support is $0.95, stop is $0.94, invalidation might be $0.93
 
-CONFIDENCE LEVEL CRITERIA (OBJECTIVE RUBRIC):
+CONFIDENCE LEVEL CRITERIA FOR SCALPING (OBJECTIVE RUBRIC):
 
 HIGH confidence requires ALL of the following:
-✓ All 5 timeframes (72h, 14d, 30d, 90d, 6mo) aligned in same direction
-✓ Price at key technical level (major support/resistance, Fibonacci level)
-✓ **MULTI-TIMEFRAME SUPPORT/RESISTANCE CONFIRMATION**: Support/resistance levels MUST align across at least 3 timeframes (e.g., 14d, 30d, 90d all show support at ~same level)
-✓ **ENTRY POSITION**: Price must be within 2% ABOVE support, NOT near resistance (prevents buying at peaks)
-✓ **STOP LOSS VALIDATION**: Proposed stop loss respects minimum ATR/volatility distance requirements
+✓ **IMMEDIATE ENTRY SETUP**: 4-hour chart shows current price at clear technical level (bounce, breakout, support/resistance test)
+✓ **BUY_IN_PRICE PROXIMITY**: Your recommended buy_in_price must be within 0.3-1.0% of current price
+✓ **RECENT MOMENTUM**: 72-hour chart confirms direction and shows clean price action (not choppy)
+✓ **TIMEFRAME ALIGNMENT**: All timeframes (4h, 72h, 14d, 30d, 90d, 6mo) aligned in same direction
+✓ **CLEAR PATH TO TARGET**: No major resistance within 2% on 30d/90d/6mo charts that would block profit target
+✓ **MULTI-TIMEFRAME SUPPORT/RESISTANCE**: Key level visible across at least 3 timeframes (e.g., 72h, 14d, 30d all show support at ~same level)
+✓ **ENTRY POSITION**: Current price must be within 1% ABOVE support, NOT near resistance (prevents buying at peaks)
+✓ **STOP LOSS VALIDATION**: Stop loss below clear technical level, respecting ATR/volatility
 ✓ Volume confirms the setup (above average on bullish setups, spike at support)
-✓ Risk/reward ratio >= 3.0 (preferably 3.5+)
-✓ No major resistance within profit target range on any timeframe
-✓ RSI supports direction (not overbought on longs, not oversold on shorts)
-✓ Historical data shows similar setups succeeded (if historical context available)
-✓ Multiple technical confirmations (e.g., MACD cross + support bounce + volume)
-✓ **RANGE STRATEGY ALIGNMENT**: If range support strategy shows price IN a support zone with 3+ touches, this INCREASES confidence. If price is NOT in a support zone, you may still trade if other signals are exceptionally strong, but consider reducing confidence to MEDIUM unless setup is very compelling.
+✓ Risk/reward ratio >= 2.5 (for scalping, we accept slightly lower R:R if setup is very clear)
+✓ RSI supports direction (not overbought >70 on longs)
+✓ Multiple technical confirmations on 4h/72h charts (e.g., support bounce + volume + RSI reversal)
 
 MEDIUM confidence (DO NOT TRADE - per requirement #4):
 - Some but not all HIGH confidence criteria met
@@ -406,11 +430,11 @@ Output ONLY valid JSON with no markdown formatting or explanatory text outside t
                     }
                 ]
 
-                # Add charts in order: 14d (high detail - primary execution), 30d (high - trend), 90d (high - extended trend), 72h (high - timing), 6mo (low - macro context), volume_snapshots (low - context)
-                # This prioritizes the most important timeframes while saving tokens on context
-                # 14d = immediate swing context, 30d = recent trend, 90d = extended trend, 72h = entry timing, 6mo = big picture, volume_snapshots = volume context
-                timeframe_order = ['14_day', '30_day', '90_day', '72_hour', '6_month', 'volume_snapshot']
-                detail_levels = {'14_day': 'high', '30_day': 'high', '90_day': 'high', '72_hour': 'high', '6_month': 'low', 'volume_snapshot': 'low'}
+                # Add charts in SCALPING priority order: 4h (PRIMARY), 72h (PRIMARY), 14d, 30d, 90d, 6mo, volume
+                # This prioritizes short-term charts for immediate entry decisions
+                # 4h = micro entry timing (most critical), 72h = recent momentum, 14d = swing context, 30d/90d = trend, 6mo = major levels
+                timeframe_order = ['4h', '72h', '14d', '30d', '90d', '6mo', 'volume_snapshots']
+                detail_levels = {'4h': 'high', '72h': 'high', '14d': 'high', '30d': 'high', '90d': 'low', '6mo': 'low', 'volume_snapshots': 'low'}
 
                 for timeframe in timeframe_order:
                     if timeframe in chart_paths and chart_paths[timeframe] and os.path.exists(chart_paths[timeframe]):
@@ -793,8 +817,8 @@ VALIDATION:
         if chart_paths and isinstance(chart_paths, dict):
             content_array = [{"type": "text", "text": prompt}]
 
-            # Priority order: 72h (immediate), 14d (swing), 30d (trend validation)
-            timeframe_order = ['72_hour', '14_day', '30_day']
+            # Priority order for post-fill: 4h (immediate), 72h (recent), 14d (swing)
+            timeframe_order = ['4h', '72h', '14d']
 
             for timeframe in timeframe_order:
                 if timeframe in chart_paths and chart_paths[timeframe] and os.path.exists(chart_paths[timeframe]):

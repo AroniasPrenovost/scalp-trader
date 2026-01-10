@@ -658,7 +658,7 @@ def plot_multi_timeframe_charts(
 ):
     """
     Generate multiple charts at different timeframes for LLM analysis by resampling data.
-    Creates 5 price charts: 72h, 14d, 30d, 90d, and 6mo views using ALL available data.
+    Creates 6 price charts optimized for SCALPING: 4h, 72h, 14d, 30d, 90d, and 6mo views.
     Also creates a dedicated volume snapshot chart showing rolling 24h volume trends.
 
     Args:
@@ -672,11 +672,12 @@ def plot_multi_timeframe_charts(
     Returns:
         Dictionary with paths to generated charts:
         {
-            '72h': path to 72-hour chart,
-            '14d': path to 14-day chart,
-            '30d': path to 30-day chart,
-            '90d': path to 90-day chart,
-            '6mo': path to 6-month chart,
+            '4h': path to 4-hour chart (micro entry timing),
+            '72h': path to 72-hour chart (recent conditions),
+            '14d': path to 14-day chart (swing momentum),
+            '30d': path to 30-day chart (recent trend),
+            '90d': path to 90-day chart (extended trend),
+            '6mo': path to 6-month chart (macro context),
             'volume_snapshots': path to rolling 24h volume snapshot chart (if volume_data provided)
         }
     """
@@ -701,30 +702,25 @@ def plot_multi_timeframe_charts(
         print(f"  Skipping all charts: insufficient data ({len(price_data)} points, need at least 10)")
         return {}
 
-    # Optimized timeframes based on senior developer recommendations for effective AI analysis:
-    # 1. Full 6-Month View: Macro trends, major support/resistance, long-term patterns
-    # 2. 90-Day View: Extended trend analysis, quarterly patterns
-    # 3. 30-Day View: Recent trend analysis, medium-term momentum
-    # 4. 14-Day View: Short-term swing momentum, entry/exit timing
-    # 5. 72-Hour View: Recent market conditions with better context, entry/exit timing
+    # Optimized timeframes for SCALPING strategy (targeting 1.5-2% moves within hours):
+    # 1. 4-Hour View: Micro-level entry timing, precise support/resistance for scalping
+    # 2. 72-Hour View: Recent market conditions with better context, entry/exit timing
+    # 3. 14-Day View: Short-term swing momentum, entry/exit timing
+    # 4. 30-Day View: Recent trend analysis, medium-term momentum
+    # 5. 90-Day View: Extended trend analysis, quarterly patterns
+    # 6. Full 6-Month View: Macro trends, major support/resistance, long-term patterns
     timeframes = {
-        '6mo': {
-            'hours': 1,  # Use 1h candles for full 6-month historical view
-            'label': '6mo',
-            'title_suffix': '6 Month Full History - Macro Trends',
-            'lookback_hours': 4380  # Full 6 months (182.5 days)
+        '4h': {
+            'hours': 1,  # Use 1h candles for 4-hour view (shows last 4 hours of price action)
+            'label': '4h',
+            'title_suffix': '4 Hour View - Micro Entry Timing',
+            'lookback_hours': 4  # Last 4 hours
         },
-        '90d': {
-            'hours': 1,  # Use 1h candles for 90-day view
-            'label': '90d',
-            'title_suffix': '90 Day View - Extended Trend Analysis',
-            'lookback_hours': 2160  # 90 days
-        },
-        '30d': {
-            'hours': 1,  # Use 1h candles for 30-day view
-            'label': '30d',
-            'title_suffix': '30 Day View - Recent Trend Analysis',
-            'lookback_hours': 720  # 30 days
+        '72h': {
+            'hours': 1,  # Use 1h candles for 72-hour view
+            'label': '72h',
+            'title_suffix': '72 Hour View - Recent Market Conditions',
+            'lookback_hours': 72  # 3 days
         },
         '14d': {
             'hours': 1,  # Use 1h candles for 14-day view
@@ -732,11 +728,23 @@ def plot_multi_timeframe_charts(
             'title_suffix': '14 Day View - Short-term Swing Momentum',
             'lookback_hours': 336  # 14 days
         },
-        '72h': {
-            'hours': 1,  # Use 1h candles for 72-hour view
-            'label': '72h',
-            'title_suffix': '72 Hour View - Recent Market Conditions',
-            'lookback_hours': 72  # 3 days
+        '30d': {
+            'hours': 1,  # Use 1h candles for 30-day view
+            'label': '30d',
+            'title_suffix': '30 Day View - Recent Trend Analysis',
+            'lookback_hours': 720  # 30 days
+        },
+        '90d': {
+            'hours': 1,  # Use 1h candles for 90-day view
+            'label': '90d',
+            'title_suffix': '90 Day View - Extended Trend Analysis',
+            'lookback_hours': 2160  # 90 days
+        },
+        '6mo': {
+            'hours': 1,  # Use 1h candles for full 6-month historical view
+            'label': '6mo',
+            'title_suffix': '6 Month Full History - Macro Trends',
+            'lookback_hours': 4380  # Full 6 months (182.5 days)
         }
     }
 

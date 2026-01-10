@@ -691,9 +691,11 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
 
                         # Score all opportunities for the report
                         all_opportunities = []
+                        current_prices = {}
                         for symbol in enabled_wallets:
                             try:
                                 current_price = get_asset_price(coinbase_client, symbol)
+                                current_prices[symbol] = current_price
                                 coin_prices_list = get_property_values_from_crypto_file(
                                     coinbase_data_directory, symbol, 'price', max_age_hours=DATA_RETENTION_HOURS
                                 )
@@ -718,7 +720,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 print(f"  Error scoring {symbol}: {e}")
                                 continue
 
-                        print_opportunity_report(all_opportunities, best_opportunity, racing_opportunities)
+                        print_opportunity_report(all_opportunities, best_opportunity, racing_opportunities, current_prices)
 
                     if best_opportunity:
                         best_opportunity_symbol = best_opportunity['symbol']
@@ -834,18 +836,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                         print(f"{'='*100}{Colors.ENDC}")
                         format_wallet_metrics(symbol, wallet_metrics)
                         print(f"{Colors.CYAN}📊 Monitoring other assets in background for next opportunity after exit{Colors.ENDC}\n")
-                    elif is_racing_opportunity:
-                        opp_index = next((i+1 for i, opp in enumerate(racing_opportunities) if opp['symbol'] == symbol), 0)
-                        print(f"\n{Colors.BOLD}{Colors.YELLOW}{'='*100}")
-                        print(f"  🏁 RACING OPPORTUNITY #{opp_index}: {symbol} - Monitoring for Entry")
-                        print(f"{'='*100}{Colors.ENDC}")
-                        format_wallet_metrics(symbol, wallet_metrics)
-                    elif market_rotation_enabled and symbol == best_opportunity_symbol:
-                        print(f"\n{Colors.BOLD}{Colors.GREEN}{'='*100}")
-                        print(f"  🎯 SELECTED OPPORTUNITY: {symbol} - Evaluating Entry")
-                        print(f"{'='*100}{Colors.ENDC}")
-                        format_wallet_metrics(symbol, wallet_metrics)
-                    # Else: silent monitoring - no output for non-selected opportunities
+                    # Silent monitoring for all opportunities - no verbose output
 
                     # MARKET ROTATION: Only ENTER trades on the best opportunity or racing opportunities
                     # But we still analyze every wallet to:
@@ -2374,42 +2365,6 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                 print(f"{Colors.CYAN}{'-'*100}{Colors.ENDC}")
                 print(f"  {Colors.BOLD}LIFETIME TOTAL:      | {lifetime_color}${total_lifetime_profit:>+8.2f}{Colors.ENDC}{Colors.BOLD}{Colors.ENDC}")
                 print(f"{Colors.CYAN}{'='*100}{Colors.ENDC}\n")
-
-                #
-                #
-                # ITERATION SUMMARY: Show status of all positions and next action
-                if market_rotation_enabled:
-                    print(f"\n{Colors.BOLD}{Colors.CYAN}{'='*100}")
-                    print(f"  📋 ITERATION SUMMARY")
-                    print(f"{'='*100}{Colors.ENDC}")
-
-                    # Count active positions
-                    current_active_positions = []
-                    for symbol in enabled_wallets:
-                        last_order = get_last_order_from_local_json_ledger(symbol)
-                        last_order_type = detect_stored_coinbase_order_type(last_order)
-                        if last_order_type in ['placeholder', 'buy']:
-                            current_active_positions.append(symbol)
-
-                    if current_active_positions:
-                        print(f"  {Colors.GREEN}🔥 ACTIVE POSITION(S): {', '.join(current_active_positions)}{Colors.ENDC}")
-                        print(f"  {Colors.CYAN}💰 Capital Status: DEPLOYED (managing position){Colors.ENDC}")
-                        if best_opportunity and best_opportunity['score'] >= market_rotation_config.get('min_opportunity_score', 50):
-                            print(f"  {Colors.YELLOW}🎯 Next Opportunity Queued: {best_opportunity['symbol']} (score: {best_opportunity['score']:.1f}){Colors.ENDC}")
-                            print(f"  {Colors.YELLOW}⏭  Will trade immediately after current position exits{Colors.ENDC}")
-                        else:
-                            print(f"  {Colors.YELLOW}🔎 Monitoring {len(enabled_wallets)} assets for next opportunity{Colors.ENDC}")
-                    else:
-                        if best_opportunity_symbol:
-                            print(f"  {Colors.GREEN}✅ Ready to Trade: {best_opportunity_symbol}{Colors.ENDC}")
-                            print(f"  {Colors.CYAN}💰 Capital Status: READY ($3,000 available){Colors.ENDC}")
-                        else:
-                            print(f"  {Colors.YELLOW}⏸  No Strong Opportunities Currently{Colors.ENDC}")
-                            print(f"  {Colors.CYAN}💰 Capital Status: IDLE (waiting for quality setup){Colors.ENDC}")
-                            print(f"  {Colors.CYAN}🔎 Monitoring {len(enabled_wallets)} assets: {', '.join(enabled_wallets)}{Colors.ENDC}")
-
-                    print(f"  {Colors.CYAN}⏰ Next scan in {check_interval_seconds/60:.0f} minutes{Colors.ENDC}")
-                    print(f"{Colors.CYAN}{'='*100}{Colors.ENDC}\n")
 
                 #
                 #

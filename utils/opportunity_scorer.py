@@ -300,7 +300,7 @@ def find_best_opportunity(config, coinbase_client, enabled_symbols, interval_sec
         return tradeable[0]
 
 
-def print_opportunity_report(opportunities_list, best_opportunity=None, racing_opportunities=None):
+def print_opportunity_report(opportunities_list, best_opportunity=None, racing_opportunities=None, current_prices=None):
     """
     Print a formatted report of all opportunities and highlight the best one.
 
@@ -308,9 +308,12 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
         opportunities_list: List of all scored opportunities
         best_opportunity: The selected best opportunity (optional)
         racing_opportunities: List of racing opportunities being monitored (optional)
+        current_prices: Dict mapping symbol to current price (optional)
     """
     if racing_opportunities is None:
         racing_opportunities = []
+    if current_prices is None:
+        current_prices = {}
     from utils.time_helpers import print_local_time
 
     print("\n" + "="*120)
@@ -323,8 +326,8 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
     sorted_opps = sorted(opportunities_list, key=lambda x: x['score'], reverse=True)
 
     # Print summary table with new columns
-    print(f"{'Rank':<6} {'Symbol':<12} {'Score':<8} {'Signal':<12} {'Strategy':<18} {'Trend':<12} {'AI':<8} {'Age':<10} {'Expires':<10} {'Status':<20}")
-    print("-"*120)
+    print(f"{'Rank':<6} {'Symbol':<12} {'Score':<8} {'Signal':<12} {'Strategy':<18} {'Trend':<12} {'AI':<8} {'Age':<10} {'Expires':<10} {'Price Δ':<12} {'Status':<20}")
+    print("-"*132)
 
     for i, opp in enumerate(sorted_opps, 1):
         rank = f"#{i}"
@@ -359,6 +362,15 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
         else:
             refresh_str = "-"
 
+        # Price change since analysis
+        price_change_str = "-"
+        if symbol in current_prices and opp.get('entry_price'):
+            current_price = current_prices[symbol]
+            entry_price = opp['entry_price']
+            if current_price and entry_price:
+                price_change_pct = ((current_price - entry_price) / entry_price) * 100
+                price_change_str = f"{price_change_pct:+.2f}%"
+
         # Status
         if not opp['can_trade']:
             status = "Position Open"
@@ -381,7 +393,7 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
 
         # Highlight selected opportunity with arrow
         prefix = "→" if best_opportunity and opp['symbol'] == best_opportunity['symbol'] else " "
-        print(f"{prefix} {rank:<4} {symbol:<12} {score:<8} {signal:<12} {strategy:<18} {trend:<12} {ai_indicator:<8} {age_str:<10} {refresh_str:<10} {status:<20} {indicator}")
+        print(f"{prefix} {rank:<4} {symbol:<12} {score:<8} {signal:<12} {strategy:<18} {trend:<12} {ai_indicator:<8} {age_str:<10} {refresh_str:<10} {price_change_str:<12} {status:<20} {indicator}")
 
     print()
 
