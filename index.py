@@ -531,6 +531,9 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                             min_score=min_score
                         )
 
+                    # Track which coins we refresh to avoid double analysis in main loop
+                    refreshed_in_proactive_loop = set()
+
                     # Optionally print detailed report
                     if market_rotation_config.get('print_opportunity_report', True):
                         # PROACTIVE REFRESH: Check if any analyses need refresh before scoring
@@ -680,6 +683,8 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                         if analysis:
                                             save_analysis_to_file(symbol, analysis)
                                             print(f"  ✓ Analysis refreshed for {symbol}")
+                                            # Mark this coin as refreshed to avoid double analysis in main loop
+                                            refreshed_in_proactive_loop.add(symbol)
                             except Exception as e:
                                 import traceback
                                 print(f"  ⚠️  Error refreshing {symbol}: {e}")
@@ -800,6 +805,9 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                         #     print(f"   Waiting for market conditions to improve")
                         # print()
                         racing_opportunities = []  # Clear racing opportunities
+                else:
+                    # Market rotation disabled - no proactive refresh needed
+                    refreshed_in_proactive_loop = set()
 
                 for coin in coinbase_data_dictionary:
                     # set data from coinbase data
@@ -980,16 +988,22 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 prune_old_transactions(symbol, keep_count=prune_old_trades_after)
 
                     # Check if we need to generate new analysis
-                    should_refresh = should_refresh_analysis(
-                        symbol,
-                        last_order_type,
-                        no_trade_refresh_hours,
-                        low_confidence_wait_hours,
-                        medium_confidence_wait_hours,
-                        high_confidence_max_age_hours,
-                        coin_data=coin_data,
-                        config=config
-                    )
+                    # Skip if already refreshed in proactive loop to avoid double analysis
+                    if market_rotation_enabled and symbol in refreshed_in_proactive_loop:
+                        should_refresh = False
+                        if show_detailed_logs:
+                            print(f"Using recently refreshed analysis from proactive loop (skipping duplicate refresh)")
+                    else:
+                        should_refresh = should_refresh_analysis(
+                            symbol,
+                            last_order_type,
+                            no_trade_refresh_hours,
+                            low_confidence_wait_hours,
+                            medium_confidence_wait_hours,
+                            high_confidence_max_age_hours,
+                            coin_data=coin_data,
+                            config=config
+                        )
 
                     if should_refresh and not ENABLE_AI_ANALYSIS:
                         print(f"AI analysis is disabled for {symbol} - skipping analysis generation")

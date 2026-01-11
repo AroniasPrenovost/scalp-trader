@@ -939,7 +939,8 @@ def should_refresh_analysis(symbol, last_order_type, no_trade_refresh_hours=1, l
 
         # Enforce minimum cooldown period before allowing dynamic refresh
         # This prevents constant refreshes immediately after a fresh analysis
-        minimum_cooldown_hours = 0.1  # 6 minutes minimum between refreshes
+        # Dynamic refresh checks RSI extremes, volume spikes, price changes, etc.
+        minimum_cooldown_hours = config.get('no_trade_dynamic_refresh_min_cooldown_hours', 2.25) if config else 2.25
 
         if hours_since_analysis < minimum_cooldown_hours:
             # Too soon after last analysis - skip dynamic checks entirely
