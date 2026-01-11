@@ -82,7 +82,8 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
         'amr_signal': None,
         'ai_validation': None,
         'analysis_age_hours': None,
-        'next_refresh_hours': None
+        'next_refresh_hours': None,
+        'analysis_price': None  # Price at time of AI analysis
     }
 
     # Check if we already have a position open for this asset
@@ -124,6 +125,10 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
             'reasoning': ai_analysis.get('reasoning', ''),
             'enforced': ai_analysis.get('adaptive_strategy_enforced', False)
         }
+
+        # Store the price at time of analysis (for price delta calculations)
+        # Fallback to buy_in_price for older analyses that don't have analysis_price yet
+        result['analysis_price'] = ai_analysis.get('analysis_price') or ai_analysis.get('buy_in_price')
 
         # Calculate analysis age and next refresh time
         analyzed_at = ai_analysis.get('analyzed_at', 0)
@@ -300,7 +305,7 @@ def find_best_opportunity(config, coinbase_client, enabled_symbols, interval_sec
         return tradeable[0]
 
 
-def print_opportunity_report(opportunities_list, best_opportunity=None, racing_opportunities=None, current_prices=None):
+def print_opportunity_report(opportunities_list, best_opportunity=None, racing_opportunities=None, current_prices=None, exchange_fee_percentage=1.2, tax_rate_percentage=37, trading_capital_usd=100):
     """
     Print a formatted report of all opportunities and highlight the best one.
 
@@ -309,6 +314,9 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
         best_opportunity: The selected best opportunity (optional)
         racing_opportunities: List of racing opportunities being monitored (optional)
         current_prices: Dict mapping symbol to current price (optional)
+        exchange_fee_percentage: Exchange fee percentage (default 1.2%)
+        tax_rate_percentage: Tax rate percentage (default 37%)
+        trading_capital_usd: Trading capital in USD (default 100)
     """
     if racing_opportunities is None:
         racing_opportunities = []
@@ -326,8 +334,8 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
     sorted_opps = sorted(opportunities_list, key=lambda x: x['score'], reverse=True)
 
     # Print summary table with new columns
-    print(f"{'Rank':<6} {'Symbol':<12} {'Score':<8} {'Signal':<12} {'Strategy':<18} {'Trend':<12} {'AI':<8} {'Age':<10} {'Expires':<10} {'Price Δ':<12} {'Status':<20}")
-    print("-"*132)
+    print(f"{'Rank':<6} {'Symbol':<12} {'Score':<8} {'Signal':<12} {'Strategy':<18} {'Trend':<12} {'AI':<8} {'Age':<10} {'Expires':<10} {'Price Δ':<12} {'Net Profit $':<14} {'Status':<20}")
+    print("-"*146)
 
     for i, opp in enumerate(sorted_opps, 1):
         rank = f"#{i}"
@@ -364,12 +372,55 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
 
         # Price change since analysis
         price_change_str = "-"
-        if symbol in current_prices and opp.get('entry_price'):
+        if symbol in current_prices and opp.get('analysis_price'):
             current_price = current_prices[symbol]
-            entry_price = opp['entry_price']
-            if current_price and entry_price:
-                price_change_pct = ((current_price - entry_price) / entry_price) * 100
-                price_change_str = f"{price_change_pct:+.2f}%"
+            analysis_price = opp['analysis_price']
+            if current_price and analysis_price:
+                price_change_pct = ((current_price - analysis_price) / analysis_price) * 100
+                # Format without color first to get the base string
+                base_str = f"{price_change_pct:+.2f}%"
+                # Add color codes
+                if price_change_pct > 0:
+                    price_change_str = f"\033[92m{base_str}\033[0m"  # GREEN
+                elif price_change_pct < 0:
+                    price_change_str = f"\033[91m{base_str}\033[0m"  # RED
+                else:
+                    price_change_str = base_str
+
+        # Net profit delta in USD (accounting for fees and taxes)
+        net_profit_str = "-"
+        if symbol in current_prices and opp.get('analysis_price'):
+            current_price = current_prices[symbol]
+            analysis_price = opp['analysis_price']
+            if current_price and analysis_price:
+                # Gross price change percentage
+                gross_pct = ((current_price - analysis_price) / analysis_price) * 100
+
+                # Calculate net profit after fees and taxes
+                # Fees: 2 * exchange_fee_percentage (buy + sell)
+                total_fees_pct = 2 * exchange_fee_percentage
+
+                # Net profit = gross - fees - (taxes on profit portion)
+                # Simplified: For small moves, approximate as gross - fees - (tax_rate * gross if positive)
+                if gross_pct > 0:
+                    # On profitable trade: subtract fees and taxes on the profit
+                    net_profit_pct = gross_pct - total_fees_pct - (tax_rate_percentage / 100 * gross_pct)
+                else:
+                    # On losing trade: just subtract fees (no taxes on losses in this context)
+                    net_profit_pct = gross_pct - total_fees_pct
+
+                # Convert to USD based on trading capital
+                net_profit_usd = (net_profit_pct / 100) * trading_capital_usd
+
+                # Format without color first to get the base string
+                base_str = f"{net_profit_usd:+.2f}"
+                # Add color codes
+                if net_profit_usd > 0:
+                    net_profit_str = f"\033[92m{base_str}\033[0m"  # GREEN
+                elif net_profit_usd < 0:
+                    net_profit_str = f"\033[91m{base_str}\033[0m"  # RED
+                else:
+                    net_profit_str = base_str
 
         # Status
         if not opp['can_trade']:
@@ -391,9 +442,26 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
             indicator = "🏎️"
         # else: show nothing (blank)
 
+        # Pad colored strings manually (ANSI codes mess up alignment)
+        # Calculate visible length (excluding ANSI codes)
+        def visible_len(s):
+            import re
+            # Remove ANSI escape codes to get visible length
+            return len(re.sub(r'\033\[[0-9;]+m', '', s))
+
+        def pad_colored(s, width):
+            # Pad string to width, accounting for ANSI codes
+            visible = visible_len(s)
+            padding_needed = width - visible
+            return s + (' ' * padding_needed) if padding_needed > 0 else s
+
+        # Apply padding to colored strings
+        price_change_padded = pad_colored(price_change_str, 12)
+        net_profit_padded = pad_colored(net_profit_str, 14)
+
         # Highlight selected opportunity with arrow
         prefix = "→" if best_opportunity and opp['symbol'] == best_opportunity['symbol'] else " "
-        print(f"{prefix} {rank:<4} {symbol:<12} {score:<8} {signal:<12} {strategy:<18} {trend:<12} {ai_indicator:<8} {age_str:<10} {refresh_str:<10} {price_change_str:<12} {status:<20} {indicator}")
+        print(f"{prefix} {rank:<4} {symbol:<12} {score:<8} {signal:<12} {strategy:<18} {trend:<12} {ai_indicator:<8} {age_str:<10} {refresh_str:<10} {price_change_padded} {net_profit_padded} {status:<20} {indicator}")
 
     print()
 

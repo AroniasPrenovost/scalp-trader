@@ -720,7 +720,8 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 print(f"  Error scoring {symbol}: {e}")
                                 continue
 
-                        print_opportunity_report(all_opportunities, best_opportunity, racing_opportunities, current_prices)
+                        trading_capital = market_rotation_config.get('total_trading_capital_usd', 100)
+                        print_opportunity_report(all_opportunities, best_opportunity, racing_opportunities, current_prices, coinbase_spot_taker_fee, federal_tax_rate, trading_capital)
 
                     if best_opportunity:
                         best_opportunity_symbol = best_opportunity['symbol']
