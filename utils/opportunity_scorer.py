@@ -334,8 +334,11 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
     sorted_opps = sorted(opportunities_list, key=lambda x: x['score'], reverse=True)
 
     # Print summary table with new columns
-    print(f"{'Rank':<6} {'Symbol':<12} {'Score':<8} {'Signal':<12} {'Strategy':<18} {'Trend':<12} {'AI':<8} {'Age':<10} {'Expires':<10} {'Price Δ':<12} {'Gross Profit $':<16} \033[1m\033[96m{'Net Profit $':<14}\033[0m {'Status':<20}")
-    print("-"*162)
+    # Show what capital the profit columns are based on
+    gross_header = f"Gross $ (${trading_capital_usd:.0f})"
+    net_header = f"Net $ (${trading_capital_usd:.0f})"
+    print(f"{'Rank':<6} {'Symbol':<12} {'Score':<8} {'Signal':<12} {'Strategy':<18} {'Trend':<12} {'AI':<8} {'Age':<10} {'Expires':<10} {'Price Δ':<12} {gross_header:<20} \033[1m\033[96m{net_header:<18}\033[0m {'Status':<20}")
+    print("-"*170)
 
     for i, opp in enumerate(sorted_opps, 1):
         rank = f"#{i}"
@@ -477,10 +480,10 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
             padding_needed = width - visible
             return s + (' ' * padding_needed) if padding_needed > 0 else s
 
-        # Apply padding to colored strings
+        # Apply padding to colored strings (adjusted for new header widths)
         price_change_padded = pad_colored(price_change_str, 12)
-        gross_profit_padded = pad_colored(gross_profit_str, 16)
-        net_profit_padded = pad_colored(net_profit_str, 14)
+        gross_profit_padded = pad_colored(gross_profit_str, 20)  # Increased from 16 to 20
+        net_profit_padded = pad_colored(net_profit_str, 18)  # Increased from 14 to 18
 
         # Highlight selected opportunity with arrow
         prefix = "→" if best_opportunity and opp['symbol'] == best_opportunity['symbol'] else " "
