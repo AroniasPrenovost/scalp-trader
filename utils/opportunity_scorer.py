@@ -334,8 +334,8 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
     sorted_opps = sorted(opportunities_list, key=lambda x: x['score'], reverse=True)
 
     # Print summary table with new columns
-    print(f"{'Rank':<6} {'Symbol':<12} {'Score':<8} {'Signal':<12} {'Strategy':<18} {'Trend':<12} {'AI':<8} {'Age':<10} {'Expires':<10} {'Price Δ':<12} {'Net Profit $':<14} {'Status':<20}")
-    print("-"*146)
+    print(f"{'Rank':<6} {'Symbol':<12} {'Score':<8} {'Signal':<12} {'Strategy':<18} {'Trend':<12} {'AI':<8} {'Age':<10} {'Expires':<10} {'Price Δ':<12} {'Gross Profit $':<16} \033[1m\033[96m{'Net Profit $':<14}\033[0m {'Status':<20}")
+    print("-"*162)
 
     for i, opp in enumerate(sorted_opps, 1):
         rank = f"#{i}"
@@ -387,6 +387,28 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
                 else:
                     price_change_str = base_str
 
+        # Gross profit in USD (price change from entry to current, before fees/taxes)
+        gross_profit_str = "-"
+        if symbol in current_prices and opp.get('analysis_price'):
+            current_price = current_prices[symbol]
+            analysis_price = opp['analysis_price']
+            if current_price and analysis_price:
+                # Gross price change percentage
+                gross_pct = ((current_price - analysis_price) / analysis_price) * 100
+
+                # Convert to USD based on trading capital
+                gross_profit_usd = (gross_pct / 100) * trading_capital_usd
+
+                # Format without color first to get the base string
+                base_str = f"{gross_profit_usd:+.2f}"
+                # Add color codes
+                if gross_profit_usd > 0:
+                    gross_profit_str = f"\033[92m{base_str}\033[0m"  # GREEN
+                elif gross_profit_usd < 0:
+                    gross_profit_str = f"\033[91m{base_str}\033[0m"  # RED
+                else:
+                    gross_profit_str = base_str
+
         # Net profit delta in USD (accounting for fees and taxes)
         net_profit_str = "-"
         if symbol in current_prices and opp.get('analysis_price'):
@@ -414,13 +436,13 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
 
                 # Format without color first to get the base string
                 base_str = f"{net_profit_usd:+.2f}"
-                # Add color codes
+                # Add color codes - brighter colors for better visibility
                 if net_profit_usd > 0:
-                    net_profit_str = f"\033[92m{base_str}\033[0m"  # GREEN
+                    net_profit_str = f"\033[1m\033[92m{base_str}\033[0m"  # BOLD BRIGHT GREEN
                 elif net_profit_usd < 0:
-                    net_profit_str = f"\033[91m{base_str}\033[0m"  # RED
+                    net_profit_str = f"\033[1m\033[91m{base_str}\033[0m"  # BOLD BRIGHT RED
                 else:
-                    net_profit_str = base_str
+                    net_profit_str = f"\033[1m{base_str}\033[0m"  # BOLD for neutral
 
         # Status
         if not opp['can_trade']:
@@ -457,11 +479,12 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
 
         # Apply padding to colored strings
         price_change_padded = pad_colored(price_change_str, 12)
+        gross_profit_padded = pad_colored(gross_profit_str, 16)
         net_profit_padded = pad_colored(net_profit_str, 14)
 
         # Highlight selected opportunity with arrow
         prefix = "→" if best_opportunity and opp['symbol'] == best_opportunity['symbol'] else " "
-        print(f"{prefix} {rank:<4} {symbol:<12} {score:<8} {signal:<12} {strategy:<18} {trend:<12} {ai_indicator:<8} {age_str:<10} {refresh_str:<10} {price_change_padded} {net_profit_padded} {status:<20} {indicator}")
+        print(f"{prefix} {rank:<4} {symbol:<12} {score:<8} {signal:<12} {strategy:<18} {trend:<12} {ai_indicator:<8} {age_str:<10} {refresh_str:<10} {price_change_padded} {gross_profit_padded} {net_profit_padded} {status:<20} {indicator}")
 
     print()
 

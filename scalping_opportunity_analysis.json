@@ -1,0 +1,475 @@
+{
+  "analysis_date": "2026-01-10T20:43:45.444378",
+  "results": {
+    "LINK-USD": {
+      "analysis": {
+        "best_hours": [
+          [
+            5,
+            102
+          ],
+          [
+            4,
+            101
+          ],
+          [
+            18,
+            98
+          ],
+          [
+            6,
+            97
+          ],
+          [
+            7,
+            96
+          ]
+        ],
+        "avg_volatility_when_opportunity": 6.1054882645668735,
+        "min_volatility": 1.047292246989221,
+        "max_volatility": 35.70630639017951,
+        "opportunities_with_positive_momentum": 1041,
+        "opportunities_with_negative_momentum": 1058,
+        "opportunities_near_low": 817,
+        "opportunities_near_high": 720,
+        "opportunities_mid_range": 562,
+        "avg_hours_to_target": 1.9637922820390663,
+        "fast_moves_1h": 952,
+        "fast_moves_2h": 1488,
+        "avg_global_volume_change": 0.30132280042594906,
+        "opportunities_with_global_volume_spike": 35,
+        "avg_coinbase_volume_change": 0.2578534808033469,
+        "opportunities_with_coinbase_volume_spike": 35,
+        "avg_hourly_change_before_opp": -0.01966779851831772,
+        "after_small_dip": 660,
+        "after_small_pump": 574,
+        "after_consolidation": 473
+      },
+      "total_opportunities": 2099,
+      "total_hours": 4296
+    },
+    "AVAX-USD": {
+      "analysis": {
+        "best_hours": [
+          [
+            5,
+            100
+          ],
+          [
+            18,
+            97
+          ],
+          [
+            7,
+            93
+          ],
+          [
+            8,
+            93
+          ],
+          [
+            4,
+            91
+          ]
+        ],
+        "avg_volatility_when_opportunity": 5.983381183060617,
+        "min_volatility": 1.277434933707676,
+        "max_volatility": 36.93630182756468,
+        "opportunities_with_positive_momentum": 1017,
+        "opportunities_with_negative_momentum": 1039,
+        "opportunities_near_low": 797,
+        "opportunities_near_high": 690,
+        "opportunities_mid_range": 569,
+        "avg_hours_to_target": 1.9892996108949417,
+        "fast_moves_1h": 883,
+        "fast_moves_2h": 1450,
+        "avg_global_volume_change": 0.20703915782293272,
+        "opportunities_with_global_volume_spike": 55,
+        "avg_coinbase_volume_change": 0.20703915782293272,
+        "opportunities_with_coinbase_volume_spike": 55,
+        "avg_hourly_change_before_opp": -0.006745484116216378,
+        "after_small_dip": 577,
+        "after_small_pump": 571,
+        "after_consolidation": 519
+      },
+      "total_opportunities": 2056,
+      "total_hours": 4296
+    },
+    "BTC-USD": {
+      "analysis": {
+        "best_hours": [
+          [
+            5,
+            64
+          ],
+          [
+            6,
+            62
+          ],
+          [
+            7,
+            57
+          ],
+          [
+            8,
+            56
+          ],
+          [
+            10,
+            56
+          ]
+        ],
+        "avg_volatility_when_opportunity": 2.8351500548822313,
+        "min_volatility": 0.34179394158532334,
+        "max_volatility": 11.836309151383198,
+        "opportunities_with_positive_momentum": 541,
+        "opportunities_with_negative_momentum": 560,
+        "opportunities_near_low": 432,
+        "opportunities_near_high": 368,
+        "opportunities_mid_range": 301,
+        "avg_hours_to_target": 2.3751135331516804,
+        "fast_moves_1h": 298,
+        "fast_moves_2h": 601,
+        "avg_global_volume_change": 0.6048527022301639,
+        "opportunities_with_global_volume_spike": 36,
+        "avg_coinbase_volume_change": 0.6048527022301639,
+        "opportunities_with_coinbase_volume_spike": 36,
+        "avg_hourly_change_before_opp": -0.017216550260477127,
+        "after_small_dip": 261,
+        "after_small_pump": 264,
+        "after_consolidation": 515
+      },
+      "total_opportunities": 1101,
+      "total_hours": 4296
+    },
+    "SOL-USD": {
+      "analysis": {
+        "best_hours": [
+          [
+            17,
+            101
+          ],
+          [
+            5,
+            100
+          ],
+          [
+            18,
+            100
+          ],
+          [
+            13,
+            94
+          ],
+          [
+            16,
+            94
+          ]
+        ],
+        "avg_volatility_when_opportunity": 5.3342859997014145,
+        "min_volatility": 0.9841577249675928,
+        "max_volatility": 21.92389933821158,
+        "opportunities_with_positive_momentum": 999,
+        "opportunities_with_negative_momentum": 1038,
+        "opportunities_near_low": 772,
+        "opportunities_near_high": 740,
+        "opportunities_mid_range": 525,
+        "avg_hours_to_target": 2.014236622484045,
+        "fast_moves_1h": 850,
+        "fast_moves_2h": 1406,
+        "avg_global_volume_change": 0.3858377771535151,
+        "opportunities_with_global_volume_spike": 50,
+        "avg_coinbase_volume_change": 0.3858377771535151,
+        "opportunities_with_coinbase_volume_spike": 50,
+        "avg_hourly_change_before_opp": 0.00014702968022501801,
+        "after_small_dip": 567,
+        "after_small_pump": 602,
+        "after_consolidation": 532
+      },
+      "total_opportunities": 2037,
+      "total_hours": 4296
+    },
+    "XRP-USD": {
+      "analysis": {
+        "best_hours": [
+          [
+            18,
+            90
+          ],
+          [
+            17,
+            85
+          ],
+          [
+            6,
+            83
+          ],
+          [
+            8,
+            82
+          ],
+          [
+            9,
+            81
+          ]
+        ],
+        "avg_volatility_when_opportunity": 5.052294333347627,
+        "min_volatility": 0.7489132259139535,
+        "max_volatility": 21.039855257323055,
+        "opportunities_with_positive_momentum": 909,
+        "opportunities_with_negative_momentum": 896,
+        "opportunities_near_low": 692,
+        "opportunities_near_high": 601,
+        "opportunities_mid_range": 512,
+        "avg_hours_to_target": 2.081994459833795,
+        "fast_moves_1h": 714,
+        "fast_moves_2h": 1208,
+        "avg_global_volume_change": 0.5561748841326919,
+        "opportunities_with_global_volume_spike": 111,
+        "avg_coinbase_volume_change": 0.5561748841326919,
+        "opportunities_with_coinbase_volume_spike": 111,
+        "avg_hourly_change_before_opp": -0.0014257303650470692,
+        "after_small_dip": 490,
+        "after_small_pump": 505,
+        "after_consolidation": 545
+      },
+      "total_opportunities": 1805,
+      "total_hours": 4296
+    },
+    "UNI-USD": {
+      "analysis": {
+        "best_hours": [
+          [
+            18,
+            102
+          ],
+          [
+            13,
+            101
+          ],
+          [
+            14,
+            101
+          ],
+          [
+            17,
+            98
+          ],
+          [
+            5,
+            97
+          ]
+        ],
+        "avg_volatility_when_opportunity": 6.782763766258551,
+        "min_volatility": 1.4415755235996845,
+        "max_volatility": 51.04500278808618,
+        "opportunities_with_positive_momentum": 1044,
+        "opportunities_with_negative_momentum": 1090,
+        "opportunities_near_low": 858,
+        "opportunities_near_high": 654,
+        "opportunities_mid_range": 622,
+        "avg_hours_to_target": 1.9048734770384255,
+        "fast_moves_1h": 990,
+        "fast_moves_2h": 1578,
+        "avg_global_volume_change": 0.10567736618314547,
+        "opportunities_with_global_volume_spike": 44,
+        "avg_coinbase_volume_change": 0.054718739276395825,
+        "opportunities_with_coinbase_volume_spike": 44,
+        "avg_hourly_change_before_opp": -0.0010298189802761825,
+        "after_small_dip": 622,
+        "after_small_pump": 568,
+        "after_consolidation": 481
+      },
+      "total_opportunities": 2134,
+      "total_hours": 4296
+    },
+    "NEAR-USD": {
+      "analysis": {
+        "best_hours": [
+          [
+            5,
+            103
+          ],
+          [
+            4,
+            102
+          ],
+          [
+            12,
+            101
+          ],
+          [
+            17,
+            101
+          ],
+          [
+            18,
+            98
+          ]
+        ],
+        "avg_volatility_when_opportunity": 6.644813395165902,
+        "min_volatility": 1.0648001593073495,
+        "max_volatility": 40.92104596906888,
+        "opportunities_with_positive_momentum": 1092,
+        "opportunities_with_negative_momentum": 1129,
+        "opportunities_near_low": 879,
+        "opportunities_near_high": 765,
+        "opportunities_mid_range": 577,
+        "avg_hours_to_target": 1.9536244934714093,
+        "fast_moves_1h": 998,
+        "fast_moves_2h": 1579,
+        "avg_global_volume_change": 0.11971657135413628,
+        "opportunities_with_global_volume_spike": 61,
+        "avg_coinbase_volume_change": 0.0712891436734691,
+        "opportunities_with_coinbase_volume_spike": 60,
+        "avg_hourly_change_before_opp": 0.012518464608168346,
+        "after_small_dip": 627,
+        "after_small_pump": 611,
+        "after_consolidation": 494
+      },
+      "total_opportunities": 2221,
+      "total_hours": 4296
+    },
+    "ATOM-USD": {
+      "analysis": {
+        "best_hours": [
+          [
+            5,
+            97
+          ],
+          [
+            11,
+            94
+          ],
+          [
+            4,
+            92
+          ],
+          [
+            6,
+            90
+          ],
+          [
+            12,
+            90
+          ]
+        ],
+        "avg_volatility_when_opportunity": 5.3175705568673735,
+        "min_volatility": 1.068697473721569,
+        "max_volatility": 43.72078040288878,
+        "opportunities_with_positive_momentum": 983,
+        "opportunities_with_negative_momentum": 993,
+        "opportunities_near_low": 807,
+        "opportunities_near_high": 701,
+        "opportunities_mid_range": 468,
+        "avg_hours_to_target": 2.0253036437246963,
+        "fast_moves_1h": 825,
+        "fast_moves_2h": 1355,
+        "avg_global_volume_change": 0.13086568720567426,
+        "opportunities_with_global_volume_spike": 37,
+        "avg_coinbase_volume_change": 0.08049212154079695,
+        "opportunities_with_coinbase_volume_spike": 37,
+        "avg_hourly_change_before_opp": -0.014187536203335079,
+        "after_small_dip": 596,
+        "after_small_pump": 535,
+        "after_consolidation": 550
+      },
+      "total_opportunities": 1976,
+      "total_hours": 4296
+    },
+    "AAVE-USD": {
+      "analysis": {
+        "best_hours": [
+          [
+            13,
+            99
+          ],
+          [
+            18,
+            99
+          ],
+          [
+            5,
+            98
+          ],
+          [
+            17,
+            95
+          ],
+          [
+            6,
+            93
+          ]
+        ],
+        "avg_volatility_when_opportunity": 5.98509209033525,
+        "min_volatility": 1.2081766565359302,
+        "max_volatility": 27.273217275030763,
+        "opportunities_with_positive_momentum": 1019,
+        "opportunities_with_negative_momentum": 1105,
+        "opportunities_near_low": 859,
+        "opportunities_near_high": 701,
+        "opportunities_mid_range": 564,
+        "avg_hours_to_target": 1.9689265536723164,
+        "fast_moves_1h": 931,
+        "fast_moves_2h": 1507,
+        "avg_global_volume_change": 0.028592589805788708,
+        "opportunities_with_global_volume_spike": 26,
+        "avg_coinbase_volume_change": -0.018580149690029128,
+        "opportunities_with_coinbase_volume_spike": 26,
+        "avg_hourly_change_before_opp": -0.014997227195034844,
+        "after_small_dip": 630,
+        "after_small_pump": 581,
+        "after_consolidation": 495
+      },
+      "total_opportunities": 2124,
+      "total_hours": 4296
+    },
+    "FIL-USD": {
+      "analysis": {
+        "best_hours": [
+          [
+            5,
+            105
+          ],
+          [
+            12,
+            102
+          ],
+          [
+            13,
+            100
+          ],
+          [
+            4,
+            99
+          ],
+          [
+            6,
+            97
+          ]
+        ],
+        "avg_volatility_when_opportunity": 7.542195809932817,
+        "min_volatility": 0.7023253799984054,
+        "max_volatility": 115.37448043706019,
+        "opportunities_with_positive_momentum": 1043,
+        "opportunities_with_negative_momentum": 1096,
+        "opportunities_near_low": 890,
+        "opportunities_near_high": 659,
+        "opportunities_mid_range": 590,
+        "avg_hours_to_target": 1.962599345488546,
+        "fast_moves_1h": 960,
+        "fast_moves_2h": 1529,
+        "avg_global_volume_change": 0.12999545487693648,
+        "opportunities_with_global_volume_spike": 67,
+        "avg_coinbase_volume_change": 0.08518924573003454,
+        "opportunities_with_coinbase_volume_spike": 67,
+        "avg_hourly_change_before_opp": -0.00585861939859317,
+        "after_small_dip": 598,
+        "after_small_pump": 563,
+        "after_consolidation": 526
+      },
+      "total_opportunities": 2139,
+      "total_hours": 4296
+    }
+  }
+}

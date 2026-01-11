@@ -489,7 +489,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
 
                     print(f"\n{Colors.BOLD}{Colors.CYAN}{'='*100}")
                     if rotation_mode == 'order_racing':
-                        print(f"🏁 ORDER RACING MODE: Scanning {len(enabled_wallets)} assets (will place up to {max_concurrent_orders} limit orders)")
+                        print(f"🏁 ORDER RACING MODE: Monitoring {len(enabled_wallets)} setups, entering best position and rotating to others")
                     else:
                         print(f"🔍 MARKET ROTATION: Scanning {len(enabled_wallets)} assets for best opportunity...")
 
@@ -534,7 +534,6 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                     # Optionally print detailed report
                     if market_rotation_config.get('print_opportunity_report', True):
                         # PROACTIVE REFRESH: Check if any analyses need refresh before scoring
-                        print("🔄 Checking for stale analyses...")
                         for symbol in enabled_wallets:
                             try:
                                 # Get last order type to determine refresh eligibility
@@ -750,7 +749,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                             else:
                                 # Show appropriate message based on mode
                                 if rotation_mode == 'order_racing' and len(racing_opportunities) > 1:
-                                    print(f"{Colors.BOLD}{Colors.GREEN}🏁 ORDER RACING: Placing limit orders on {len(racing_opportunities)} opportunities{Colors.ENDC}")
+                                    print(f"{Colors.BOLD}{Colors.GREEN}🏁 ORDER RACING: Placing orders on {len(racing_opportunities)} opportunities{Colors.ENDC}")
                                     for i, opp in enumerate(racing_opportunities, 1):
                                         # Get current price for this opportunity
                                         current_coin = next((c for c in coinbase_data_dictionary if c['product_id'] == opp['symbol']), None)
@@ -2285,6 +2284,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                     summary_wallet_metrics = calculate_wallet_metrics(summary_symbol, summary_starting_capital)
                     pnl_pct = summary_wallet_metrics.get('percentage_gain', 0.0)
                     total_profit_usd = summary_wallet_metrics.get('total_profit', 0.0)
+                    gross_profit_usd = summary_wallet_metrics.get('gross_profit', 0.0)
                     total_trades = 0
                     wins = 0
 
@@ -2321,6 +2321,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                         'price': summary_price,
                         'pnl_pct': pnl_pct,
                         'total_profit_usd': total_profit_usd,
+                        'gross_profit_usd': gross_profit_usd,
                         'status': status,
                         'has_position': summary_has_position,
                         'total_trades': total_trades,
@@ -2349,22 +2350,26 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                         win_rate_str = f"0/0 (  0%)"
 
                     profit_color = Colors.GREEN if asset['total_profit_usd'] > 0 else (Colors.RED if asset['total_profit_usd'] < 0 else Colors.YELLOW)
+                    gross_profit_color = Colors.GREEN if asset['gross_profit_usd'] > 0 else (Colors.RED if asset['gross_profit_usd'] < 0 else Colors.YELLOW)
 
                     # Format columns with consistent width
                     symbol_col = f"{asset['symbol']:<10s}"
                     profit_col = f"{profit_color}${asset['total_profit_usd']:>+8.2f}{Colors.ENDC}"
+                    gross_profit_col = f"{gross_profit_color}${asset['gross_profit_usd']:>+8.2f}{Colors.ENDC}"
                     volume_col = f"${asset['total_volume_usd']:>8,.0f}"
                     pnl_col = f"{pnl_color}{asset['pnl_pct']:>+6.2f}%{Colors.ENDC}"
                     win_col = f"{win_rate_str:>12s}"
                     status_col = f"{asset['status']:<20s}"
 
-                    print(f"  {position_indicator} {idx:2d}. {symbol_col} | {profit_col} | Vol: {volume_col} | P&L: {pnl_col} | W/L: {win_col} | {status_col}")
+                    print(f"  {position_indicator} {idx:2d}. {symbol_col} | Net: {profit_col} | Gross: {gross_profit_col} | Vol: {volume_col} | P&L: {pnl_col} | W/L: {win_col} | {status_col}")
 
                 # Calculate and display lifetime total
                 total_lifetime_profit = sum(asset['total_profit_usd'] for asset in asset_performance)
+                total_lifetime_gross_profit = sum(asset['gross_profit_usd'] for asset in asset_performance)
                 lifetime_color = Colors.GREEN if total_lifetime_profit > 0 else (Colors.RED if total_lifetime_profit < 0 else Colors.YELLOW)
+                lifetime_gross_color = Colors.GREEN if total_lifetime_gross_profit > 0 else (Colors.RED if total_lifetime_gross_profit < 0 else Colors.YELLOW)
                 print(f"{Colors.CYAN}{'-'*100}{Colors.ENDC}")
-                print(f"  {Colors.BOLD}LIFETIME TOTAL:      | {lifetime_color}${total_lifetime_profit:>+8.2f}{Colors.ENDC}{Colors.BOLD}{Colors.ENDC}")
+                print(f"  {Colors.BOLD}LIFETIME TOTAL:      | Net: {lifetime_color}${total_lifetime_profit:>+8.2f}{Colors.ENDC}{Colors.BOLD} | Gross: {lifetime_gross_color}${total_lifetime_gross_profit:>+8.2f}{Colors.ENDC}{Colors.BOLD}{Colors.ENDC}")
                 print(f"{Colors.CYAN}{'='*100}{Colors.ENDC}\n")
 
                 #
