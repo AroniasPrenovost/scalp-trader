@@ -1152,6 +1152,20 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                     TRADE_RECOMMENDATION = analysis.get('trade_recommendation', 'buy')
                     CONFIDENCE_LEVEL = analysis.get('confidence_level', 'low')
                     STOP_LOSS_PRICE = analysis.get('stop_loss')
+
+                    # STOP LOSS VALIDATION: Enforce max 1.0% for "many small wins" strategy
+                    max_stop_loss_pct = config.get('adaptive_mean_reversion', {}).get('stop_loss_percentage', 1.0)
+                    if STOP_LOSS_PRICE and BUY_AT_PRICE:
+                        actual_stop_loss_pct = ((BUY_AT_PRICE - STOP_LOSS_PRICE) / BUY_AT_PRICE) * 100
+                        if actual_stop_loss_pct > max_stop_loss_pct:
+                            print(f"⚠️  STOP LOSS TOO WIDE: {actual_stop_loss_pct:.2f}% > {max_stop_loss_pct}% max")
+                            print(f"   Adjusting stop loss from ${STOP_LOSS_PRICE:.4f} to maintain {max_stop_loss_pct}% max")
+                            # Cap stop loss at max percentage
+                            STOP_LOSS_PRICE = BUY_AT_PRICE * (1 - max_stop_loss_pct / 100)
+                            print(f"   New stop loss: ${STOP_LOSS_PRICE:.4f} ({max_stop_loss_pct}%)")
+                            # Update analysis dict so it's saved correctly
+                            analysis['stop_loss'] = STOP_LOSS_PRICE
+
                     if show_detailed_logs:
                         print('--- AI STRATEGY ---')
                         print(f"buy_at: ${BUY_AT_PRICE}, stop_loss: ${STOP_LOSS_PRICE if STOP_LOSS_PRICE else 'N/A'}, target_profit_%: {PROFIT_PERCENTAGE}%")

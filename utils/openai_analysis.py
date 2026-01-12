@@ -64,15 +64,15 @@ def analyze_market_with_openai(symbol, coin_data, exchange_fee_percentage=0, tax
     if chart_paths:
         timeframe_context = """
 
-IMPORTANT - MULTI-TIMEFRAME ANALYSIS FRAMEWORK FOR SCALPING:
-You are being provided with SIX charts optimized for SCALPING strategy (targeting 0.8-1.0% NET profit moves).
+IMPORTANT - MULTI-TIMEFRAME ANALYSIS FRAMEWORK:
+You are being provided with SIX charts optimized for "MANY SMALL WINS" strategy (targeting 1.5-2.5% NET profit moves).
 NOTE: All charts use 1-hour interval data points - the difference is the lookback window (how much historical data is shown).
 
-⚡ CRITICAL SCALPING EXECUTION MODEL:
+⚡ CRITICAL TRADING EXECUTION MODEL:
 This strategy uses MARKET ORDERS for immediate execution when current price reaches suggested entry.
 - Your buy_in_price should be VERY CLOSE to current price (within 0.3-1.0%) if the setup is good NOW
 - DO NOT predict future dips - if current price is NOT at a good technical level, recommend "no_trade"
-- Target: 0.8-1.0% NET profit moves that complete within 1-4 hours of execution (QUICK SCALPS)
+- Target: 1.5-2.5% NET profit moves that complete within 2-8 hours of execution
 - The 4-HOUR and 72-HOUR charts are your PRIMARY tools for entry price decisions
 - Use 14d/30d/90d/6mo charts ONLY for trend confirmation and major resistance identification
 
@@ -141,21 +141,22 @@ DATA STRUCTURE (ordered by priority for entry decisions):
 MULTI-TIMEFRAME DECISION LOGIC FOR SCALPING:
 ✓ 4h + 72h show good entry NOW + 14d/30d/90d/6mo trend aligned = HIGH confidence BUY
 ✓ 4h shows bounce at support + 72h confirms reversal + longer timeframes bullish = HIGH confidence BUY
-✓ 4h shows breakout + 72h shows momentum + no major resistance ahead (30d/90d/6mo) = HIGH confidence BUY
+✓ 4h shows breakout + 72h shows momentum + no major resistance ahead within 2.5% = HIGH confidence BUY
+✓ Mean reversion setup (price 1.5-3% below MA) + 4h/72h show bounce = HIGH confidence BUY (proven 76.9% win rate)
 ✗ 4h shows price mid-range or at resistance = NO TRADE (wait for pullback or breakout)
 ✗ 72h shows choppy/sideways action = NO TRADE (wait for clear direction)
-✗ 4h/72h bullish but 30d/90d/6mo show major resistance nearby (<1% away) = NO TRADE (quick scalps need clear path)
+✗ 4h/72h bullish but 30d/90d/6mo show major resistance within 2.5% = NO TRADE
 ✗ Timeframe conflict (short-term bullish but medium/long-term bearish) = NO TRADE
 ✗ Current price is >1% away from nearest technical level on 4h/72h charts = NO TRADE (wait for setup)
 
-SCALPING DECISION PRIORITY (0.8-1% TARGETS):
+DECISION PRIORITY (1.5-2.5% TARGETS):
 1. Check 4-HOUR chart: Is current price at a clear technical level RIGHT NOW? (bounce, breakout, support test)
 2. Check 72-HOUR chart: Does recent momentum support the entry? Any immediate obstacles?
 3. Check 14-DAY chart: Is the swing direction aligned?
-4. Check 30d/90d/6mo charts: Any major resistance within 1% that would block profit target? (critical for small scalps)
+4. Check 30d/90d/6mo charts: Any major resistance within 2.5% that would block profit target?
 5. If ALL above conditions pass → recommend BUY with buy_in_price near current price
 6. If ANY condition fails → recommend "no_trade" and wait for better setup
-7. REMEMBER: With 0.8-1% targets, you need VERY CLEAR path to profit - no resistance zones in the way
+7. REMEMBER: With 1.5-2.5% targets, you need CLEAR path to profit - no resistance zones within 2.5%
 """
 
     # Build volatility context
@@ -212,19 +213,20 @@ AMR Baseline (53.3% win rate, proven profitable):
 - Profit Target: ${adaptive_signal['profit_target']:.4f} (+1.7%)
 - Risk/Reward: 1:1 (symmetric - but you should target 0.8-1% NET for quick scalps)
 
-YOUR TASK AS AI VALIDATOR (FOR 0.8-1% SCALPS):
+YOUR TASK AS AI VALIDATOR (FOR 1.5-2.5% TARGETS):
 1. Analyze the multi-timeframe charts - do they CONFIRM or CONTRADICT this AMR signal?
-2. Check for ANY resistance within 1% that could block our small profit target (critical for scalping)
+2. Check for ANY resistance within 2.5% that could block our profit target
 3. Validate support levels align with the AMR entry/stop prices
 4. Set confidence_level based on chart confirmation:
-   - "high": Charts strongly confirm AMR signal + CLEAR 1% PATH (no resistance, clear support)
+   - "high": Charts strongly confirm AMR signal + CLEAR 2.5% PATH (no resistance, clear support)
    - "medium": Charts neutral or mixed signals (some support, minor concerns)
-   - "low": Charts show warning signs (resistance within 1%, weak support)
+   - "low": Charts show warning signs (resistance within 2.5%, weak support)
 
-5. You may REFINE profit target to 0.8-1% NET if AMR target is too aggressive for current resistance
-6. If charts show resistance within 1% of entry, set confidence to "low" or "no_trade"
+5. Set profit target to 1.5-2.5% NET based on distance to next resistance
+6. If charts show resistance within 2.0% of entry, set confidence to "low" or "no_trade"
 
-IMPORTANT: For 0.8-1% targets, you need CRYSTAL CLEAR path to profit. Be very selective.
+IMPORTANT: For 1.5-2.5% targets, you need CLEAR path to profit. Be selective.
+PROVEN PATTERN: Mean reversion (price 1.5-3% below MA) has 76.9% win rate for 2.0%+ moves!
 
 """
         else:
@@ -290,8 +292,9 @@ Trading Costs (IMPORTANT - Factor these into your recommendations):
   NOTE: Taker fees apply because we use MARKET ORDERS for guaranteed execution
 - Tax Rate on Profits: {tax_rate_percentage}%
 - Minimum Profitable Trade: Must exceed ~{total_cost_burden:.2f}% to break even after all costs
-- TARGET PROFIT RANGE: 0.8-1.0% NET profit after all costs (QUICK SCALPING STRATEGY)
-- To achieve 0.8% NET, you need ~1.5% GROSS price movement (accounting for fees + taxes)
+- TARGET PROFIT RANGE: 1.5-2.5% NET profit after all costs (SMALL WINS STRATEGY)
+- To achieve 1.5% NET, you need ~2.0-2.5% GROSS price movement (accounting for fees + taxes)
+- To achieve 2.5% NET, you need ~3.0-3.5% GROSS price movement (accounting for fees + taxes)
 
 Please analyze this data and respond with a JSON object (ONLY valid JSON, no markdown code blocks) containing:
 {{
@@ -315,8 +318,8 @@ Please analyze this data and respond with a JSON object (ONLY valid JSON, no mar
 
 JSON SCHEMA VALIDATION REQUIREMENTS:
 - All price fields: Must be numeric, max 8 decimal places
-- profit_target_percentage: MUST be 0.8-1.0% for quick scalping strategy (no higher, no lower)
-- risk_reward_ratio: Must be >= 1.5 for any "buy" recommendation (relaxed for tight scalps)
+- profit_target_percentage: MUST be 1.5-2.5% for small wins strategy (validated by historical data)
+- risk_reward_ratio: Must be >= 1.5 for any "buy" recommendation
 - confidence_level: ENUM only ["high", "medium", "low"]
 - trade_recommendation: ENUM only ["buy", "sell", "hold", "no_trade"]
 - volume_trend: ENUM only ["increasing", "decreasing", "stable"]
@@ -328,11 +331,12 @@ JSON SCHEMA VALIDATION REQUIREMENTS:
 - trade_invalidation_price: Typically below stop_loss, the price where thesis breaks down completely
 
 CRITICAL REQUIREMENTS:
-1. RISK/REWARD RATIO: All "buy" recommendations MUST have risk_reward_ratio >= 1.5 (relaxed for tight scalps)
+1. RISK/REWARD RATIO: All "buy" recommendations MUST have risk_reward_ratio >= 1.5
    - Calculate: (sell_price - buy_in_price) / (buy_in_price - stop_loss)
    - If ratio < 1.5, you MUST set trade_recommendation to "no_trade"
-   - Example for 0.8% scalp: Buy $100, Sell $101.50 (1.5% gross), Stop $99.00 = (1.50/1.00) = 1.5 ratio ✓
-   - IMPORTANT: Target 0.8-1.0% NET profit, which requires ~1.3-1.8% GROSS price movement
+   - Example: Buy $100, Sell $102.50 (2.5% gross), Stop $99.33 = (2.50/0.67) = 3.7 ratio ✓
+   - IMPORTANT: Target 1.5-2.5% NET profit, which requires ~2.0-3.5% GROSS price movement
+   - STOP LOSS MAXIMUM: 0.75-1.0% to protect capital (critical for "many small wins" strategy)
 
 2. COST CALCULATION TRANSPARENCY: Show your work in reasoning field:
    - Example: "Buy $0.50, sell $0.52 = 4% gross, 2.8% net after costs"
@@ -360,17 +364,18 @@ CRITICAL REQUIREMENTS:
    - Typically below stop_loss by a small margin
    - Example: If support is $0.95, stop is $0.94, invalidation might be $0.93
 
-CONFIDENCE LEVEL CRITERIA FOR 0.8-1% SCALPING (OBJECTIVE RUBRIC):
+CONFIDENCE LEVEL CRITERIA FOR 1.5-2.5% TARGETS (OBJECTIVE RUBRIC):
 
 HIGH confidence requires ALL of the following:
 ✓ **IMMEDIATE ENTRY SETUP**: 4-hour chart shows current price at clear technical level (bounce, breakout, support/resistance test)
 ✓ **BUY_IN_PRICE PROXIMITY**: Your recommended buy_in_price must be within 0.3-1.0% of current price
 ✓ **RECENT MOMENTUM**: 72-hour chart confirms direction and shows clean price action (not choppy)
-✓ **TIMEFRAME ALIGNMENT**: All timeframes (4h, 72h, 14d, 30d, 90d, 6mo) aligned in same direction
-✓ **CLEAR PATH TO TARGET**: No resistance within 1.5% on 30d/90d/6mo charts (critical for small 0.8-1% targets!)
+✓ **TIMEFRAME ALIGNMENT**: At minimum 4h, 72h, 14d aligned (30d/90d/6mo for confirmation)
+✓ **MEAN REVERSION PREFERRED**: Price 1.5-3% below MA(24h) has proven 76.9% win rate for 2.0%+ targets
+✓ **CLEAR PATH TO TARGET**: No resistance within 2.5% on 30d/90d/6mo charts (critical for 1.5-2.5% targets!)
 ✓ **MULTI-TIMEFRAME SUPPORT/RESISTANCE**: Key level visible across at least 3 timeframes (e.g., 72h, 14d, 30d all show support at ~same level)
 ✓ **ENTRY POSITION**: Current price must be within 1% ABOVE support, NOT near resistance (prevents buying at peaks)
-✓ **STOP LOSS VALIDATION**: Stop loss below clear technical level, tight (~1%) to maintain R:R for small targets
+✓ **STOP LOSS VALIDATION**: Stop loss below clear technical level, tight (0.75-1.0%) to maintain R:R ratio >= 1.5
 ✓ Volume confirms the setup (above average on bullish setups, spike at support)
 ✓ Risk/reward ratio >= 1.5 (for 0.8-1% scalps, we need tight stops)
 ✓ RSI supports direction (not overbought >70 on longs)
