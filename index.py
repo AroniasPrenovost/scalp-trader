@@ -348,42 +348,37 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                 # CoinGecko returns global volume across all exchanges (not just Coinbase)
                 # Uses the same interval as Coinbase data collection (from data_retention.interval_seconds)
                 #
-                coingecko_config = config.get('coingecko', {})
-                enable_coingecko_live_collection = coingecko_config.get('enable_live_collection', True)
-                coingecko_update_interval_seconds = INTERVAL_SECONDS  # Use same interval as data_retention setting
+                global_volume_directory = 'coingecko-global-volume'
 
-                if enable_coingecko_live_collection:
-                    global_volume_directory = 'coingecko-global-volume'
+                for wallet in config['wallets']:
+                    if not wallet.get('enabled', False):
+                        continue
 
-                    for wallet in config['wallets']:
-                        if not wallet.get('enabled', False):
-                            continue
+                    symbol = wallet['symbol']
+                    coingecko_id = wallet.get('coingecko_id')
 
-                        symbol = wallet['symbol']
-                        coingecko_id = wallet.get('coingecko_id')
+                    if not coingecko_id:
+                        continue
 
-                        if not coingecko_id:
-                            continue
+                    print(f"Fetching global volume data from CoinGecko for {symbol}...")
 
-                        print(f"Fetching global volume data from CoinGecko for {symbol}...")
+                    coingecko_data = fetch_coingecko_current_data(coingecko_id, 'usd')
 
-                        coingecko_data = fetch_coingecko_current_data(coingecko_id, 'usd')
+                    if coingecko_data:
+                        # Create data entry matching our format
+                        global_volume_entry = {
+                            'timestamp': time.time(),
+                            'product_id': symbol,
+                            'price': coingecko_data['price'],
+                            'volume_24h': coingecko_data['volume_24h']  # Global volume in BTC
+                        }
 
-                        if coingecko_data:
-                            # Create data entry matching our format
-                            global_volume_entry = {
-                                'timestamp': time.time(),
-                                'product_id': symbol,
-                                'price': coingecko_data['price'],
-                                'volume_24h': coingecko_data['volume_24h']  # Global volume in BTC
-                            }
+                        append_crypto_data_to_file(global_volume_directory, symbol, global_volume_entry)
+                        print(f"  ✓ Appended global volume: {float(coingecko_data['volume_24h']):,.0f} BTC (${float(coingecko_data['volume_24h_usd']):,.0f} USD)")
+                    else:
+                        print(f"  ✗ Failed to fetch global volume for {symbol}")
 
-                            append_crypto_data_to_file(global_volume_directory, symbol, global_volume_entry)
-                            print(f"  ✓ Appended global volume: {float(coingecko_data['volume_24h']):,.0f} BTC (${float(coingecko_data['volume_24h_usd']):,.0f} USD)")
-                        else:
-                            print(f"  ✗ Failed to fetch global volume for {symbol}")
-
-                    print()  # Blank line for readability
+                print()  # Blank line for readability
 
             # Update the last hourly operation timestamp and save to file
             LAST_HOURLY_OPERATION_TIME = time.time()

@@ -260,9 +260,6 @@ cp example-config.json config.json
 
 ```json
 {
-  "coingecko": {
-    "enable_backfilling_historical_data": true
-  },
   "data_retention": {
     "max_hours": 4380,
     "interval_seconds": 3600
@@ -270,7 +267,6 @@ cp example-config.json config.json
 }
 ```
 
-- **`enable_backfilling_historical_data`**: Whether to enable historical data backfilling from CoinGecko. Default: `true`
 - **`max_hours`**: Maximum hours of price data to retain (4,380 hours = ~6 months). Default: `4380`
 - **`interval_seconds`**: How often to save price snapshots in seconds (3,600 seconds = 1 hour). Default: `3600`
 
@@ -415,20 +411,7 @@ Each backfilled data point matches the Coinbase format and includes:
    COINGECKO_API_KEY=your_api_key_here
    ```
 
-3. Enable backfilling in `config.json`:
-   ```json
-   {
-     "coingecko": {
-       "enable_backfilling_historical_data": true
-     },
-     "data_retention": {
-       "max_hours": 4380,
-       "interval_seconds": 3600
-     }
-   }
-   ```
-
-4. Ensure each asset has a `coingecko_id` in the config:
+3. Ensure each asset has a `coingecko_id` in the config:
    ```json
    {
      "wallets": [
@@ -484,9 +467,6 @@ Found 2 enabled asset(s) to backfill:
 - **Monitor API rate limits** - the script includes delays, but be mindful of CoinGecko's 30 calls/min limit on free tier
 
 ### Troubleshooting
-
-**Script says backfilling is disabled:**
-- Check `config.json` and ensure `"enable_backfilling_historical_data": true`
 
 **CoinGecko API key errors:**
 - Verify your API key is correctly added to `.env`
@@ -728,7 +708,6 @@ Current AI analysis is cached in `analysis/{SYMBOL}_analysis.json` files, showin
 **Missing historical data:**
 - Run `python3 backfill_historical_data.py` first
 - Verify `COINGECKO_API_KEY` in `.env`
-- Check `enable_backfilling_historical_data: true` in config
 - Ensure each wallet has a valid `coingecko_id`
 
 ## Advanced Features

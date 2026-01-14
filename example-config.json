@@ -20,10 +20,6 @@
     "include_screenshots": false,
     "prune_old_trades_after": 1000
   },
-  "coingecko": {
-    "enable_backfilling_historical_data": true,
-    "enable_live_collection": true
-  },
   "data_retention": {
     "max_hours": 4380,
     "interval_seconds": 3600

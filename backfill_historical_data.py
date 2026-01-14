@@ -5,7 +5,7 @@ CoinGecko Historical Data Backfill Script
 This script fetches historical price data from CoinGecko API and populates
 the coinbase-data JSON files with backfilled data based on the data_retention settings defined in config.json.
 
-Only runs if enable_backfilling_historical_data is set to true in config.json.
+Run this script manually to backfill historical data when needed.
 """
 
 import os
@@ -319,17 +319,6 @@ def main():
 
     # Load configuration
     config = load_config()
-
-    # Check if backfilling is enabled
-    coingecko_config = config.get('coingecko', {})
-    enable_backfilling = coingecko_config.get('enable_backfilling_historical_data', False)
-
-    if not enable_backfilling:
-        print("\nBackfilling is DISABLED in config.json")
-        print("Set 'coingecko.enable_backfilling_historical_data' to true to enable")
-        return
-
-    print("\n✓ Backfilling is ENABLED")
 
     # Check for API key
     api_key = os.getenv('COINGECKO_API_KEY')
