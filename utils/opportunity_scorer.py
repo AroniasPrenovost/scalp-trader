@@ -26,9 +26,7 @@ Scoring considers:
 
 import time
 import statistics
-from utils.adaptive_mean_reversion import check_adaptive_buy_signal, detect_market_trend
 from utils.file_helpers import get_property_values_from_crypto_file
-from utils.openai_analysis import load_analysis_from_file
 from utils.coinbase import get_asset_price, get_last_order_from_local_json_ledger, detect_stored_coinbase_order_type
 from utils.momentum_scalping_strategy import check_scalp_entry_signal
 
@@ -260,7 +258,6 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
             'strategy_type': 'support_bounce',  # or 'breakout', 'consolidation_break'
             'signal': 'buy' or 'no_signal',
             'confidence': 'high' or 'medium',
-            'trend': 'uptrend',
             'reasoning': 'SUPPORT BOUNCE: Price at 25% of range...',
             'entry_price': 50000.0,
             'stop_loss': 49800.0,  # 0.4% stop
@@ -279,7 +276,6 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
         'strategy_type': None,  # Will be: 'support_bounce', 'breakout', 'consolidation_break'
         'signal': 'no_signal',
         'confidence': 'low',
-        'trend': 'unknown',
         'reasoning': '',
         'entry_price': None,
         'stop_loss': None,
@@ -350,10 +346,6 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
     if not coin_prices_list or len(coin_prices_list) < 48:
         result['reasoning'] = f"Insufficient price data ({len(coin_prices_list) if coin_prices_list else 0} points)"
         return result
-
-    # Detect market trend
-    trend = detect_market_trend(coin_prices_list, lookback=168)
-    result['trend'] = trend
 
     # ========================================
     # MOMENTUM SCALPING PATTERN DETECTION
@@ -546,7 +538,7 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
     # Show what capital the profit columns are based on
     gross_header = f"Gross $ (${trading_capital_usd:.0f})"
     net_header = f"Net $ (${trading_capital_usd:.0f})"
-    print(f"{'Rank':<6} {'Symbol':<12} {'Score':<8} {'Signal':<12} {'Strategy':<18} {'Trend':<12} {'In Trade':<10} {'Dist Entry':<12} {'Pos':<8} {'Mom 1h':<10} {'Price Δ':<12} {gross_header:<20} \033[1m\033[96m{net_header:<18}\033[0m {'Status':<20}")
+    print(f"{'Rank':<6} {'Symbol':<12} {'Score':<8} {'Signal':<12} {'Strategy':<18} {'In Trade':<10} {'Dist Entry':<12} {'Pos':<8} {'Mom 1h':<10} {'Price Δ':<12} {gross_header:<20} \033[1m\033[96m{net_header:<18}\033[0m {'Status':<20}")
     print("-"*180)
 
     for i, opp in enumerate(sorted_opps, 1):
@@ -563,8 +555,6 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
             strategy = "Holding Position"  # Active trade
         else:
             strategy = "Scalp Wait"  # Waiting for pattern
-
-        trend = opp['trend'].title()
 
         # In Trade indicator (whether we have an open position)
         in_trade_str = "YES" if not opp['can_trade'] else "NO"
@@ -723,7 +713,7 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
 
         # Highlight selected opportunity with arrow
         prefix = "→" if best_opportunity and opp['symbol'] == best_opportunity['symbol'] else " "
-        print(f"{prefix} {rank:<4} {symbol:<12} {score:<8} {signal:<12} {strategy:<18} {trend:<12} {in_trade_str:<10} {dist_to_entry_str:<12} {ai_indicator:<8} {age_str:<10} {price_change_padded} {gross_profit_padded} {net_profit_padded} {status:<20} {indicator}")
+        print(f"{prefix} {rank:<4} {symbol:<12} {score:<8} {signal:<12} {strategy:<18} {in_trade_str:<10} {dist_to_entry_str:<12} {ai_indicator:<8} {age_str:<10} {price_change_padded} {gross_profit_padded} {net_profit_padded} {status:<20} {indicator}")
 
     print()
 
@@ -738,7 +728,6 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
         print(f"Strategy: Momentum Scalping - {strategy_display}")
         print(f"Score: {best_opportunity['score']:.1f}/100")
         print(f"Confidence: {best_opportunity['confidence'].upper()}")
-        print(f"Trend: {best_opportunity['trend'].title()}")
         print(f"Entry: ${best_opportunity['entry_price']:.4f}")
         print(f"Stop Loss: ${best_opportunity['stop_loss']:.4f}")
         print(f"Profit Target: ${best_opportunity['profit_target']:.4f}")

@@ -181,72 +181,9 @@ VOLATILITY TRADING RULES:
 4. Profit targets should be realistic relative to observed volatility (don't target 10% profit on 8% range asset)
 5. Position sizing: Higher volatility = smaller position size to manage risk"""
 
-    # Check adaptive mean reversion strategy
-    adaptive_strategy_context = ""
-    adaptive_signal = None  # Initialize to None for later enforcement check
-    try:
-        from utils.adaptive_mean_reversion import check_adaptive_buy_signal
-
-        adaptive_signal = check_adaptive_buy_signal(
-            prices=prices,
-            current_price=current_price
-        )
-
-        adaptive_strategy_context = f"""
-
-ADAPTIVE MEAN REVERSION STRATEGY (CORE FOUNDATION - PROVEN PROFITABLE):
-- Market Trend: {adaptive_signal['trend'].upper()}
-- Strategy Signal: {adaptive_signal['signal'].upper()}
-- Deviation from 24h MA: {adaptive_signal['deviation_from_ma']:+.2f}%
-
-{adaptive_signal['reasoning']}
-
-"""
-
-        if adaptive_signal['signal'] == 'buy':
-            adaptive_strategy_context += f"""
-✅ AMR BUY SIGNAL DETECTED - YOUR ROLE: VALIDATE & ENHANCE
-
-AMR Baseline (53.3% win rate, proven profitable):
-- Entry Price: ${adaptive_signal['entry_price']:.4f}
-- Stop Loss: ${adaptive_signal['stop_loss']:.4f} (-1.7%)
-- Profit Target: ${adaptive_signal['profit_target']:.4f} (+1.7%)
-- Risk/Reward: 1:1 (symmetric - but you should target 0.8-1% NET for quick scalps)
-
-YOUR TASK AS AI VALIDATOR (FOR 1.5-2.5% TARGETS):
-1. Analyze the multi-timeframe charts - do they CONFIRM or CONTRADICT this AMR signal?
-2. Check for ANY resistance within 2.5% that could block our profit target
-3. Validate support levels align with the AMR entry/stop prices
-4. Set confidence_level based on chart confirmation:
-   - "high": Charts strongly confirm AMR signal + CLEAR 2.5% PATH (no resistance, clear support)
-   - "medium": Charts neutral or mixed signals (some support, minor concerns)
-   - "low": Charts show warning signs (resistance within 2.5%, weak support)
-
-5. Set profit target to 1.5-2.5% NET based on distance to next resistance
-6. If charts show resistance within 2.0% of entry, set confidence to "low" or "no_trade"
-
-IMPORTANT: For 1.5-2.5% targets, you need CLEAR path to profit. Be selective.
-PROVEN PATTERN: Mean reversion (price 1.5-3% below MA) has 76.9% win rate for 2.0%+ moves!
-
-"""
-        else:
-            adaptive_strategy_context += f"""
-⚠ NO AMR SIGNAL - DOWNTREND OR NO SETUP
-
-AMR Status: {adaptive_signal['reasoning']}
-
-YOUR TASK AS AI VALIDATOR:
-- If market trend is DOWNTREND: Set trade_recommendation to "no_trade" (enforce downtrend filter)
-- If no AMR signal but you see EXCEPTIONAL chart setup: You may recommend "buy" but set confidence to "medium" (not "high")
-- In most cases: Set trade_recommendation to "no_trade" and explain why in reasoning
-
-DO NOT override downtrend filter unless you see exceptional multi-timeframe bullish reversal confirmation.
-
-"""
-    except Exception as e:
-        # If adaptive strategy fails, continue without it
-        adaptive_signal = None
-        adaptive_strategy_context = f"\n⚠ Adaptive strategy failed to load: {str(e)}\n"
+    # Adaptive mean reversion strategy removed (not used in current scalping strategy)
+    adaptive_signal = None
+    adaptive_strategy_context = "\n⚠ Adaptive mean reversion strategy not available (removed from codebase)\n"
 
     # Calculate ATR (Average True Range) for volatility-based stop loss
     # Using recent 24 data points (24 hours of data) for ATR calculation

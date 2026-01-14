@@ -974,7 +974,6 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 'stop_loss': opp_data.get('stop_loss'),       # For scalping mode
                                 'profit_target': opp_data.get('profit_target'),  # For scalping mode
                                 'confidence_level': opp_data.get('confidence', 'high'),
-                                'market_trend': opp_data.get('trend', 'unknown'),
                                 'recommendation': 'buy',
                                 'reasoning': opp_data.get('reasoning', ''),
                                 'buy_amount_usd': market_rotation_config.get('total_trading_capital_usd', 100)
@@ -1107,48 +1106,17 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 # POST-FILL ADJUSTMENT: Check if actual fill price differs significantly from AI recommendation
                                 if 'original_analysis' in full_order_dict:
                                     original_analysis = full_order_dict['original_analysis']
-                                    ai_recommended_price = original_analysis.get('buy_in_price')
+                                    recommended_entry_price = original_analysis.get('buy_in_price')
                                     actual_fill_price = float(full_order_dict.get('average_filled_price', 0))
 
-                                    if ai_recommended_price and actual_fill_price > 0:
-                                        fill_delta_pct = abs((actual_fill_price - ai_recommended_price) / ai_recommended_price) * 100
+                                    if recommended_entry_price and actual_fill_price > 0:
+                                        fill_delta_pct = abs((actual_fill_price - recommended_entry_price) / recommended_entry_price) * 100
 
-                                        print(f"Fill price check: AI recommended ${ai_recommended_price:.2f}, filled at ${actual_fill_price:.2f} (delta: {fill_delta_pct:.2f}%)")
+                                        print(f"Fill price check: Recommended ${recommended_entry_price:.2f}, filled at ${actual_fill_price:.2f} (delta: {fill_delta_pct:.2f}%)")
 
-                                        # Threshold: 3% delta triggers AI re-analysis
-                                        if fill_delta_pct >= 3.0:
-                                            print(f"⚠️  Significant fill delta detected ({fill_delta_pct:.2f}%) - triggering AI post-fill adjustment...")
-
-                                            # Generate fresh charts for AI analysis
-                                            chart_paths = plot_multi_timeframe_charts(
-                                                current_timestamp=time.time(),
-                                                interval=INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
-                                                symbol=symbol,
-                                                price_data=coin_prices_LIST,
-                                                volume_data=coin_volume_24h_LIST,
-                                                analysis=original_analysis
-                                            )
-
-                                            # Call AI to adjust analysis based on actual fill
-                                            from utils.openai_analysis import adjust_analysis_for_actual_fill
-                                            adjusted_analysis = adjust_analysis_for_actual_fill(
-                                                symbol=symbol,
-                                                original_analysis=original_analysis,
-                                                actual_fill_price=actual_fill_price,
-                                                current_price=current_price,
-                                                chart_paths=chart_paths,
-                                                exchange_fee_percentage=coinbase_spot_taker_fee,  # Using taker fee for market orders
-                                                tax_rate_percentage=federal_tax_rate
-                                            )
-
-                                            if adjusted_analysis:
-                                                full_order_dict['original_analysis'] = adjusted_analysis
-                                                print('✓ Updated analysis with AI-adjusted targets based on actual fill price')
-                                            else:
-                                                print('⚠️  AI adjustment failed - keeping original analysis')
-
-                                        elif fill_delta_pct >= 0.5:  # Small delta: use percentage-based adjustment
-                                            print(f"Small fill delta ({fill_delta_pct:.2f}%) - applying percentage-based adjustment...")
+                                        # If fill price differs, apply percentage-based adjustment to maintain risk/reward ratio
+                                        if fill_delta_pct >= 0.5:
+                                            print(f"Fill delta ({fill_delta_pct:.2f}%) - applying percentage-based adjustment...")
 
                                             # Calculate original risk/reward percentages
                                             original_stop_loss = original_analysis.get('stop_loss')
@@ -1156,8 +1124,8 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
 
                                             if original_stop_loss and original_sell_price:
                                                 # Calculate percentage distances from AI's recommended entry
-                                                stop_loss_pct = ((ai_recommended_price - original_stop_loss) / ai_recommended_price)
-                                                profit_target_pct = ((original_sell_price - ai_recommended_price) / ai_recommended_price)
+                                                stop_loss_pct = ((recommended_entry_price - original_stop_loss) / recommended_entry_price)
+                                                profit_target_pct = ((original_sell_price - recommended_entry_price) / recommended_entry_price)
 
                                                 # Apply same percentages to actual fill price
                                                 adjusted_stop_loss = actual_fill_price * (1 - stop_loss_pct)
@@ -1249,8 +1217,6 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                             print(f"{Colors.YELLOW}   Please review the ledger file: coinbase-orders/{symbol}_orders.json{Colors.ENDC}\n")
                             continue
 
-                        MARKET_TREND = analysis.get('market_trend', 'N/A')
-
                         # Load range support strategy configuration
                         range_strategy_config = config.get('range_support_strategy', {})
                         range_strategy_enabled = range_strategy_config.get('enabled', True)
@@ -1306,7 +1272,6 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 if current_opportunity.get('score', 0) >= min_score:
                                     print(f"{Colors.BOLD}{Colors.CYAN}Strategy: {current_opportunity['strategy'].replace('_', ' ').title()}{Colors.ENDC}")
                                     print(f"Score: {current_opportunity['score']:.1f}/100 | Confidence: {current_opportunity['confidence'].upper()}")
-                                    print(f"Trend: {current_opportunity.get('trend', 'unknown').title()}")
                                     should_execute_buy = True
                                 else:
                                     print(f"\n{Colors.YELLOW}STATUS: Racing opportunity {symbol} score {current_opportunity['score']:.1f} below minimum {min_score} - skipping{Colors.ENDC}")
@@ -1324,7 +1289,6 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                     print(f"{'='*60}{Colors.ENDC}")
                                     print(f"{Colors.BOLD}{Colors.CYAN}Strategy: {best_opportunity['strategy'].replace('_', ' ').title()}{Colors.ENDC}")
                                     print(f"Score: {best_opportunity['score']:.1f}/100 | Confidence: {best_opportunity['confidence'].upper()}")
-                                    print(f"Trend: {best_opportunity.get('trend', 'unknown').title()}")
                                     should_execute_buy = True
                                 else:
                                     print(f"\n{Colors.YELLOW}STATUS: Selected opportunity {symbol} score {best_opportunity['score']:.1f} below minimum {min_score} - skipping{Colors.ENDC}")
@@ -1486,7 +1450,6 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                                     'strategy_type': current_opportunity.get('strategy_type'),
                                                     'score': current_opportunity.get('score'),
                                                     'confidence_level': current_opportunity.get('confidence'),
-                                                    'market_trend': current_opportunity.get('trend'),
                                                     'reasoning': current_opportunity.get('reasoning'),
                                                     'entry_price': current_opportunity.get('entry_price'),
                                                     'stop_loss': current_opportunity.get('stop_loss'),
@@ -1954,7 +1917,6 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
 
                                 entry_market_conditions = {
                                     "volatility_range_pct": range_percentage_from_min,
-                                    "current_trend": analysis.get('market_trend') if analysis else None,
                                     "confidence_level": analysis.get('confidence_level') if analysis else None,
                                     "entry_reasoning": analysis.get('reasoning') if analysis else None,
                                 }
@@ -2052,7 +2014,6 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 # Build market context at entry
                                 entry_market_conditions = {
                                     "volatility_range_pct": range_percentage_from_min,
-                                    "current_trend": analysis.get('market_trend') if analysis else None,
                                     "confidence_level": analysis.get('confidence_level') if analysis else None,
                                     "entry_reasoning": analysis.get('reasoning') if analysis else None,
                                 }
@@ -2093,7 +2054,6 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                     'profit': net_profit_after_all_costs_usd,
                                     'exit_trigger': 'stop_loss',
                                     'confidence_level': analysis.get('confidence_level', 'unknown'),
-                                    'market_trend': analysis.get('market_trend', 'unknown')
                                 }
                                 transactions = load_transaction_history(symbol)
                                 update_learnings_from_trade(symbol, trade_outcome, transactions)
@@ -2157,7 +2117,6 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 # Build market context at entry
                                 entry_market_conditions = {
                                     "volatility_range_pct": range_percentage_from_min,
-                                    "current_trend": analysis.get('market_trend') if analysis else None,
                                     "confidence_level": analysis.get('confidence_level') if analysis else None,
                                     "entry_reasoning": analysis.get('reasoning') if analysis else None,
                                 }
@@ -2198,7 +2157,6 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                     'profit': net_profit_after_all_costs_usd,
                                     'exit_trigger': 'profit_target',
                                     'confidence_level': analysis.get('confidence_level', 'unknown'),
-                                    'market_trend': analysis.get('market_trend', 'unknown')
                                 }
                                 transactions = load_transaction_history(symbol)
                                 update_learnings_from_trade(symbol, trade_outcome, transactions)
