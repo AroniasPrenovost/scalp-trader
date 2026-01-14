@@ -16,20 +16,16 @@ import glob # related to price change % logic
 
 # custom imports
 from utils.email import send_email_notification
-from utils.file_helpers import save_obj_dict_to_file, count_files_in_directory, append_crypto_data_to_file, get_property_values_from_crypto_file, cleanup_old_crypto_data, cleanup_old_screenshots
-from utils.price_helpers import calculate_percentage_from_min, calculate_offset_price, calculate_price_change_percentage
+from utils.file_helpers import count_files_in_directory, append_crypto_data_to_file, get_property_values_from_crypto_file, cleanup_old_crypto_data, cleanup_old_screenshots
+from utils.price_helpers import calculate_percentage_from_min
 from utils.time_helpers import print_local_time
-from utils.coingecko_live import fetch_coingecko_current_data, should_update_coingecko_data, get_last_coingecko_update_time
 
 # Coinbase-related
 # Coinbase helpers and define client
-from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order, place_limit_buy_order, place_limit_sell_order, get_asset_price, get_asset_balance, calculate_exchange_fee, save_order_data_to_local_json_ledger, get_last_order_from_local_json_ledger, reset_json_ledger_file, detect_stored_coinbase_order_type, save_transaction_record, get_current_fee_rates, cancel_order, clear_order_ledger
+from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order, get_asset_price, calculate_exchange_fee, save_order_data_to_local_json_ledger, get_last_order_from_local_json_ledger, reset_json_ledger_file, detect_stored_coinbase_order_type, save_transaction_record, get_current_fee_rates, cancel_order, clear_order_ledger
 coinbase_client = get_coinbase_client()
 # profit calculator for standardized profitability calculations
 from utils.profit_calculator import calculate_net_profit_from_price_move
-
-# plotting data
-from utils.matplotlib import plot_graph, plot_simple_snapshot, plot_multi_timeframe_charts
 
 # Trading context for wallet metrics
 from utils.trade_context import calculate_wallet_metrics
@@ -116,24 +112,6 @@ MAX_LAST_EXCEPTION_ERROR_COUNT = 5
 
 # Track when hourly operations were last run (will be loaded from file below)
 LAST_HOURLY_OPERATION_TIME = 0
-
-#
-#
-#
-#
-
-# Function to save strcutured data to a timestamped file
-def save_dictionary_data_to_local_file(data, directory, file_name):
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-
-    timestamp = time.strftime("%Y%m%d%H%M%S", time.localtime())
-    file_name = f"{file_name}_{timestamp}.json"
-    file_path = os.path.join(directory, file_name)
-
-    with open(file_path, 'w') as file:
-        json.dump(data, file, indent=4)
-    print(f"Data saved to '{file_path}'")
 
 #
 # Hourly operation timestamp persistence
@@ -292,13 +270,6 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
         low_confidence_wait_hours = config.get('low_confidence_wait_hours', 1.0)
         medium_confidence_wait_hours = config.get('medium_confidence_wait_hours', 1.0)
         high_confidence_max_age_hours = config.get('high_confidence_max_age_hours', 2.0)
-        limit_order_timeout_minutes = config.get('limit_order_timeout_minutes', 60)
-
-        # Volatility filter configuration
-        volatility_config = config.get('volatility_filters', {})
-        enable_volatility_checks = volatility_config.get('enable_volatility_checks', True)
-        min_range_percentage = volatility_config.get('min_range_percentage', 5)
-        max_range_percentage = volatility_config.get('max_range_percentage', 100)
 
         # LLM Learning configuration
         llm_learning_config = config.get('llm_learning', {})
@@ -341,44 +312,6 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                     }
                     append_crypto_data_to_file(coinbase_data_directory, product_id, data_entry)
                 print(f"✓ Appended 1 new data point for {len(coinbase_data_dictionary)} cryptos (next append in 1 hour)\n")
-
-                #
-                # COLLECT GLOBAL VOLUME DATA FROM COINGECKO
-                # This maintains consistency with backfilled historical data
-                # CoinGecko returns global volume across all exchanges (not just Coinbase)
-                # Uses the same interval as Coinbase data collection (from data_retention.interval_seconds)
-                #
-                global_volume_directory = 'coingecko-global-volume'
-
-                for wallet in config['wallets']:
-                    if not wallet.get('enabled', False):
-                        continue
-
-                    symbol = wallet['symbol']
-                    coingecko_id = wallet.get('coingecko_id')
-
-                    if not coingecko_id:
-                        continue
-
-                    print(f"Fetching global volume data from CoinGecko for {symbol}...")
-
-                    coingecko_data = fetch_coingecko_current_data(coingecko_id, 'usd')
-
-                    if coingecko_data:
-                        # Create data entry matching our format
-                        global_volume_entry = {
-                            'timestamp': time.time(),
-                            'product_id': symbol,
-                            'price': coingecko_data['price'],
-                            'volume_24h': coingecko_data['volume_24h']  # Global volume in BTC
-                        }
-
-                        append_crypto_data_to_file(global_volume_directory, symbol, global_volume_entry)
-                        print(f"  ✓ Appended global volume: {float(coingecko_data['volume_24h']):,.0f} BTC (${float(coingecko_data['volume_24h_usd']):,.0f} USD)")
-                    else:
-                        print(f"  ✗ Failed to fetch global volume for {symbol}")
-
-                print()  # Blank line for readability
 
             # Update the last hourly operation timestamp and save to file
             LAST_HOURLY_OPERATION_TIME = time.time()
@@ -503,168 +436,8 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                             tax_rate_pct=federal_tax_rate
                         )
 
-                    # Track which coins we refresh to avoid double analysis in main loop
-                    refreshed_in_proactive_loop = set()
-
                     # Optionally print detailed report
                     if market_rotation_config.get('print_opportunity_report', True):
-                        # PROACTIVE REFRESH: Check if any analyses need refresh before scoring
-                        for symbol in enabled_wallets:
-                            try:
-                                # Get last order type to determine refresh eligibility
-                                last_order = get_last_order_from_local_json_ledger(symbol)
-                                last_order_type = detect_stored_coinbase_order_type(last_order)
-
-                                # Get coin data for dynamic refresh checks
-                                coin_prices_list_raw = get_property_values_from_crypto_file(
-                                    coinbase_data_directory, symbol, 'price', max_age_hours=DATA_RETENTION_HOURS
-                                )
-                                coin_volume_24h_LIST_raw = get_property_values_from_crypto_file(
-                                    coinbase_data_directory, symbol, 'volume_24h', max_age_hours=DATA_RETENTION_HOURS
-                                )
-
-                                # Clean price data to ensure all floats
-                                coin_prices_list = []
-                                for p in coin_prices_list_raw:
-                                    try:
-                                        coin_prices_list.append(float(p))
-                                    except (ValueError, TypeError):
-                                        continue
-
-                                # Clean volume data to ensure all floats
-                                coin_volume_24h_LIST = []
-                                for v in coin_volume_24h_LIST_raw:
-                                    try:
-                                        coin_volume_24h_LIST.append(float(v))
-                                    except (ValueError, TypeError):
-                                        continue
-
-                                current_price = get_asset_price(coinbase_client, symbol)
-
-                                # Get current volume from coinbase data
-                                current_volume_24h = 0
-                                for coin_entry in coinbase_data_dictionary:
-                                    if coin_entry['product_id'] == symbol:
-                                        current_volume_24h = coin_entry.get('volume_24h', 0)
-                                        break
-
-                                coin_data = {
-                                    'current_price': current_price,
-                                    'coin_prices_list': coin_prices_list,
-                                    'coin_volume_24h_LIST': coin_volume_24h_LIST,
-                                    'current_volume_24h': current_volume_24h
-                                }
-
-                                # Check if refresh is needed
-                                should_refresh = should_refresh_analysis(
-                                    symbol,
-                                    last_order_type,
-                                    no_trade_refresh_hours,
-                                    low_confidence_wait_hours,
-                                    medium_confidence_wait_hours,
-                                    high_confidence_max_age_hours,
-                                    coin_data=coin_data,
-                                    config=config
-                                )
-
-                                # If refresh needed and AI is enabled, generate new analysis
-                                if should_refresh:
-                                    # Check if AI analysis is enabled for this symbol
-                                    ai_enabled = False
-                                    for wallet in config['wallets']:
-                                        if symbol == wallet['symbol'] and wallet.get('enable_ai_analysis', False):
-                                            ai_enabled = True
-                                            break
-
-                                    if ai_enabled and coin_prices_list and len(coin_prices_list) >= MINIMUM_DATA_POINTS:
-                                        print(f"  ↻ Refreshing analysis for {symbol}...")
-
-                                        # Clean price and volume data before chart generation
-                                        clean_coin_prices = []
-                                        for p in coin_prices_list:
-                                            try:
-                                                clean_coin_prices.append(float(p))
-                                            except (ValueError, TypeError):
-                                                continue
-
-                                        clean_coin_volumes = []
-                                        for v in coin_volume_24h_LIST:
-                                            try:
-                                                clean_coin_volumes.append(float(v))
-                                            except (ValueError, TypeError):
-                                                continue
-
-                                        # Generate charts with cleaned data
-                                        chart_paths = plot_multi_timeframe_charts(
-                                            current_timestamp=time.time(),
-                                            interval=INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
-                                            symbol=symbol,
-                                            price_data=clean_coin_prices,
-                                            volume_data=clean_coin_volumes if clean_coin_volumes else None,
-                                            analysis=None
-                                        )
-
-                                        # Build trading context with correct parameters
-                                        # Extract settings from config for this wallet
-                                        wallet_settings = next((w for w in config['wallets'] if w['symbol'] == symbol), {})
-                                        max_historical_trades = wallet_settings.get('max_historical_trades', 10)
-                                        include_screenshots = wallet_settings.get('include_screenshots', True)
-                                        starting_capital = wallet_settings.get('starting_capital_usd', 0)
-
-                                        trading_context = build_trading_context(
-                                            symbol,
-                                            max_trades=max_historical_trades,
-                                            include_screenshots=include_screenshots,
-                                            starting_capital_usd=starting_capital
-                                        )
-
-                                        # Calculate volatility (ensure all data is numeric)
-                                        volatility_window_hours = 24
-                                        volatility_data_points = int(volatility_window_hours / (INTERVAL_SECONDS / 3600))
-                                        recent_prices = coin_prices_list[-volatility_data_points:] if len(coin_prices_list) >= volatility_data_points else coin_prices_list
-
-                                        # Clean any remaining non-numeric values
-                                        clean_recent_prices = []
-                                        for p in recent_prices:
-                                            try:
-                                                clean_recent_prices.append(float(p))
-                                            except (ValueError, TypeError):
-                                                continue
-
-                                        if len(clean_recent_prices) > 0:
-                                            min_price = min(clean_recent_prices)
-                                            max_price = max(clean_recent_prices)
-                                            range_pct = calculate_percentage_from_min(min_price, max_price)
-                                        else:
-                                            print(f"  ⚠️  No valid price data for {symbol}, skipping refresh")
-                                            continue
-
-                                        # Run AI analysis
-                                        analysis = analyze_market_with_openai(
-                                            symbol=symbol,
-                                            coin_data=coin_data,
-                                            exchange_fee_percentage=coinbase_spot_taker_fee,
-                                            tax_rate_percentage=federal_tax_rate,
-                                            min_profit_target_percentage=min_profit_target_percentage,
-                                            chart_paths=chart_paths,
-                                            trading_context=trading_context,
-                                            range_percentage_from_min=range_pct,
-                                            config=config
-                                        )
-
-                                        if analysis:
-                                            save_analysis_to_file(symbol, analysis)
-                                            print(f"  ✓ Analysis refreshed for {symbol}")
-                                            # Mark this coin as refreshed to avoid double analysis in main loop
-                                            refreshed_in_proactive_loop.add(symbol)
-                            except Exception as e:
-                                import traceback
-                                print(f"  ⚠️  Error refreshing {symbol}: {e}")
-                                print(f"  Traceback: {traceback.format_exc()}")
-                                continue
-
-                        print()
-
                         # Score all opportunities for the report
                         all_opportunities = []
                         current_prices = {}
@@ -778,8 +551,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                         # print()
                         racing_opportunities = []  # Clear racing opportunities
                 else:
-                    # Market rotation disabled - no proactive refresh needed
-                    refreshed_in_proactive_loop = set()
+                    pass
 
                 for coin in coinbase_data_dictionary:
                     # set data from coinbase data
@@ -849,14 +621,6 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                     # Note: get_property_values_from_crypto_file already converts prices to float
                     coin_prices_LIST = get_property_values_from_crypto_file(coinbase_data_directory, symbol, 'price', max_age_hours=DATA_RETENTION_HOURS)
 
-                    # NOTE: Using global volume data from CoinGecko for consistency with backfilled historical data.
-                    # CoinGecko provides global volume across all exchanges (not just Coinbase).
-                    # This ensures volume charts don't have a nosedive between backfilled and live data.
-                    # Note: get_property_values_from_crypto_file already converts volumes to float
-                    global_volume_directory = 'coingecko-global-volume'
-                    coin_volume_24h_LIST = get_property_values_from_crypto_file(global_volume_directory, symbol, 'volume_24h', max_age_hours=DATA_RETENTION_HOURS)
-                    current_volume_24h = float(coin['volume_24h'])
-
                     # Periodically cleanup old data from crypto files (runs once per iteration, for each coin)
                     cleanup_old_crypto_data(coinbase_data_directory, symbol, DATA_RETENTION_HOURS, verbose=show_detailed_logs)
 
@@ -879,51 +643,6 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                     max_price = max(recent_prices)
                     range_percentage_from_min = calculate_percentage_from_min(min_price, max_price)
 
-                    # NOTE: Chart generation removed from monitoring loop to avoid redundant snapshots
-                    # Charts are already generated when needed:
-                    # 1. During LLM analysis (when analysis is performed)
-                    # 2. On buy/sell events (for trade documentation)
-                    # 3. On post-fill adjustments (when fill price differs significantly)
-                    # Generating charts every monitoring iteration was causing unnecessary file creation
-
-                    # Check for open or pending positions BEFORE applying volatility filter
-                    # This ensures we can sell existing positions even when volatility is low
-                    # Note: last_order already retrieved above without verbose output
-                    # last_order = get_last_order_from_local_json_ledger(symbol)
-                    # last_order_type = detect_stored_coinbase_order_type(last_order)
-                    # has_open_position = last_order_type in ['placeholder', 'buy']
-
-                    # Volatility check - skip trading if outside acceptable range (but NOT if we have an open position)
-                    if enable_volatility_checks and not has_open_position:
-                        if range_percentage_from_min < min_range_percentage:
-                            if show_detailed_logs:
-                                print(f"STATUS: Volatility too low ({range_percentage_from_min:.2f}% < {min_range_percentage}%) - skipping trade analysis")
-                                print(f"Market is too flat for profitable trading (not enough price movement)")
-                                print()
-                            continue
-                        elif range_percentage_from_min > max_range_percentage:
-                            if show_detailed_logs:
-                                print(f"STATUS: Volatility too high ({range_percentage_from_min:.2f}% > {max_range_percentage}%) - skipping trade analysis")
-                                print(f"Market is too volatile (excessive risk of whipsaw)")
-                                print()
-                            continue
-                        else:
-                            if show_detailed_logs:
-                                print(f"Volatility: {range_percentage_from_min:.2f}% (within acceptable range {min_range_percentage}-{max_range_percentage}%)")
-                    elif enable_volatility_checks and has_open_position:
-                        if show_detailed_logs:
-                            print(f"Volatility: {range_percentage_from_min:.2f}% (outside range, but allowing trade management for open position)")
-
-                    coin_data = {
-                        'current_price': current_price,
-                        'current_volume_24h': current_volume_24h,
-                        'coin_prices_list': coin_prices_LIST,
-                        'coin_volume_24h_LIST': coin_volume_24h_LIST,
-                    }
-
-                    #
-                    #
-                    #
                     # Manage order data (order types, order info, etc.) in local ledger files
                     # Note: last_order and last_order_type already retrieved above (before volatility check)
                     entry_price = 0
@@ -975,8 +694,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 'profit_target': opp_data.get('profit_target'),  # For scalping mode
                                 'confidence_level': opp_data.get('confidence', 'high'),
                                 'recommendation': 'buy',
-                                'reasoning': opp_data.get('reasoning', ''),
-                                'buy_amount_usd': market_rotation_config.get('total_trading_capital_usd', 100)
+                                'reasoning': opp_data.get('reasoning', '')
                             }
                         else:
                             # Fallback if opportunity data is missing
@@ -1149,42 +867,8 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 print('STATUS: Updated ledger with filled order data (analysis preserved until sell)')
                             # Check if order has expired or is still pending
                             elif order_status in ['OPEN', 'PENDING', 'QUEUED']:
-                                # Check order age against timeout
-                                from datetime import datetime, timezone
-                                order_created_time = full_order_dict.get('created_time')
-                                if order_created_time:
-                                    try:
-                                        # Parse ISO format timestamp
-                                        order_time = datetime.fromisoformat(order_created_time.replace('Z', '+00:00'))
-                                        current_time = datetime.now(timezone.utc)
-                                        age_minutes = (current_time - order_time).total_seconds() / 60
-
-                                        print(f"Order age: {age_minutes:.1f} minutes (timeout: {limit_order_timeout_minutes} minutes)")
-
-                                        if age_minutes >= limit_order_timeout_minutes:
-                                            print(f"⏰ LIMIT ORDER EXPIRED - Order has been pending for {age_minutes:.1f} minutes")
-                                            print(f"   Cancelling order {last_order_id} and restarting with fresh analysis...")
-
-                                            # Cancel the order
-                                            cancel_success = cancel_order(coinbase_client, last_order_id)
-
-                                            if cancel_success:
-                                                # Clear the ledger to restart trading
-                                                clear_order_ledger(symbol)
-
-                                                # Delete analysis file to force new analysis
-                                                delete_analysis_file(symbol)
-
-                                                print(f"✓ Order cancelled and ledger cleared. Will generate new analysis on next iteration.")
-                                            else:
-                                                print(f"⚠️  Failed to cancel order - will retry on next iteration")
-                                        else:
-                                            print(f'STATUS: Order still pending ({age_minutes:.1f}/{limit_order_timeout_minutes} min)')
-                                    except Exception as e:
-                                        print(f"Error parsing order timestamp: {e}")
-                                        print('STATUS: Still processing pending order')
-                                else:
-                                    print('STATUS: Still processing pending order (no timestamp found)')
+                                # Market orders execute immediately or fail - if still pending, just wait
+                                print('STATUS: Still processing pending order')
                             # Order was cancelled or failed
                             elif order_status in ['CANCELLED', 'EXPIRED', 'FAILED', 'REJECTED']:
                                 print(f"⚠️  Order status: {order_status}")
@@ -1217,43 +901,9 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                             print(f"{Colors.YELLOW}   Please review the ledger file: coinbase-orders/{symbol}_orders.json{Colors.ENDC}\n")
                             continue
 
-                        # Load range support strategy configuration
-                        range_strategy_config = config.get('range_support_strategy', {})
-                        range_strategy_enabled = range_strategy_config.get('enabled', True)
-
-                        # Check range support strategy if enabled
-                        range_signal = None
-                        if range_strategy_enabled:
-                            print(f"\n{Colors.BOLD}{Colors.CYAN}--- RANGE SUPPORT STRATEGY CHECK ---{Colors.ENDC}")
-                            range_signal = check_range_support_buy_signal(
-                                prices=coin_prices_LIST,
-                                current_price=current_price,
-                                min_touches=range_strategy_config.get('min_touches', 2),
-                                zone_tolerance_percentage=range_strategy_config.get('zone_tolerance_percentage', 3.0),
-                                entry_tolerance_percentage=range_strategy_config.get('entry_tolerance_percentage', 1.5),
-                                extrema_order=range_strategy_config.get('extrema_order', 5),
-                                lookback_window=range_strategy_config.get('lookback_window_hours', 336)
-                            )
-
-                            if range_signal['signal'] == 'buy':
-                                zone = range_signal['zone']
-                                print(f"{Colors.GREEN}✓ RANGE SIGNAL: BUY{Colors.ENDC}")
-                                print(f"  Support zone: ${zone['zone_price_min']:.2f} - ${zone['zone_price_max']:.2f} (avg: ${zone['zone_price_avg']:.2f})")
-                                print(f"  Zone strength: {zone['touches']} touches")
-                                print(f"  Current price: ${current_price:.2f}")
-                                print(f"  Distance from zone avg: {range_signal['distance_from_zone_avg']:+.2f}%")
-                                print(f"  {range_signal['reasoning']}")
-                            else:
-                                print(f"{Colors.YELLOW}✗ RANGE SIGNAL: NO BUY{Colors.ENDC}")
-                                print(f"  {range_signal['reasoning']}")
-                                if range_signal['all_zones']:
-                                    strongest_zone = range_signal['all_zones'][0]
-                                    print(f"  Nearest support zone: ${strongest_zone['zone_price_avg']:.2f} ({range_signal['distance_from_zone_avg']:+.2f}% away)")
-
                         # Check all buy conditions
                         # Note: If market rotation is enabled and this is the selected best opportunity or racing opportunity,
                         # we trust the opportunity scorer's strategy validation
-                        # Otherwise, fall back to the traditional checks (AI + range strategy)
 
                         is_selected_opportunity = market_rotation_enabled and symbol == best_opportunity_symbol
                         should_execute_buy = False  # Track if we should execute the buy
@@ -1263,7 +913,6 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                             if show_detailed_logs:
                                 print(f"\n{Colors.YELLOW}STATUS: {symbol} is not a selected opportunity - skipping NEW entry{Colors.ENDC}")
                             # When market rotation is enabled, ONLY selected opportunities can trigger new buys
-                            # Do not fall through to traditional buy logic
                         elif is_racing_opportunity:
                             # This is a racing opportunity - find its data
                             current_opportunity = next((opp for opp in racing_opportunities if opp['symbol'] == symbol), None)
@@ -1294,20 +943,6 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                     print(f"\n{Colors.YELLOW}STATUS: Selected opportunity {symbol} score {best_opportunity['score']:.1f} below minimum {min_score} - skipping{Colors.ENDC}")
                             else:
                                 print(f"\n{Colors.YELLOW}STATUS: Selected opportunity {symbol} no longer has valid buy signal - skipping{Colors.ENDC}")
-                        elif not market_rotation_enabled:
-                            # Traditional path only allowed when market rotation is disabled
-                            if range_strategy_enabled and range_signal and range_signal['signal'] != 'buy':
-                                print(f"\n{Colors.YELLOW}STATUS: Not in support zone - waiting for price to reach support{Colors.ENDC}")
-                            elif TRADE_RECOMMENDATION != 'buy':
-                                print(f"\n{Colors.YELLOW}STATUS: AI recommends '{TRADE_RECOMMENDATION}' - only executing buy orders when recommendation is 'buy'{Colors.ENDC}")
-                            elif CONFIDENCE_LEVEL != 'high':
-                                print(f"\n{Colors.YELLOW}STATUS: AI confidence level is '{CONFIDENCE_LEVEL}' - only trading with HIGH confidence{Colors.ENDC}")
-                            else:
-                                # Traditional path: all individual checks passed
-                                print(f"\n{Colors.BOLD}{Colors.GREEN}{'='*60}")
-                                print(f"  ✓ ALL BUY CONDITIONS MET - EXECUTING BUY")
-                                print(f"{'='*60}{Colors.ENDC}")
-                                should_execute_buy = True
 
                         # Execute buy if conditions met
                         if should_execute_buy:
@@ -1318,11 +953,6 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 print(f"{Colors.GREEN}✓ {strategy_name} Strategy Selected (Score: {best_opportunity['score']:.1f}/100){Colors.ENDC}")
                                 if best_opportunity.get('reasoning'):
                                     print(f"{Colors.CYAN}Reasoning: {best_opportunity['reasoning']}{Colors.ENDC}")
-                            else:
-                                # Traditional path - show individual checks
-                                if range_strategy_enabled and range_signal and range_signal['signal'] == 'buy':
-                                    zone = range_signal['zone']
-                                    print(f"{Colors.GREEN}Range Strategy: ✓ In support zone (${zone['zone_price_avg']:.2f}, {zone['touches']} touches){Colors.ENDC}")
 
                             print(f"{Colors.GREEN}Current Market Price: ${current_price:.2f}{Colors.ENDC}\n")
 
@@ -1331,17 +961,12 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 buy_amount = None
                                 target_price = None
 
-                                # Market rotation mode: use opportunity data and rotation capital
+                                # Scalping strategy: use opportunity data and rotation capital
                                 if current_opportunity and is_selected_opportunity:
                                     buy_amount = market_rotation_config.get('total_trading_capital_usd', STARTING_CAPITAL_USD)
                                     target_price = current_opportunity.get('entry_price', current_price)
-                                    print(f"Using buy amount: ${buy_amount} (from market rotation capital)")
+                                    print(f"Using buy amount: ${buy_amount} (from scalping capital)")
                                     print(f"Target entry price: ${target_price:.4f} (from opportunity scorer)")
-                                # Traditional AI analysis mode
-                                elif analysis and 'buy_amount_usd' in analysis:
-                                    buy_amount = analysis.get('buy_amount_usd')
-                                    target_price = BUY_AT_PRICE
-                                    print(f"Using buy amount: ${buy_amount} (from LLM analysis)")
 
                                 if buy_amount and target_price:
                                     # Calculate shares accounting for exchange fees
@@ -2308,21 +1933,6 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                 # ERROR TRACKING: reset error count if they're non-consecutive
                 LAST_EXCEPTION_ERROR = None
                 LAST_EXCEPTION_ERROR_COUNT = 0
-
-        #
-        # Daily Summary Email: Check if it's time to send daily summary
-        #
-        try:
-            daily_summary_enabled = config.get('daily_summary', {}).get('enabled', True)
-            daily_summary_hour = config.get('daily_summary', {}).get('send_hour', 8)
-
-            if daily_summary_enabled and should_send_daily_summary(target_hour=daily_summary_hour):
-                print(f"\n{Colors.BOLD}{Colors.CYAN}{'='*60}")
-                print(f"  📧 Sending Daily Summary Email")
-                print(f"{'='*60}{Colors.ENDC}\n")
-                send_daily_summary_email(config['wallets'])
-        except Exception as e:
-            print(f"{Colors.RED}Error sending daily summary email: {e}{Colors.ENDC}")
 
         #
         #

@@ -95,55 +95,6 @@ def fetch_coingecko_current_data(coingecko_id='bitcoin', vs_currency='usd'):
         return None
 
 
-def should_update_coingecko_data(last_update_timestamp, update_interval_seconds=3600):
-    """
-    Check if it's time to update CoinGecko data based on interval.
-
-    Args:
-        last_update_timestamp: Unix timestamp of last update
-        update_interval_seconds: How often to update (default: 3600 = 1 hour)
-
-    Returns:
-        bool: True if update is needed
-    """
-    if last_update_timestamp is None:
-        return True
-
-    current_time = time.time()
-    elapsed = current_time - last_update_timestamp
-
-    return elapsed >= update_interval_seconds
-
-
-def get_last_coingecko_update_time(data_file_path):
-    """
-    Get the timestamp of the last CoinGecko data entry in a file.
-
-    Args:
-        data_file_path: Path to the JSON data file
-
-    Returns:
-        float: Unix timestamp of last entry, or None if no data
-    """
-    import json
-
-    if not os.path.exists(data_file_path):
-        return None
-
-    try:
-        with open(data_file_path, 'r') as f:
-            data = json.load(f)
-
-        if not data or len(data) == 0:
-            return None
-
-        # Return timestamp of last entry
-        return data[-1].get('timestamp')
-
-    except (json.JSONDecodeError, KeyError, IndexError):
-        return None
-
-
 if __name__ == '__main__':
     # Test the functions
     print("Testing CoinGecko live data collection...\n")

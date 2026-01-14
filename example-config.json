@@ -4,15 +4,9 @@
   "cooldown_hours_after_sell": 3,
   "low_confidence_wait_hours": 1.5,
   "medium_confidence_wait_hours": 1,
-  "limit_order_timeout_minutes": 35,
   "daily_summary": {
     "enabled": true,
     "send_hour": 8
-  },
-  "volatility_filters": {
-    "min_range_percentage": 5,
-    "max_range_percentage": 100,
-    "enable_volatility_checks": true
   },
   "llm_learning": {
     "enabled": true,

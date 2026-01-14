@@ -78,29 +78,6 @@ def score_rsi_component(prices):
         return 20
 
 
-def score_volume_component(volumes):
-    """Score volume profile (25% weight)"""
-    if not volumes or len(volumes) < 24:
-        return 0
-
-    recent_avg = statistics.mean(volumes[-24:])
-    current_volume = volumes[-1]
-
-    if recent_avg == 0:
-        return 0
-
-    ratio = current_volume / recent_avg
-
-    if ratio > 1.5:
-        return 100  # Spike
-    elif ratio > 1.2:
-        return 85  # Increasing
-    elif ratio > 0.8:
-        return 65  # Stable
-    else:
-        return 40  # Decreasing
-
-
 def score_price_position_component(current_price, prices):
     """Score price position in 24h range (15% weight)"""
     if len(prices) < 24:
@@ -181,51 +158,6 @@ def score_volatility_component(prices):
         return 100
     else:
         return 90  # Cap to avoid overly chaotic markets
-
-
-def calculate_quantitative_score(prices, volumes, current_price):
-    """
-    Calculate overall quantitative score (0-100) based on historical patterns.
-
-    Weights:
-    - RSI: 20%
-    - Volume: 25%
-    - Price position: 15%
-    - Price vs MA: 25% (CRITICAL - proven 76.9% win rate)
-    - Volatility: 15%
-    """
-    weights = {
-        'rsi': 0.20,
-        'volume': 0.25,
-        'position': 0.15,
-        'ma': 0.25,
-        'volatility': 0.15
-    }
-
-    rsi_score = score_rsi_component(prices)
-    volume_score = score_volume_component(volumes)
-    position_score = score_price_position_component(current_price, prices)
-    ma_score = score_price_vs_ma_component(current_price, prices)
-    volatility_score = score_volatility_component(prices)
-
-    overall_score = (
-        rsi_score * weights['rsi'] +
-        volume_score * weights['volume'] +
-        position_score * weights['position'] +
-        ma_score * weights['ma'] +
-        volatility_score * weights['volatility']
-    )
-
-    return {
-        'overall': round(overall_score, 1),
-        'components': {
-            'rsi': rsi_score,
-            'volume': volume_score,
-            'price_position': position_score,
-            'price_vs_ma': ma_score,
-            'volatility': volatility_score
-        }
-    }
 
 
 def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current_price, range_percentage_from_min,
