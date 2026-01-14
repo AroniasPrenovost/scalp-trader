@@ -7,23 +7,21 @@ Returns the SINGLE best opportunity to trade right now.
 This enables active capital rotation: always put money in the best setup,
 rather than spreading capital across multiple mediocre opportunities.
 
-STRATEGY: Two-Stage Validation (Data-Driven + AI Confirmation)
-- Stage 1: Quantitative scoring based on historical pattern analysis (0-100)
-  * Mean reversion (price vs MA): 25% weight - PROVEN 76.9% win rate
-  * Volume profile: 25% weight
-  * RSI: 20% weight
-  * Price position in range: 15% weight
-  * Volatility: 15% weight
-- Stage 2: AI validation with GPT-4 Vision (must confirm HIGH confidence)
-- Requirement: Score >= 75 AND AI HIGH confidence to trade
+STRATEGY: Momentum Scalping (Pattern-Based)
+- Support Bounce (39% frequency): Buy dips at support (bottom 30% of range)
+  * Target: 0.8% profit, Stop: 0.4% loss
+- Breakout (30% frequency): Buy momentum near resistance (top 30% of range)
+  * Target: 0.8% profit, Stop: 0.4% loss
+- Consolidation Break (25% frequency): Buy breakout after 6h+ consolidation
+  * Target: 0.6% profit, Stop: 0.4% loss
 
 Scoring considers:
-1. Quantitative score >= 75 (data-driven filter)
-2. AI confidence level (must be HIGH to trade)
-3. AI trade recommendation (must be BUY)
-4. Market trend (bullish > sideways > bearish)
-5. Risk/reward ratio (minimum 1.5:1)
-6. Stop loss validation (<= 1.0%)
+1. Pattern type (support bounce > breakout > consolidation break)
+2. Confidence level (high > medium)
+3. Volatility (3-15% sweet spot)
+4. Market trend context
+5. Risk/reward ratio (typically 2:1 or 1.5:1)
+6. Position in range, momentum (1h/3h)
 """
 
 import time
@@ -32,6 +30,7 @@ from utils.adaptive_mean_reversion import check_adaptive_buy_signal, detect_mark
 from utils.file_helpers import get_property_values_from_crypto_file
 from utils.openai_analysis import load_analysis_from_file
 from utils.coinbase import get_asset_price, get_last_order_from_local_json_ledger, detect_stored_coinbase_order_type
+from utils.momentum_scalping_strategy import check_scalp_entry_signal
 
 
 # ========================================
@@ -231,14 +230,15 @@ def calculate_quantitative_score(prices, volumes, current_price):
     }
 
 
-def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current_price, range_percentage_from_min):
+def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current_price, range_percentage_from_min,
+                     entry_fee_pct=0.6, exit_fee_pct=0.6, tax_rate_pct=37.0):
     """
-    Score a single asset's trade opportunity quality using AI-Only Strategy.
+    Score a single asset's trade opportunity quality using Momentum Scalping Strategy.
 
     Strategy Flow:
-    1. AI Analysis provides primary signal (must be HIGH confidence BUY)
-    2. AMR signal checked for alignment bonus (optional, not required)
-    3. Scoring based on AI confidence, trend, risk/reward, and volatility
+    1. Check for scalping patterns (support bounce, breakout, consolidation break)
+    2. Validate volatility is in sweet spot (3-15%)
+    3. Calculate score based on pattern type and quality
 
     Args:
         symbol: Asset symbol (e.g. 'BTC-USD')
@@ -247,24 +247,27 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
         coin_prices_list: Historical price data for this asset
         current_price: Current market price
         range_percentage_from_min: Volatility measure (24h range %)
+        entry_fee_pct: Entry fee percentage (default: 0.6%)
+        exit_fee_pct: Exit fee percentage (default: 0.6%)
+        tax_rate_pct: Tax rate percentage (default: 37%)
 
     Returns:
         Dictionary with:
         {
             'symbol': 'BTC-USD',
             'score': 85.5,  # 0-100, higher = better opportunity
-            'strategy': 'adaptive_ai',  # strategy name
+            'strategy': 'momentum_scalping',
+            'strategy_type': 'support_bounce',  # or 'breakout', 'consolidation_break'
             'signal': 'buy' or 'no_signal',
-            'confidence': 'high',  # from AI analysis
+            'confidence': 'high' or 'medium',
             'trend': 'uptrend',
-            'reasoning': 'AI only: Buy $92000, sell $95000 = 3.26% gross, 2.0% net after costs',
+            'reasoning': 'SUPPORT BOUNCE: Price at 25% of range...',
             'entry_price': 50000.0,
-            'stop_loss': 49000.0,
-            'profit_target': 52000.0,
+            'stop_loss': 49800.0,  # 0.4% stop
+            'profit_target': 50400.0,  # 0.6-0.8% target
             'risk_reward_ratio': 2.0,
-            'can_trade': True,  # False if position already open or recent stop loss
-            'amr_signal': {...},  # Raw AMR signal details (for reference)
-            'ai_validation': {...}  # AI analysis details (primary signal)
+            'can_trade': True,  # False if position already open
+            'scalp_metrics': {...}  # Position, momentum, volatility metrics
         }
     """
 
@@ -272,8 +275,8 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
     result = {
         'symbol': symbol,
         'score': 0,
-        'quant_score': 0,  # NEW: Quantitative score
-        'strategy': 'two_stage_validation',  # Data-driven + AI
+        'strategy': 'momentum_scalping',  # Pattern-based scalping
+        'strategy_type': None,  # Will be: 'support_bounce', 'breakout', 'consolidation_break'
         'signal': 'no_signal',
         'confidence': 'low',
         'trend': 'unknown',
@@ -283,12 +286,8 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
         'profit_target': None,
         'risk_reward_ratio': None,
         'can_trade': True,
-        'amr_signal': None,
-        'ai_validation': None,
-        'analysis_age_hours': None,
-        'next_refresh_hours': None,
-        'analysis_price': None,  # Price at time of AI analysis
-        'quant_components': None  # NEW: Breakdown of quantitative score
+        'scalp_metrics': None,  # Momentum, position, volatility metrics
+        'analysis_price': current_price  # Current price for delta tracking
     }
 
     # Check if we already have a position open for this asset
@@ -299,7 +298,52 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
 
     if has_open_position:
         result['can_trade'] = False
-        result['reasoning'] = f"Position already open for {symbol} (managing existing trade)"
+
+        # Restore original opportunity data from when position was opened
+        if last_order and 'original_analysis' in last_order:
+            original = last_order['original_analysis']
+
+            # Restore entry price
+            if 'average_filled_price' in last_order:
+                result['actual_entry_price'] = float(last_order['average_filled_price'])
+            elif 'entry_price' in original:
+                result['actual_entry_price'] = float(original['entry_price'])
+
+            # Restore strategy details
+            if 'strategy_type' in original:
+                result['strategy_type'] = original['strategy_type']
+            if 'reasoning' in original:
+                result['reasoning'] = original['reasoning']
+            if 'confidence_level' in original:
+                result['confidence'] = original['confidence_level']
+            if 'entry_price' in original:
+                result['entry_price'] = float(original['entry_price'])
+            if 'stop_loss' in original:
+                result['stop_loss'] = float(original['stop_loss'])
+            if 'profit_target' in original:
+                result['profit_target'] = float(original['profit_target'])
+
+            # Calculate score based on how close we are to target
+            if result['actual_entry_price'] and result['profit_target']:
+                current_gain_pct = ((current_price - result['actual_entry_price']) / result['actual_entry_price']) * 100
+                target_gain_pct = ((result['profit_target'] - result['actual_entry_price']) / result['actual_entry_price']) * 100
+                if target_gain_pct > 0:
+                    progress = (current_gain_pct / target_gain_pct) * 100
+                    # Score based on progress toward target (0-100)
+                    result['score'] = max(0, min(100, 50 + progress / 2))  # Center around 50, max 100
+                else:
+                    result['score'] = 50  # Neutral if no target
+            else:
+                result['score'] = 50  # Neutral score for active position
+
+            result['signal'] = 'holding'  # Custom signal for active positions
+        else:
+            # Fallback: try to get entry price from ledger
+            if last_order and 'average_filled_price' in last_order:
+                result['actual_entry_price'] = float(last_order['average_filled_price'])
+
+            result['reasoning'] = f"Position already open for {symbol} (managing existing trade)"
+
         # Don't return early - we still want to score it to see if it would be a good opportunity
 
     # Insufficient data check
@@ -312,150 +356,79 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
     result['trend'] = trend
 
     # ========================================
-    # STAGE 1: QUANTITATIVE SCORING (Data-Driven Filter)
+    # MOMENTUM SCALPING PATTERN DETECTION
     # ========================================
-    # Get volume data
-    coin_volumes_list = get_property_values_from_crypto_file(
-        'coinbase-data',
-        symbol,
-        'volume_24h',
-        max_age_hours=config.get('data_retention', {}).get('max_hours', 4380) if config else 4380
+    # Check for scalping entry signals (support bounce, breakout, consolidation break)
+    # Pass symbol for intra-hour momentum acceleration tracking
+    # Pass fees and tax rate for realistic profit target calculations
+    scalp_signal = check_scalp_entry_signal(
+        coin_prices_list,
+        current_price,
+        symbol=symbol,
+        entry_fee_pct=entry_fee_pct,
+        exit_fee_pct=exit_fee_pct,
+        tax_rate_pct=tax_rate_pct
     )
 
-    # Calculate quantitative score
-    quant_result = calculate_quantitative_score(coin_prices_list, coin_volumes_list, current_price)
-    result['quant_score'] = quant_result['overall']
-    result['quant_components'] = quant_result['components']
-
-    # FILTER: If quantitative score < 75, don't trade (data says poor setup)
-    if quant_result['overall'] < 75:
-        result['signal'] = 'no_signal'
-        result['score'] = quant_result['overall']
-        result['reasoning'] = f"Quant score {quant_result['overall']:.1f} < 75 (poor setup by historical data)"
+    if not scalp_signal:
+        result['reasoning'] = "Failed to analyze scalping patterns"
         return result
 
-    # ========================================
-    # STAGE 2: AI VALIDATION (for quant score >= 75)
-    # ========================================
-    # Get Adaptive Mean Reversion signal for reference only (not required)
-    adaptive_signal = check_adaptive_buy_signal(coin_prices_list, current_price)
-    result['amr_signal'] = adaptive_signal
+    # Store scalping metrics for display
+    result['scalp_metrics'] = scalp_signal.get('metrics', {})
+    result['reasoning'] = scalp_signal.get('reason', scalp_signal.get('reasoning', ''))
 
-    # Get AI Analysis (PRIMARY signal source)
-    ai_analysis = load_analysis_from_file(symbol)
-    if ai_analysis:
-        result['ai_validation'] = {
-            'signal': 'buy' if ai_analysis.get('trade_recommendation') == 'buy' else 'no_signal',
-            'confidence': ai_analysis.get('confidence_level', 'low'),
-            'entry_price': ai_analysis.get('buy_in_price'),
-            'stop_loss': ai_analysis.get('stop_loss'),
-            'profit_target': ai_analysis.get('sell_price'),
-            'reasoning': ai_analysis.get('reasoning', ''),
-            'enforced': ai_analysis.get('adaptive_strategy_enforced', False)
-        }
+    # Check if we have a BUY signal
+    if scalp_signal['signal'] == 'buy':
+        # Valid scalp setup found!
+        result['signal'] = 'buy'
+        result['strategy_type'] = scalp_signal.get('strategy', 'unknown')
+        result['confidence'] = scalp_signal.get('confidence', 'medium')
+        result['entry_price'] = scalp_signal.get('entry_price')
+        result['stop_loss'] = scalp_signal.get('stop_loss')
+        result['profit_target'] = scalp_signal.get('profit_target')
 
-        # Store the price at time of analysis (for price delta calculations)
-        # Fallback to buy_in_price for older analyses that don't have analysis_price yet
-        result['analysis_price'] = ai_analysis.get('analysis_price') or ai_analysis.get('buy_in_price')
+        # Calculate risk/reward ratio
+        if result['entry_price'] and result['stop_loss'] and result['profit_target']:
+            risk = result['entry_price'] - result['stop_loss']
+            reward = result['profit_target'] - result['entry_price']
+            if risk > 0:
+                result['risk_reward_ratio'] = reward / risk
 
-        # Calculate analysis age and next refresh time
-        analyzed_at = ai_analysis.get('analyzed_at', 0)
-        if analyzed_at > 0:
-            current_time = time.time()
-            analysis_age_hours = (current_time - analyzed_at) / 3600
-            result['analysis_age_hours'] = analysis_age_hours
-
-            # Calculate next refresh based on recommendation/confidence
-            trade_recommendation = ai_analysis.get('trade_recommendation', 'buy')
-            confidence_level = ai_analysis.get('confidence_level', 'low')
-
-            # Default refresh intervals (should match those in should_refresh_analysis and config.json)
-            no_trade_refresh_hours = config.get('no_trade_refresh_hours', 1) if config else 1
-            low_confidence_wait_hours = config.get('low_confidence_wait_hours', 1) if config else 1
-            medium_confidence_wait_hours = config.get('medium_confidence_wait_hours', 1) if config else 1
-            high_confidence_max_age_hours = config.get('high_confidence_max_age_hours', 2) if config else 2
-
-            if trade_recommendation == 'no_trade':
-                next_refresh_hours = max(0, no_trade_refresh_hours - analysis_age_hours)
-            elif confidence_level == 'low':
-                next_refresh_hours = max(0, low_confidence_wait_hours - analysis_age_hours)
-            elif confidence_level == 'medium':
-                next_refresh_hours = max(0, medium_confidence_wait_hours - analysis_age_hours)
-            else:  # high confidence
-                next_refresh_hours = max(0, high_confidence_max_age_hours - analysis_age_hours)
-
-            result['next_refresh_hours'] = next_refresh_hours
-
-    # ========================================
-    # TWO-STAGE SCORING LOGIC
-    # ========================================
-    # Quant score passed (>= 75), now check AI validation
-
-    # REQUIREMENT: AI must recommend BUY with HIGH confidence
-    if not ai_analysis or ai_analysis.get('trade_recommendation') != 'buy':
-        result['signal'] = 'no_signal'
-        result['score'] = quant_result['overall']  # Show quant score even if AI says no
-        result['reasoning'] = f"Quant {quant_result['overall']:.1f} good, but AI: {ai_analysis.get('reasoning', 'No analysis') if ai_analysis else 'No analysis'}"
-        return result
-
-    # AI confidence check - only trade on HIGH confidence
-    ai_conf = ai_analysis.get('confidence_level', 'low')
-    if ai_conf != 'high':
-        result['signal'] = 'no_signal'
-        result['score'] = quant_result['overall']  # Show quant score
-        result['reasoning'] = f"Quant {quant_result['overall']:.1f} good, but AI confidence {ai_conf}: {ai_analysis.get('reasoning', '')}"
-        return result
-
-    # BOTH quantitative AND AI agree - this is a high-quality setup!
-    # Final score combines both (average weighted 60% quant, 40% AI confirmation)
-    ai_base_score = 85  # AI HIGH confidence gets 85 base
-
-    # Use AI prices
-    result['entry_price'] = ai_analysis.get('buy_in_price')
-    result['stop_loss'] = ai_analysis.get('stop_loss')
-    result['profit_target'] = ai_analysis.get('sell_price')
-    result['signal'] = 'buy'
-    result['confidence'] = 'high'
-
-    # AI bonus scoring
-    ai_score = ai_base_score
-    market_trend = ai_analysis.get('market_trend', 'sideways')
-    if market_trend == 'bullish':
-        ai_score += 10
-    elif market_trend == 'sideways':
-        ai_score += 5
-
-    # Calculate risk/reward ratio
-    if result['entry_price'] and result['stop_loss'] and result['profit_target']:
-        risk = result['entry_price'] - result['stop_loss']
-        reward = result['profit_target'] - result['entry_price']
-        if risk > 0:
-            result['risk_reward_ratio'] = reward / risk
-
-            # Bonus for exceptional risk/reward
-            if result['risk_reward_ratio'] >= 2.5:
-                ai_score += 5
-
-    # Stop loss validation (must be <= 1.0% for "many small wins" strategy)
-    if result['entry_price'] and result['stop_loss']:
-        stop_loss_pct = ((result['entry_price'] - result['stop_loss']) / result['entry_price']) * 100
-        if stop_loss_pct > 1.0:
-            # Stop loss too wide - reduce score
-            ai_score -= 15
-            result['reasoning'] = f"Quant {quant_result['overall']:.1f} + AI HIGH, but stop loss {stop_loss_pct:.1f}% > 1.0% (risky)"
+        # Calculate score based on pattern quality
+        # Base score by strategy type (based on historical success rates)
+        if result['strategy_type'] == 'support_bounce':
+            base_score = 75  # 39% frequency - most common
+        elif result['strategy_type'] == 'breakout':
+            base_score = 70  # 30% frequency
+        elif result['strategy_type'] == 'consolidation_break':
+            base_score = 65  # 25% frequency, lower target (0.6%)
         else:
-            result['reasoning'] = f"Quant {quant_result['overall']:.1f} + AI HIGH: {ai_analysis.get('reasoning', '')}"
-    else:
-        result['reasoning'] = f"Quant {quant_result['overall']:.1f} + AI HIGH: {ai_analysis.get('reasoning', '')}"
+            base_score = 60
 
-    # Final score: 60% quantitative + 40% AI confirmation
-    combined_score = (quant_result['overall'] * 0.6) + (ai_score * 0.4)
-    result['score'] = min(100, round(combined_score, 1))  # Cap at 100
+        # Bonus for high confidence
+        if result['confidence'] == 'high':
+            base_score += 15
+        elif result['confidence'] == 'medium':
+            base_score += 5
+
+        # Bonus for good volatility (from metrics)
+        if result['scalp_metrics']:
+            volatility = result['scalp_metrics'].get('volatility_24h', 0)
+            if 3 <= volatility <= 15:  # Sweet spot
+                base_score += 10
+
+        result['score'] = min(100, base_score)
+    else:
+        # No signal - waiting for setup
+        result['signal'] = 'no_signal'
+        result['score'] = 0
 
     return result
 
 
-def find_best_opportunity(config, coinbase_client, enabled_symbols, interval_seconds, data_retention_hours, min_score=0, return_multiple=False, max_opportunities=5):
+def find_best_opportunity(config, coinbase_client, enabled_symbols, interval_seconds, data_retention_hours, min_score=0, return_multiple=False, max_opportunities=5,
+                         entry_fee_pct=0.6, exit_fee_pct=0.6, tax_rate_pct=37.0):
     """
     Scan all enabled assets and return the best trade opportunity/opportunities.
 
@@ -468,6 +441,9 @@ def find_best_opportunity(config, coinbase_client, enabled_symbols, interval_sec
         min_score: Minimum score threshold to consider (default: 0, no filtering)
         return_multiple: If True, return list of top opportunities (up to max_opportunities)
         max_opportunities: Maximum number of opportunities to return when return_multiple=True
+        entry_fee_pct: Entry fee percentage (default: 0.6%)
+        exit_fee_pct: Exit fee percentage (default: 0.6%)
+        tax_rate_pct: Tax rate percentage (default: 37%)
 
     Returns:
         If return_multiple=False: Dictionary with best opportunity, or None if no opportunities found
@@ -509,7 +485,10 @@ def find_best_opportunity(config, coinbase_client, enabled_symbols, interval_sec
                 coinbase_client=coinbase_client,
                 coin_prices_list=coin_prices_list,
                 current_price=current_price,
-                range_percentage_from_min=range_percentage_from_min
+                range_percentage_from_min=range_percentage_from_min,
+                entry_fee_pct=entry_fee_pct,
+                exit_fee_pct=exit_fee_pct,
+                tax_rate_pct=tax_rate_pct
             )
 
             opportunities.append(opportunity)
@@ -567,49 +546,61 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
     # Show what capital the profit columns are based on
     gross_header = f"Gross $ (${trading_capital_usd:.0f})"
     net_header = f"Net $ (${trading_capital_usd:.0f})"
-    print(f"{'Rank':<6} {'Symbol':<12} {'Score':<8} {'Signal':<12} {'Strategy':<18} {'Trend':<12} {'AI':<8} {'Age':<10} {'Expires':<10} {'Price Δ':<12} {gross_header:<20} \033[1m\033[96m{net_header:<18}\033[0m {'Status':<20}")
-    print("-"*170)
+    print(f"{'Rank':<6} {'Symbol':<12} {'Score':<8} {'Signal':<12} {'Strategy':<18} {'Trend':<12} {'In Trade':<10} {'Dist Entry':<12} {'Pos':<8} {'Mom 1h':<10} {'Price Δ':<12} {gross_header:<20} \033[1m\033[96m{net_header:<18}\033[0m {'Status':<20}")
+    print("-"*180)
 
     for i, opp in enumerate(sorted_opps, 1):
         rank = f"#{i}"
         symbol = opp['symbol']
         score = f"{opp['score']:.1f}"  # Always show score, even if 0
-        signal = opp['signal'].upper()
-        strategy = "AI Strategy"  # AI-only strategy
+        signal = opp['signal'].upper() if opp['signal'] != 'holding' else 'HOLDING'
+
+        # Display strategy type based on scalping pattern
+        strategy_type = opp.get('strategy_type') or ''
+        if strategy_type:
+            strategy = strategy_type.replace('_', ' ').title()  # "Support Bounce", "Breakout", "Consolidation Break"
+        elif opp['signal'] == 'holding':
+            strategy = "Holding Position"  # Active trade
+        else:
+            strategy = "Scalp Wait"  # Waiting for pattern
+
         trend = opp['trend'].title()
 
-        # AI validation indicator
-        ai_indicator = "✓" if opp.get('ai_validation') else "-"
+        # In Trade indicator (whether we have an open position)
+        in_trade_str = "YES" if not opp['can_trade'] else "NO"
 
-        # Analysis age
-        age_hours = opp.get('analysis_age_hours')
-        if age_hours is not None:
-            if age_hours < 1:
-                age_str = f"{age_hours * 60:.0f}m"
-            else:
-                age_str = f"{age_hours:.1f}h"
+        # Distance to Entry (how far current price is from entry price)
+        dist_to_entry_str = "-"
+        # For active positions, use actual entry price; for opportunities, use target entry price
+        entry_price_to_use = opp.get('actual_entry_price') if not opp['can_trade'] else opp.get('entry_price')
+        if symbol in current_prices and entry_price_to_use:
+            current_price = current_prices[symbol]
+            if current_price and entry_price_to_use:
+                dist_pct = ((current_price - entry_price_to_use) / entry_price_to_use) * 100
+                dist_to_entry_str = f"{dist_pct:+.2f}%"
+
+        # Scalping metrics indicator (position in range %)
+        scalp_metrics = opp.get('scalp_metrics', {})
+        if scalp_metrics and 'position_in_range' in scalp_metrics:
+            position_pct = scalp_metrics['position_in_range']
+            ai_indicator = f"{position_pct:.0f}%"  # Show position in range
+        else:
+            ai_indicator = "-"
+
+        # Momentum 1h
+        if scalp_metrics and 'momentum_1h' in scalp_metrics:
+            momentum_1h = scalp_metrics['momentum_1h']
+            age_str = f"{momentum_1h:+.2f}%"
         else:
             age_str = "-"
 
-        # Next refresh time
-        refresh_hours = opp.get('next_refresh_hours')
-        if refresh_hours is not None:
-            if refresh_hours == 0:
-                refresh_str = "now"
-            elif refresh_hours < 1:
-                refresh_str = f"{refresh_hours * 60:.0f}m"
-            else:
-                refresh_str = f"{refresh_hours:.1f}h"
-        else:
-            refresh_str = "-"
-
-        # Price change since analysis
+        # Price change since entry - ONLY show if we're IN a position
         price_change_str = "-"
-        if symbol in current_prices and opp.get('analysis_price'):
+        if not opp['can_trade'] and symbol in current_prices and opp.get('actual_entry_price'):
             current_price = current_prices[symbol]
-            analysis_price = opp['analysis_price']
-            if current_price and analysis_price:
-                price_change_pct = ((current_price - analysis_price) / analysis_price) * 100
+            entry_price = opp['actual_entry_price']
+            if current_price and entry_price:
+                price_change_pct = ((current_price - entry_price) / entry_price) * 100
                 # Format without color first to get the base string
                 base_str = f"{price_change_pct:+.2f}%"
                 # Add color codes
@@ -621,13 +612,14 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
                     price_change_str = base_str
 
         # Gross profit in USD (price change from entry to current, before fees/taxes)
+        # ONLY show if we're IN a position
         gross_profit_str = "-"
-        if symbol in current_prices and opp.get('analysis_price'):
+        if not opp['can_trade'] and symbol in current_prices and opp.get('actual_entry_price'):
             current_price = current_prices[symbol]
-            analysis_price = opp['analysis_price']
-            if current_price and analysis_price:
+            entry_price = opp['actual_entry_price']
+            if current_price and entry_price:
                 # Gross price change percentage
-                gross_pct = ((current_price - analysis_price) / analysis_price) * 100
+                gross_pct = ((current_price - entry_price) / entry_price) * 100
 
                 # Convert to USD based on trading capital
                 gross_profit_usd = (gross_pct / 100) * trading_capital_usd
@@ -643,29 +635,28 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
                     gross_profit_str = base_str
 
         # Net profit delta in USD (accounting for fees and taxes)
+        # ONLY show if we're IN a position
+        # Use ATOMIC profit calculator for accuracy
         net_profit_str = "-"
-        if symbol in current_prices and opp.get('analysis_price'):
+        if not opp['can_trade'] and symbol in current_prices and opp.get('actual_entry_price'):
+            from utils.profit_calculator import calculate_net_profit_from_price_move
+
             current_price = current_prices[symbol]
-            analysis_price = opp['analysis_price']
-            if current_price and analysis_price:
-                # Gross price change percentage
-                gross_pct = ((current_price - analysis_price) / analysis_price) * 100
+            entry_price = opp['actual_entry_price']
+            if current_price and entry_price:
+                # Calculate using atomic profit calculator
+                # Assume 1 share for percentage-based calculation, then scale to trading capital
+                profit_calc = calculate_net_profit_from_price_move(
+                    entry_price=entry_price,
+                    exit_price=current_price,
+                    shares=1.0,  # Use 1 share for percentage calculation
+                    entry_fee_pct=exchange_fee_percentage,
+                    exit_fee_pct=exchange_fee_percentage,
+                    tax_rate_pct=tax_rate_percentage
+                )
 
-                # Calculate net profit after fees and taxes
-                # Fees: 2 * exchange_fee_percentage (buy + sell)
-                total_fees_pct = 2 * exchange_fee_percentage
-
-                # Net profit = gross - fees - (taxes on profit portion)
-                # Simplified: For small moves, approximate as gross - fees - (tax_rate * gross if positive)
-                if gross_pct > 0:
-                    # On profitable trade: subtract fees and taxes on the profit
-                    net_profit_pct = gross_pct - total_fees_pct - (tax_rate_percentage / 100 * gross_pct)
-                else:
-                    # On losing trade: just subtract fees (no taxes on losses in this context)
-                    net_profit_pct = gross_pct - total_fees_pct
-
-                # Convert to USD based on trading capital
-                net_profit_usd = (net_profit_pct / 100) * trading_capital_usd
+                # Scale net profit % to actual trading capital
+                net_profit_usd = (profit_calc['net_profit_pct'] / 100) * trading_capital_usd
 
                 # Format without color first to get the base string
                 base_str = f"{net_profit_usd:+.2f}"
@@ -677,15 +668,30 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
                 else:
                     net_profit_str = f"\033[1m{base_str}\033[0m"  # BOLD for neutral
 
-        # Status
+        # Status - Make it crystal clear about trade state
         if not opp['can_trade']:
-            status = "Position Open"
+            # Show progress toward target for active positions
+            if opp.get('actual_entry_price') and opp.get('profit_target'):
+                current_price_check = current_prices.get(symbol)
+                if current_price_check:
+                    current_gain_pct = ((current_price_check - opp['actual_entry_price']) / opp['actual_entry_price']) * 100
+                    target_gain_pct = ((opp['profit_target'] - opp['actual_entry_price']) / opp['actual_entry_price']) * 100
+                    if target_gain_pct > 0:
+                        progress_pct = (current_gain_pct / target_gain_pct) * 100
+                        status = f"🔵 HOLDING ({progress_pct:.0f}% to target)"
+                    else:
+                        status = "🔵 IN POSITION"
+                else:
+                    status = "🔵 IN POSITION"
+            else:
+                status = "🔵 IN POSITION"
         elif opp['score'] == 0:
-            status = "No Setup"
+            status = "⏸️  No Setup"
         elif opp['signal'] == 'buy':
-            status = f"✅ Ready ({opp['confidence']})"
+            # Not in trade, but ready to enter
+            status = f"✅ READY - {opp['confidence'].upper()}"
         else:
-            status = "Waiting"
+            status = "⏳ Waiting"
 
         # Determine status indicator
         indicator = ""
@@ -717,7 +723,7 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
 
         # Highlight selected opportunity with arrow
         prefix = "→" if best_opportunity and opp['symbol'] == best_opportunity['symbol'] else " "
-        print(f"{prefix} {rank:<4} {symbol:<12} {score:<8} {signal:<12} {strategy:<18} {trend:<12} {ai_indicator:<8} {age_str:<10} {refresh_str:<10} {price_change_padded} {gross_profit_padded} {net_profit_padded} {status:<20} {indicator}")
+        print(f"{prefix} {rank:<4} {symbol:<12} {score:<8} {signal:<12} {strategy:<18} {trend:<12} {in_trade_str:<10} {dist_to_entry_str:<12} {ai_indicator:<8} {age_str:<10} {price_change_padded} {gross_profit_padded} {net_profit_padded} {status:<20} {indicator}")
 
     print()
 
@@ -725,7 +731,11 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
         print("="*120)
         print(f"🎯 BEST OPPORTUNITY: {best_opportunity['symbol']}")
         print("="*120)
-        print(f"Strategy: AI Strategy (GPT-4 Vision + AMR bonus)")
+
+        # Display scalping pattern type
+        strategy_type = best_opportunity.get('strategy_type') or ''
+        strategy_display = strategy_type.replace('_', ' ').title() if strategy_type else 'Waiting for Pattern'
+        print(f"Strategy: Momentum Scalping - {strategy_display}")
         print(f"Score: {best_opportunity['score']:.1f}/100")
         print(f"Confidence: {best_opportunity['confidence'].upper()}")
         print(f"Trend: {best_opportunity['trend'].title()}")
@@ -735,15 +745,18 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
         if best_opportunity['risk_reward_ratio']:
             print(f"Risk/Reward: 1:{best_opportunity['risk_reward_ratio']:.2f}")
 
-        # Show AMR details
-        if best_opportunity.get('amr_signal'):
-            amr = best_opportunity['amr_signal']
-            print(f"\nAMR Signal: {amr['signal'].upper()} (deviation: {amr.get('deviation_from_ma', 0):.2f}%)")
-
-        # Show AI validation details
-        if best_opportunity.get('ai_validation'):
-            ai = best_opportunity['ai_validation']
-            print(f"AI Validation: {ai['confidence'].upper()} confidence, {ai['signal'].upper()}")
+        # Show scalping metrics
+        if best_opportunity.get('scalp_metrics'):
+            metrics = best_opportunity['scalp_metrics']
+            print(f"\nScalping Metrics:")
+            print(f"  Position in Range: {metrics.get('position_in_range', 0):.1f}%")
+            print(f"  Momentum (1h): {metrics.get('momentum_1h', 0):+.2f}%")
+            print(f"  Momentum (3h): {metrics.get('momentum_3h', 0):+.2f}%")
+            print(f"  Volatility (24h): {metrics.get('volatility_24h', 0):.2f}%")
+            if 'support_level' in metrics:
+                print(f"  Support: ${metrics['support_level']:.4f}")
+            if 'resistance_level' in metrics:
+                print(f"  Resistance: ${metrics['resistance_level']:.4f}")
 
         print(f"\nReasoning: {best_opportunity['reasoning']}")
         print("="*120)

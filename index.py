@@ -20,32 +20,19 @@ from utils.file_helpers import save_obj_dict_to_file, count_files_in_directory, 
 from utils.price_helpers import calculate_percentage_from_min, calculate_offset_price, calculate_price_change_percentage
 from utils.time_helpers import print_local_time
 from utils.coingecko_live import fetch_coingecko_current_data, should_update_coingecko_data, get_last_coingecko_update_time
-from utils.range_support_strategy import check_range_support_buy_signal
 
 # Coinbase-related
 # Coinbase helpers and define client
 from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order, place_limit_buy_order, place_limit_sell_order, get_asset_price, get_asset_balance, calculate_exchange_fee, save_order_data_to_local_json_ledger, get_last_order_from_local_json_ledger, reset_json_ledger_file, detect_stored_coinbase_order_type, save_transaction_record, get_current_fee_rates, cancel_order, clear_order_ledger
 coinbase_client = get_coinbase_client()
-# custom coinbase listings check
-from utils.new_coinbase_listings import check_for_new_coinbase_listings
+# profit calculator for standardized profitability calculations
+from utils.profit_calculator import calculate_net_profit_from_price_move
 
 # plotting data
 from utils.matplotlib import plot_graph, plot_simple_snapshot, plot_multi_timeframe_charts
 
-# LLM-related
-# openai analysis
-from utils.openai_analysis import analyze_market_with_openai, save_analysis_to_file, load_analysis_from_file, should_refresh_analysis, delete_analysis_file
-# trading context for LLM learning
-from utils.trade_context import build_trading_context, calculate_wallet_metrics
-# core learnings system for persistent pattern avoidance
-from utils.core_learnings import (
-    load_core_learnings, save_core_learnings, evaluate_hard_rules,
-    check_pattern_blacklist, apply_calibrations, get_position_size_multiplier,
-    update_learnings_from_trade, format_learnings_for_display
-)
-
-# daily summary email
-from utils.daily_summary import should_send_daily_summary, send_daily_summary_email
+# Trading context for wallet metrics
+from utils.trade_context import calculate_wallet_metrics
 
 # Terminal colors for output formatting
 class Colors:
@@ -331,22 +318,6 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
         # filter out all crypto records except for those defined in enabled_wallets
         coinbase_data_dictionary = [coin for coin in coinbase_data_dictionary if coin['product_id'] in enabled_wallets]
 
-        #
-        #
-        # ALERT NEW COIN LISTINGS
-        enable_new_listings_alert = False
-        if enable_new_listings_alert:
-            coinbase_listed_coins_path = 'coinbase-listings/listed_coins.json'
-            new_coins = check_for_new_coinbase_listings(coinbase_listed_coins_path, coinbase_data_dictionary_all)
-            if new_coins:
-                for coin in new_coins:
-                    print(f"NEW LISTING: {coin['product_id']}")
-                    send_email_notification(
-                        subject=f"New Coinbase listing: {coin['product_id']}",
-                        text_content=f"Coinbase just listed {coin['product_id']}",
-                        html_content=f"Coinbase just listed {coin['product_id']}"
-                    )
-            save_obj_dict_to_file(coinbase_listed_coins_path, coinbase_data)
 
         #
         #
@@ -517,7 +488,10 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                             data_retention_hours=DATA_RETENTION_HOURS,
                             min_score=min_score,
                             return_multiple=True,
-                            max_opportunities=max_concurrent_orders
+                            max_opportunities=max_concurrent_orders,
+                            entry_fee_pct=coinbase_spot_taker_fee,
+                            exit_fee_pct=coinbase_spot_taker_fee,
+                            tax_rate_pct=federal_tax_rate
                         )
                         best_opportunity = racing_opportunities[0] if racing_opportunities else None
                     else:
@@ -528,7 +502,10 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                             enabled_symbols=enabled_wallets,
                             interval_seconds=INTERVAL_SECONDS,
                             data_retention_hours=DATA_RETENTION_HOURS,
-                            min_score=min_score
+                            min_score=min_score,
+                            entry_fee_pct=coinbase_spot_taker_fee,
+                            exit_fee_pct=coinbase_spot_taker_fee,
+                            tax_rate_pct=federal_tax_rate
                         )
 
                     # Track which coins we refresh to avoid double analysis in main loop
@@ -815,14 +792,10 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
 
                     # set config.json data
                     READY_TO_TRADE = False
-                    ENABLE_CHART_SNAPSHOT = False
-                    ENABLE_AI_ANALYSIS = False
                     STARTING_CAPITAL_USD = 0
                     for wallet in config['wallets']:
                         if symbol == wallet['symbol']:
                             READY_TO_TRADE = wallet['ready_to_trade']
-                            ENABLE_CHART_SNAPSHOT = wallet['enable_chart_snapshot']
-                            ENABLE_AI_ANALYSIS = wallet['enable_ai_analysis']
                             STARTING_CAPITAL_USD = wallet['starting_capital_usd']
 
                     wallet_metrics = calculate_wallet_metrics(symbol, STARTING_CAPITAL_USD)
@@ -964,213 +937,95 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                     #
                     #
                     #
-                    # Get or create AI analysis for trading parameters
-                    actual_coin_prices_list_length = len(coin_prices_LIST)
-                    analysis = load_analysis_from_file(symbol)
-
-                    # Load core learnings early so it's always available
-                    core_learnings = load_core_learnings(symbol)
-
-                    # Build historical trading context for LLM learning (always, even for cached analysis)
-                    # This is needed for position sizing calculations
-                    trading_context = None
-                    if llm_learning_enabled:
-                        trading_context = build_trading_context(
-                            symbol,
-                            max_trades=max_historical_trades,
-                            include_screenshots=include_screenshots,
-                            starting_capital_usd=STARTING_CAPITAL_USD
-                        )
-                        if trading_context and trading_context.get('total_trades', 0) > 0:
-                            # Optionally prune old trades if we have too many
-                            if trading_context.get('total_trades', 0) > prune_old_trades_after:
-                                from utils.trade_context import prune_old_transactions
-                                prune_old_transactions(symbol, keep_count=prune_old_trades_after)
-
-                    # Check if we need to generate new analysis
-                    # Skip if already refreshed in proactive loop to avoid double analysis
-                    if market_rotation_enabled and symbol in refreshed_in_proactive_loop:
-                        should_refresh = False
-                        if show_detailed_logs:
-                            print(f"Using recently refreshed analysis from proactive loop (skipping duplicate refresh)")
-                    else:
-                        should_refresh = should_refresh_analysis(
-                            symbol,
-                            last_order_type,
-                            no_trade_refresh_hours,
-                            low_confidence_wait_hours,
-                            medium_confidence_wait_hours,
-                            high_confidence_max_age_hours,
-                            coin_data=coin_data,
-                            config=config
-                        )
-
-                    if should_refresh and not ENABLE_AI_ANALYSIS:
-                        print(f"AI analysis is disabled for {symbol} - skipping analysis generation")
-                        analysis = None
-                    elif should_refresh and ENABLE_AI_ANALYSIS:
-                        print(f"Generating new AI analysis for {symbol}...")
-                        # Check if we have enough data points (with 99% tolerance for minor gaps)
-                        if actual_coin_prices_list_length < MINIMUM_DATA_POINTS:
-                            print(f"Insufficient price data for analysis ({actual_coin_prices_list_length}/{EXPECTED_DATA_POINTS} points, minimum: {MINIMUM_DATA_POINTS}). Waiting for more data...")
-                            analysis = None
-                        else:
-                            # Show warning if not at full expected data but still proceeding
-                            if actual_coin_prices_list_length < EXPECTED_DATA_POINTS:
-                                print(f"⚠️  Using {actual_coin_prices_list_length}/{EXPECTED_DATA_POINTS} data points (minor gaps detected, but sufficient for analysis)")
-                            # Generate multi-timeframe charts for LLM analysis
-                            print(f"Generating multi-timeframe charts for {symbol}...")
-                            chart_paths = plot_multi_timeframe_charts(
-                                current_timestamp=time.time(),
-                                interval=INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
-                                symbol=symbol,
-                                price_data=coin_prices_LIST,
-                                volume_data=coin_volume_24h_LIST,
-                                analysis=None  # No existing analysis yet
-                            )
-                            print(f"✓ Generated {len(chart_paths)} timeframe charts: {', '.join(chart_paths.keys())}")
-
-                            # Display context information
-                            if trading_context and trading_context.get('total_trades', 0) > 0:
-                                print(f"✓ Loaded {trading_context['trades_included']} historical trades for context")
-                            else:
-                                print("No historical trades found - this will be the first trade")
-
-                            # Display core learnings if present (already loaded earlier)
-                            if core_learnings and (
-                                core_learnings.get('hard_rules') or
-                                core_learnings.get('pattern_blacklist') or
-                                core_learnings.get('loss_streaks', {}).get('current_streak', 0) > 0
-                            ):
-                                print(format_learnings_for_display(core_learnings))
-
-                            analysis = analyze_market_with_openai(
-                                symbol,
-                                coin_data,
-                                exchange_fee_percentage=coinbase_spot_taker_fee,  # Using taker fee for market orders
-                                tax_rate_percentage=federal_tax_rate,
-                                min_profit_target_percentage=min_profit_target_percentage,
-                                chart_paths=chart_paths,
-                                trading_context=trading_context,
-                                range_percentage_from_min=range_percentage_from_min,
-                                config=config
-                            )
-                            if analysis:
-                                save_analysis_to_file(symbol, analysis)
-                            else:
-                                print(f"Warning: Failed to generate analysis for {symbol}")
-                    elif analysis:
-                        if show_detailed_logs:
-                            print(f"Using existing AI analysis (generated at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(analysis.get('analyzed_at', 0)))})")
-
-                        # CRITICAL: Apply position sizing to cached analysis if buy_amount_usd is missing or 0
-                        # This fixes the issue where old cached analysis had buy_amount_usd set to 0
-                        if analysis.get('buy_amount_usd', 0) == 0 and trading_context and config and range_percentage_from_min is not None:
-                            from utils.dynamic_refresh import calculate_volatility_adjusted_position_size
-
-                            wallet_metrics = trading_context.get('wallet_metrics', {})
-                            current_usd_value = wallet_metrics.get('current_usd', 0)
-                            starting_capital = wallet_metrics.get('starting_capital_usd', 0)
-                            confidence_level = analysis.get('confidence_level', 'low')
-
-                            if current_usd_value > 0:
-                                adjusted_position = calculate_volatility_adjusted_position_size(
-                                    range_percentage_from_min=range_percentage_from_min,
-                                    starting_capital_usd=starting_capital,
-                                    current_usd_value=current_usd_value,
-                                    confidence_level=confidence_level,
-                                    config=config
-                                )
-
-                                analysis['buy_amount_usd'] = adjusted_position
-                                analysis['position_sizing_method'] = 'volatility_adjusted'
-                                if show_detailed_logs:
-                                    print(f"✓ Applied position sizing to cached analysis: ${adjusted_position:.2f}")
-
-                                # Save the updated analysis back to file
-                                save_analysis_to_file(symbol, analysis)
-                    else:
-                        print(f"No existing AI analysis found for {symbol}")
+                    # Analysis for trading parameters
+                    # In market rotation mode, analysis comes from opportunity scorer or order ledger
+                    analysis = None
 
                     # Only proceed with trading if we have a valid analysis
-                    if not analysis:
+                    # EXCEPTION: In market rotation mode, selected opportunities don't need AI analysis
+                    # EXCEPTION: Symbols with open positions ALWAYS need to be processed (for sell logic and placeholder fills)
+                    is_selected_for_rotation = market_rotation_enabled and (symbol == best_opportunity_symbol or is_racing_opportunity)
+
+                    # CRITICAL: If we have an open position (placeholder or buy), load analysis from ledger NOW
+                    # This must happen BEFORE the skip check below, or pending orders will never be processed!
+                    if not analysis and last_order_type in ['placeholder', 'buy']:
+                        original_analysis = last_order.get('original_analysis')
+                        if original_analysis:
+                            if show_detailed_logs:
+                                print(f"✓ Loading LOCKED analysis from ledger for position management (generated at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(original_analysis.get('analyzed_at', 0)))})")
+                            analysis = original_analysis
+                        else:
+                            if show_detailed_logs:
+                                print(f"⚠️  Warning: Open position but no original_analysis in ledger - will try to process anyway")
+
+                    if not analysis and not is_selected_for_rotation and not has_open_position:
                         print(f"No market analysis available for {symbol}. Skipping trading logic.")
                         print('\n')
                         continue
 
-                    # If we have a pending order or open position, use the ORIGINAL analysis from ledger
-                    # This ensures the recommendation stays locked while in a trade
-                    if last_order_type in ['placeholder', 'buy']:
+                    # If we don't have analysis but we ARE selected for rotation, create a placeholder
+                    # with the required fields populated from the opportunity data
+                    if not analysis and is_selected_for_rotation:
+                        # Get the opportunity data (either best_opportunity or from racing list)
+                        opp_data = best_opportunity if symbol == best_opportunity_symbol else next((opp for opp in racing_opportunities if opp['symbol'] == symbol), None)
+
+                        if opp_data:
+                            analysis = {
+                                'analyzed_at': time.time(),
+                                'source': 'market_rotation',
+                                'strategy': opp_data.get('strategy', 'momentum_scalping'),
+                                'strategy_type': opp_data.get('strategy_type', 'unknown'),
+                                'entry_price': opp_data.get('entry_price'),  # For scalping mode
+                                'stop_loss': opp_data.get('stop_loss'),       # For scalping mode
+                                'profit_target': opp_data.get('profit_target'),  # For scalping mode
+                                'confidence_level': opp_data.get('confidence', 'high'),
+                                'market_trend': opp_data.get('trend', 'unknown'),
+                                'recommendation': 'buy',
+                                'reasoning': opp_data.get('reasoning', ''),
+                                'buy_amount_usd': market_rotation_config.get('total_trading_capital_usd', 100)
+                            }
+                        else:
+                            # Fallback if opportunity data is missing
+                            analysis = {
+                                'analyzed_at': time.time(),
+                                'source': 'market_rotation',
+                                'note': 'Selected by momentum scalping strategy - AI analysis not required'
+                            }
+
+                    # Note: Analysis loading for open positions now happens earlier (before skip check)
+                    # to ensure placeholder orders and open positions are always processed
+                    # This block kept for safety in case analysis wasn't loaded above
+                    if last_order_type in ['placeholder', 'buy'] and not analysis:
                         original_analysis = last_order.get('original_analysis')
                         if original_analysis:
-                            print(f"✓ Using LOCKED original analysis from buy decision (generated at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(original_analysis.get('analyzed_at', 0)))})")
+                            print(f"✓ Loading LOCKED original analysis (fallback - should have loaded earlier)")
                             analysis = original_analysis
                         else:
-                            print(f"⚠️  No original analysis found in ledger - using current analysis file")
+                            print(f"⚠️  Critical: No original analysis found in ledger for open position!")
 
-                    # Apply core learnings guardrails (only for new trades, not locked positions)
-                    if last_order_type not in ['placeholder', 'buy']:
-                        # Apply calibrations (just adjustments, doesn't block)
-                        market_trend = analysis.get('market_trend', 'unknown')
-                        analysis = apply_calibrations(core_learnings, analysis, market_trend)
-
-                        # Check hard rules (only blocks if explicit rules exist from repeated failures)
-                        from datetime import datetime as dt
-                        current_conditions = {
-                            'market_trend': market_trend,
-                            'confidence_level': analysis.get('confidence_level', 'low')
-                        }
-                        should_trade, block_reason = evaluate_hard_rules(core_learnings, current_conditions)
-                        if not should_trade:
-                            print(block_reason)
-                            print('\n')
-                            continue
-
-                        # Check pattern blacklist (only 0% win rate patterns after 3+ attempts)
-                        pattern_description = f"{market_trend} {analysis.get('confidence_level', 'low')}"
-                        should_trade, block_reason = check_pattern_blacklist(
-                            core_learnings,
-                            pattern_description,
-                            market_trend,
-                            analysis.get('confidence_level', 'low')
-                        )
-                        if not should_trade:
-                            print(block_reason)
-                            print('\n')
-                            continue
-
-                        # Reduce position size if on loss streak (3+ losses)
-                        position_multiplier = get_position_size_multiplier(core_learnings)
-                        if position_multiplier < 1.0 and analysis.get('buy_amount_usd', 0) > 0:
-                            original_buy_amount = analysis['buy_amount_usd']
-                            analysis['buy_amount_usd'] = original_buy_amount * position_multiplier
-                            print(f"📉 Position reduced to {position_multiplier:.0%} due to loss streak (${original_buy_amount:.2f} → ${analysis['buy_amount_usd']:.2f})")
-
-                    # Set trading parameters from analysis
-                    BUY_AT_PRICE = analysis.get('buy_in_price')
-                    PROFIT_PERCENTAGE = analysis.get('profit_target_percentage')
-                    TRADE_RECOMMENDATION = analysis.get('trade_recommendation', 'buy')
-                    CONFIDENCE_LEVEL = analysis.get('confidence_level', 'low')
-                    STOP_LOSS_PRICE = analysis.get('stop_loss')
-
-                    # STOP LOSS VALIDATION: Enforce max 1.0% for "many small wins" strategy
-                    max_stop_loss_pct = config.get('adaptive_mean_reversion', {}).get('stop_loss_percentage', 1.0)
-                    if STOP_LOSS_PRICE and BUY_AT_PRICE:
-                        actual_stop_loss_pct = ((BUY_AT_PRICE - STOP_LOSS_PRICE) / BUY_AT_PRICE) * 100
-                        if actual_stop_loss_pct > max_stop_loss_pct:
-                            print(f"⚠️  STOP LOSS TOO WIDE: {actual_stop_loss_pct:.2f}% > {max_stop_loss_pct}% max")
-                            print(f"   Adjusting stop loss from ${STOP_LOSS_PRICE:.4f} to maintain {max_stop_loss_pct}% max")
-                            # Cap stop loss at max percentage
-                            STOP_LOSS_PRICE = BUY_AT_PRICE * (1 - max_stop_loss_pct / 100)
-                            print(f"   New stop loss: ${STOP_LOSS_PRICE:.4f} ({max_stop_loss_pct}%)")
-                            # Update analysis dict so it's saved correctly
-                            analysis['stop_loss'] = STOP_LOSS_PRICE
-
-                    if show_detailed_logs:
-                        print('--- AI STRATEGY ---')
-                        print(f"buy_at: ${BUY_AT_PRICE}, stop_loss: ${STOP_LOSS_PRICE if STOP_LOSS_PRICE else 'N/A'}, target_profit_%: {PROFIT_PERCENTAGE}%")
-                        print(f"current_price: ${current_price}, support: ${analysis.get('major_support', 'N/A')}, resistance: ${analysis.get('major_resistance', 'N/A')}")
-                        print(f"market_trend: {analysis.get('market_trend', 'N/A')}, confidence: {CONFIDENCE_LEVEL}")
+                    # Set trading parameters - SCALPING MODE ONLY
+                    # All parameters come from momentum scalping strategy
+                    if analysis and 'entry_price' in analysis:
+                        BUY_AT_PRICE = analysis.get('entry_price')
+                        STOP_LOSS_PRICE = analysis.get('stop_loss')
+                        # Calculate profit percentage from profit_target price
+                        profit_target_price = analysis.get('profit_target')
+                        if profit_target_price and BUY_AT_PRICE:
+                            PROFIT_PERCENTAGE = ((profit_target_price - BUY_AT_PRICE) / BUY_AT_PRICE) * 100
+                        else:
+                            PROFIT_PERCENTAGE = 0.8  # Default scalping target
+                        TRADE_RECOMMENDATION = 'buy'
+                        CONFIDENCE_LEVEL = analysis.get('confidence_level', 'high')
+                        if show_detailed_logs:
+                            print('--- SCALPING STRATEGY (ALGO) ---')
+                            print(f"entry: ${BUY_AT_PRICE:.4f}, stop_loss: ${STOP_LOSS_PRICE:.4f}, target: {PROFIT_PERCENTAGE:.2f}%")
+                            print(f"strategy: {analysis.get('strategy_type', 'unknown')}, confidence: {CONFIDENCE_LEVEL}")
+                    else:
+                        BUY_AT_PRICE = None
+                        STOP_LOSS_PRICE = None
+                        PROFIT_PERCENTAGE = None
+                        TRADE_RECOMMENDATION = 'hold'
+                        CONFIDENCE_LEVEL = 'low'
 
                     #
                     #
@@ -1509,33 +1364,82 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 if range_strategy_enabled and range_signal and range_signal['signal'] == 'buy':
                                     zone = range_signal['zone']
                                     print(f"{Colors.GREEN}Range Strategy: ✓ In support zone (${zone['zone_price_avg']:.2f}, {zone['touches']} touches){Colors.ENDC}")
-                                print(f"{Colors.GREEN}AI Analysis: ✓ BUY recommendation with HIGH confidence{Colors.ENDC}")
 
-                            print(f"{Colors.GREEN}Market Price: ${current_price:.2f} (AI target: ${BUY_AT_PRICE:.2f}){Colors.ENDC}\n")
+                            print(f"{Colors.GREEN}Current Market Price: ${current_price:.2f}{Colors.ENDC}\n")
 
                             if READY_TO_TRADE:
-                                # Get buy amount from LLM analysis - required
-                                if analysis and 'buy_amount_usd' in analysis:
+                                # Determine buy amount and target price based on strategy mode
+                                buy_amount = None
+                                target_price = None
+
+                                # Market rotation mode: use opportunity data and rotation capital
+                                if current_opportunity and is_selected_opportunity:
+                                    buy_amount = market_rotation_config.get('total_trading_capital_usd', STARTING_CAPITAL_USD)
+                                    target_price = current_opportunity.get('entry_price', current_price)
+                                    print(f"Using buy amount: ${buy_amount} (from market rotation capital)")
+                                    print(f"Target entry price: ${target_price:.4f} (from opportunity scorer)")
+                                # Traditional AI analysis mode
+                                elif analysis and 'buy_amount_usd' in analysis:
                                     buy_amount = analysis.get('buy_amount_usd')
+                                    target_price = BUY_AT_PRICE
                                     print(f"Using buy amount: ${buy_amount} (from LLM analysis)")
 
-                                    # Calculate shares: use whole shares if we can afford at least 1, otherwise use fractional
-                                    shares_calculation = buy_amount / current_price
+                                if buy_amount and target_price:
+                                    # Calculate shares accounting for exchange fees
+                                    # We want: (subtotal + fee) = buy_amount
+                                    # Where: fee = (fee_rate/100) * subtotal
+                                    # So: subtotal * (1 + fee_rate/100) = buy_amount
+                                    # Therefore: subtotal = buy_amount / (1 + fee_rate/100)
+
+                                    fee_multiplier = 1 + (coinbase_spot_taker_fee / 100)
+                                    subtotal_amount = buy_amount / fee_multiplier
+                                    shares_calculation = subtotal_amount / current_price
+
                                     if shares_calculation >= 1:
                                         shares_to_buy = math.floor(shares_calculation)  # Round down to whole shares
-                                        print(f"Calculated shares to buy: {shares_to_buy} whole shares (${buy_amount} / ${current_price})")
+                                        estimated_subtotal = shares_to_buy * current_price
+                                        estimated_fee = calculate_exchange_fee(current_price, shares_to_buy, coinbase_spot_taker_fee)
+                                        estimated_total = estimated_subtotal + estimated_fee
+                                        print(f"Calculated shares to buy: {shares_to_buy} whole shares")
+                                        print(f"  Subtotal: ${estimated_subtotal:.2f} + Fee: ${estimated_fee:.2f} = Total: ${estimated_total:.2f} (target: ${buy_amount:.2f})")
                                     else:
                                         # Round fractional shares to 8 decimal places (satoshi precision)
                                         shares_to_buy = round(shares_calculation, 8)
-                                        print(f"Calculated shares to buy: {shares_to_buy} fractional shares (${buy_amount} / ${current_price})")
+                                        estimated_subtotal = shares_to_buy * current_price
+                                        estimated_fee = calculate_exchange_fee(current_price, shares_to_buy, coinbase_spot_taker_fee)
+                                        estimated_total = estimated_subtotal + estimated_fee
+                                        print(f"Calculated shares to buy: {shares_to_buy} fractional shares")
+                                        print(f"  Subtotal: ${estimated_subtotal:.2f} + Fee: ${estimated_fee:.2f} = Total: ${estimated_total:.2f} (target: ${buy_amount:.2f})")
 
                                     if shares_to_buy > 0:
-                                        # Check if current price has reached AI's recommended entry price
-                                        # Execute market order immediately when price is at or below target
-                                        target_price = BUY_AT_PRICE
+                                        # Determine entry tolerance based on strategy type
+                                        # Different strategies have different entry requirements:
+                                        strategy_type = current_opportunity.get('strategy_type') if current_opportunity else None
 
-                                        if current_price <= target_price:
-                                            print(f"{Colors.GREEN}✓ Price target reached! Current: ${current_price:.4f} <= Target: ${target_price:.4f}{Colors.ENDC}")
+                                        # CONSERVATIVE slippage limits to avoid overpaying
+                                        if strategy_type == 'breakout':
+                                            # Breakouts move up - allow small slippage (0.3% max)
+                                            entry_tolerance_pct = 0.3
+                                        elif strategy_type == 'consolidation_break':
+                                            # Consolidation breaks can move fast - allow small slippage (0.3% max)
+                                            entry_tolerance_pct = 0.3
+                                        elif strategy_type == 'support_bounce':
+                                            # Support bounces - STRICT entry (only at or below target)
+                                            entry_tolerance_pct = 0.0
+                                        else:
+                                            # Default: very conservative
+                                            entry_tolerance_pct = 0.1
+
+                                        max_entry_price = target_price * (1 + entry_tolerance_pct / 100)
+
+                                        # Execute market order when price is within tolerance
+                                        if current_price <= max_entry_price:
+                                            if current_price <= target_price:
+                                                print(f"{Colors.GREEN}✓ Price at/below target! Current: ${current_price:.4f} <= Target: ${target_price:.4f}{Colors.ENDC}")
+                                            else:
+                                                slippage_pct = ((current_price - target_price) / target_price) * 100
+                                                print(f"{Colors.GREEN}✓ Executing with {slippage_pct:.2f}% slippage (within {entry_tolerance_pct}% tolerance for {strategy_type}){Colors.ENDC}")
+                                                print(f"   Current: ${current_price:.4f} | Target: ${target_price:.4f} | Max: ${max_entry_price:.4f}{Colors.ENDC}")
 
                                             # Generate chart snapshot for trade documentation (only when buy is executed)
                                             buy_chart_hours = 2160  # 90 days
@@ -1553,17 +1457,19 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                                 buy_chart_min,
                                                 buy_chart_max,
                                                 buy_chart_range_pct,
-                                                entry_price,
-                                                analysis=analysis,
+                                                target_price,  # Use target price as entry price for chart
+                                                analysis=analysis if analysis else None,
                                                 buy_event=True
                                             )
 
                                             print(f"Placing MARKET buy order for {shares_to_buy} shares at ${current_price:.4f}")
                                             place_market_buy_order(coinbase_client, symbol, shares_to_buy)
                                         else:
+                                            # Price is beyond acceptable slippage - wait for better entry
                                             price_diff = ((current_price - target_price) / target_price) * 100
-                                            print(f"{Colors.YELLOW}⏳ Watching price: Current ${current_price:.4f} is {price_diff:.2f}% above target ${target_price:.4f}{Colors.ENDC}")
-                                            print(f"   Will execute market order when price reaches target or below")
+                                            print(f"{Colors.YELLOW}⏳ Price beyond tolerance: Current ${current_price:.4f} is {price_diff:+.2f}% vs target ${target_price:.4f}{Colors.ENDC}")
+                                            print(f"   Max acceptable: ${max_entry_price:.4f} (tolerance: {entry_tolerance_pct}% for {strategy_type})")
+                                            print(f"   Waiting for price to come within range...")
                                             # Don't place any order yet - just continue monitoring
                                             print(f"   Continuing to monitor {symbol}...")
                                             print('\n')
@@ -1575,17 +1481,34 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                         last_order = get_last_order_from_local_json_ledger(symbol)
                                         if last_order:
                                             last_order['buy_screenshot_path'] = buy_screenshot_path
-                                            last_order['original_analysis'] = analysis.copy()  # Store the analysis that drove this buy decision
+                                            # Store analysis if available, otherwise store opportunity data
+                                            if analysis:
+                                                last_order['original_analysis'] = analysis.copy()  # Store the analysis that drove this buy decision
+                                            elif current_opportunity:
+                                                # Store opportunity data as pseudo-analysis for market rotation mode
+                                                last_order['original_analysis'] = {
+                                                    'strategy': current_opportunity.get('strategy'),
+                                                    'strategy_type': current_opportunity.get('strategy_type'),
+                                                    'score': current_opportunity.get('score'),
+                                                    'confidence_level': current_opportunity.get('confidence'),
+                                                    'market_trend': current_opportunity.get('trend'),
+                                                    'reasoning': current_opportunity.get('reasoning'),
+                                                    'entry_price': current_opportunity.get('entry_price'),
+                                                    'stop_loss': current_opportunity.get('stop_loss'),
+                                                    'profit_target': current_opportunity.get('profit_target'),
+                                                    'risk_reward_ratio': current_opportunity.get('risk_reward_ratio'),
+                                                    'buy_amount_usd': buy_amount  # Store the actual buy amount used
+                                                }
                                             # Re-save the ledger with both the screenshot path and analysis
                                             import json
                                             file_name = f"{symbol}_orders.json"
                                             with open(file_name, 'w') as file:
                                                 json.dump([last_order], file, indent=4)
-                                            print(f"✓ Stored buy screenshot and original AI analysis in ledger (to preserve buy reasoning)")
+                                            print(f"✓ Stored buy screenshot and trade data in ledger")
                                     else:
                                         print(f"STATUS: Buy amount ${buy_amount} must be greater than 0")
                                 else:
-                                    print("STATUS: No buy_amount_usd in analysis - skipping trade")
+                                    print("STATUS: No buy amount or target price available - skipping trade")
                             else:
                                 print('STATUS: Trading disabled')
 
@@ -1643,49 +1566,84 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                         # This calculates your actual take-home profit if you sold right now.
                         # All costs (entry fees, exit fees, taxes) are accounted for.
 
-                        # STEP 1: Calculate current market value of your position
-                        current_position_value_usd = current_price * number_of_shares
-                        print(f"current_market_value: ${current_position_value_usd:.2f}")
-                        print(f"  ({number_of_shares:.8f} shares × ${current_price:.2f}/share)")
+                        # Use atomic profit calculator for accurate, standardized calculations
+                        profit_calc = calculate_net_profit_from_price_move(
+                            entry_price=entry_price,
+                            exit_price=current_price,
+                            shares=number_of_shares,
+                            entry_fee_pct=coinbase_spot_taker_fee,
+                            exit_fee_pct=coinbase_spot_taker_fee,
+                            tax_rate_pct=federal_tax_rate,
+                            cost_basis_usd=entry_position_value_after_fees  # Use actual cost basis from order
+                        )
 
-                        # STEP 2: Calculate what you originally paid (including entry fees)
-                        total_cost_basis_usd = entry_position_value_after_fees
-                        print(f"total_cost_basis: ${total_cost_basis_usd:.2f}")
-                        print(f"  (Original purchase price + entry fees)")
+                        print(f"\n{Colors.BOLD}{'='*80}")
+                        print(f"📊 PROFITABILITY BREAKDOWN - {symbol}")
+                        print(f"{'='*80}{Colors.ENDC}\n")
 
-                        # STEP 3: Calculate gross profit (before exit fees and taxes)
-                        gross_profit_before_exit_costs = current_position_value_usd - total_cost_basis_usd
-                        print(f"gross_profit (before exit costs): ${gross_profit_before_exit_costs:.2f}")
-                        print(f"  (${current_position_value_usd:.2f} - ${total_cost_basis_usd:.2f})")
+                        # Position Details
+                        print(f"{Colors.BOLD}POSITION DETAILS:{Colors.ENDC}")
+                        print(f"  Shares: {number_of_shares:.8f}")
+                        print(f"  Entry Price: ${entry_price:.4f}")
+                        print(f"  Current Price: ${current_price:.4f}")
+                        print(f"  Price Change: {profit_calc['price_change_pct']:+.2f}%")
+                        print()
 
-                        # STEP 4: Calculate exit/sell exchange fee (using taker fee for market orders)
-                        exit_exchange_fee_usd = calculate_exchange_fee(current_price, number_of_shares, coinbase_spot_taker_fee)
-                        print(f"exit_exchange_fee: ${exit_exchange_fee_usd:.2f}")
-                        print(f"  ({coinbase_spot_taker_fee}% taker fee on ${current_position_value_usd:.2f})")
+                        # Entry Costs
+                        print(f"{Colors.BOLD}ENTRY COSTS:{Colors.ENDC}")
+                        print(f"  Entry Value: ${profit_calc['entry_value_usd']:.2f}")
+                        print(f"    ({number_of_shares:.8f} shares × ${entry_price:.4f})")
+                        print(f"  Entry Fee ({coinbase_spot_taker_fee}%): ${profit_calc['entry_fee_usd']:.2f}")
+                        print(f"  {Colors.YELLOW}Total Cost Basis: ${profit_calc['cost_basis_usd']:.2f}{Colors.ENDC}")
+                        print()
 
-                        # STEP 5: Calculate capital gain (for tax purposes)
-                        # Capital gain = current value - total cost basis (including entry fees)
-                        # This is the same as gross profit before exit costs
-                        unrealized_gain_usd = current_position_value_usd - total_cost_basis_usd
-                        print(f"unrealized_capital_gain: ${unrealized_gain_usd:.2f}")
-                        print(f"  (${current_position_value_usd:.2f} - ${total_cost_basis_usd:.2f})")
+                        # Current Value
+                        print(f"{Colors.BOLD}CURRENT VALUE:{Colors.ENDC}")
+                        print(f"  Market Value: ${profit_calc['exit_value_usd']:.2f}")
+                        print(f"    ({number_of_shares:.8f} shares × ${current_price:.4f})")
+                        print()
 
-                        # STEP 6: Calculate taxes owed on capital gains
-                        capital_gains_tax_usd = (federal_tax_rate / 100) * unrealized_gain_usd
-                        print(f"capital_gains_tax_owed: ${capital_gains_tax_usd:.2f}")
-                        print(f"  ({federal_tax_rate}% tax rate on ${unrealized_gain_usd:.2f} gain)")
+                        # Exit Costs (if sold now)
+                        print(f"{Colors.BOLD}EXIT COSTS (if sold now):{Colors.ENDC}")
+                        print(f"  Exit Fee ({coinbase_spot_taker_fee}%): ${profit_calc['exit_fee_usd']:.2f}")
+                        print(f"  Proceeds After Fee: ${profit_calc['exit_proceeds_usd']:.2f}")
+                        print()
 
-                        # STEP 7: Calculate NET PROFIT (your actual take-home after ALL costs)
-                        net_profit_after_all_costs_usd = current_position_value_usd - total_cost_basis_usd - exit_exchange_fee_usd - capital_gains_tax_usd
-                        print(f"{Colors.CYAN}NET_PROFIT (take-home): ${net_profit_after_all_costs_usd:.2f}{Colors.ENDC}")
-                        print(f"  Formula: Current Value - Cost Basis - Exit Fee - Taxes")
-                        print(f"  ${current_position_value_usd:.2f} - ${total_cost_basis_usd:.2f} - ${exit_exchange_fee_usd:.2f} - ${capital_gains_tax_usd:.2f}")
+                        # Profit Before Tax
+                        gross_profit_color = Colors.GREEN if profit_calc['gross_profit_usd'] >= 0 else Colors.RED
+                        print(f"{Colors.BOLD}PROFIT (before tax):{Colors.ENDC}")
+                        print(f"  {gross_profit_color}Gross Profit: ${profit_calc['gross_profit_usd']:+.2f}{Colors.ENDC}")
+                        print(f"    (${profit_calc['exit_proceeds_usd']:.2f} proceeds - ${profit_calc['cost_basis_usd']:.2f} cost)")
+                        print()
 
-                        # STEP 8: Calculate percentage return on investment
-                        net_profit_percentage = (net_profit_after_all_costs_usd / total_cost_basis_usd) * 100
-                        print(f"{Colors.CYAN}NET_PROFIT %: {net_profit_percentage:.4f}%{Colors.ENDC}")
-                        print(f"  (${net_profit_after_all_costs_usd:.2f} ÷ ${total_cost_basis_usd:.2f} × 100)")
-                        print(f"  net_profit_usd: ${net_profit_after_all_costs_usd:.2f}")
+                        # Taxes
+                        print(f"{Colors.BOLD}TAXES:{Colors.ENDC}")
+                        if profit_calc['capital_gain_usd'] > 0:
+                            print(f"  Capital Gain: ${profit_calc['capital_gain_usd']:.2f}")
+                            print(f"  Tax Rate: {federal_tax_rate}%")
+                            print(f"  Tax Owed: ${profit_calc['tax_usd']:.2f}")
+                        else:
+                            print(f"  Capital Gain: ${profit_calc['capital_gain_usd']:.2f}")
+                            print(f"  Tax Owed: $0.00 (no tax on losses)")
+                        print()
+
+                        # NET PROFIT (Final Take-Home)
+                        net_profit_color = Colors.GREEN if profit_calc['net_profit_usd'] >= 0 else Colors.RED
+                        print(f"{Colors.BOLD}{'='*80}")
+                        print(f"{net_profit_color}💰 NET PROFIT (Your Take-Home): ${profit_calc['net_profit_usd']:+.2f} ({profit_calc['net_profit_pct']:+.2f}%){Colors.ENDC}")
+                        print(f"{Colors.BOLD}{'='*80}{Colors.ENDC}")
+                        print(f"\n{Colors.CYAN}Formula: Market Value - Cost Basis - Exit Fee - Taxes")
+                        print(f"  ${profit_calc['exit_value_usd']:.2f} - ${profit_calc['cost_basis_usd']:.2f} - ${profit_calc['exit_fee_usd']:.2f} - ${profit_calc['tax_usd']:.2f} = ${profit_calc['net_profit_usd']:+.2f}{Colors.ENDC}\n")
+
+                        # Store values for later use
+                        current_position_value_usd = profit_calc['exit_value_usd']
+                        total_cost_basis_usd = profit_calc['cost_basis_usd']
+                        gross_profit_before_exit_costs = profit_calc['gross_profit_usd']
+                        exit_exchange_fee_usd = profit_calc['exit_fee_usd']
+                        unrealized_gain_usd = profit_calc['capital_gain_usd']
+                        capital_gains_tax_usd = profit_calc['tax_usd']
+                        net_profit_after_all_costs_usd = profit_calc['net_profit_usd']
+                        net_profit_percentage = profit_calc['net_profit_pct']
 
                         # Use the maximum of AI's target and configured minimum
                         effective_profit_target = max(PROFIT_PERCENTAGE, min_profit_target_percentage)
@@ -2035,18 +1993,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 from utils.position_tracker import clear_position_state
                                 clear_position_state(symbol)
 
-                                # Update core learnings
-                                from utils.trade_context import load_transaction_history
-                                trade_outcome = {
-                                    'profit': net_profit_after_all_costs_usd,
-                                    'exit_trigger': rotation_type,
-                                    'confidence_level': analysis.get('confidence_level', 'unknown'),
-                                    'market_trend': analysis.get('market_trend', 'unknown')
-                                }
-                                transactions = load_transaction_history(symbol)
-                                update_learnings_from_trade(symbol, trade_outcome, transactions)
-
-                                delete_analysis_file(symbol)
+                                # Trade completed - no learning system needed in pure scalping mode
 
                                 # IMMEDIATE ROTATION: Recalculate best opportunity after exit
                                 print(f"\n{Colors.BOLD}{Colors.CYAN}🔄 CAPITAL FREED - Recalculating best opportunity...{Colors.ENDC}\n")
@@ -2057,7 +2004,10 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                     enabled_symbols=enabled_wallets,
                                     interval_seconds=INTERVAL_SECONDS,
                                     data_retention_hours=DATA_RETENTION_HOURS,
-                                    min_score=min_score
+                                    min_score=min_score,
+                                    entry_fee_pct=coinbase_spot_taker_fee,
+                                    exit_fee_pct=coinbase_spot_taker_fee,
+                                    tax_rate_pct=federal_tax_rate
                                 )
                                 if best_opportunity:
                                     best_opportunity_symbol = best_opportunity['symbol']
