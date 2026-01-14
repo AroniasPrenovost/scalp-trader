@@ -2,13 +2,11 @@
 
 config.json
 
-*_orders.json
+coinbase-orders/*_orders.json
 /transactions/data.json
 
 /coinbase-data
 /analysis
-/learnings
-/coinbase-listings
 /coingecko-global-volume
 
 /screenshots

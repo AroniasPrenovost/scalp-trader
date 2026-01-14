@@ -22,7 +22,7 @@ def save_order_data_to_local_json_ledger(symbol, order_data):
     """
     Save order data to a local file specific to the symbol.
     """
-    file_name = f"{symbol}_orders.json"
+    file_name = f"coinbase-orders/{symbol}_orders.json"
     try:
         # Load existing data if the file exists and is not empty
         if os.path.exists(file_name) and os.path.getsize(file_name) > 0:
@@ -56,7 +56,7 @@ def save_order_data_to_local_json_ledger(symbol, order_data):
 
 def reset_json_ledger_file(symbol):
     # Construct the file name based on the symbol
-    file_name = f"{symbol}_orders.json"
+    file_name = f"coinbase-orders/{symbol}_orders.json"
 
     print(f"Resetting file: {file_name}")
 
@@ -298,7 +298,7 @@ def clear_order_ledger(symbol):
     Args:
         symbol: Trading pair (e.g., 'BTC-USD')
     """
-    file_name = f"{symbol}_orders.json"
+    file_name = f"coinbase-orders/{symbol}_orders.json"
     try:
         if os.path.exists(file_name):
             with open(file_name, 'w') as file:
@@ -735,7 +735,7 @@ def get_last_order_from_local_json_ledger(symbol, verbose=False):
     :param symbol: The trading symbol (e.g., 'BTC-USD')
     :param verbose: Whether to print "No orders found" message (default: True)
     """
-    file_name = f"{symbol}_orders.json"
+    file_name = f"coinbase-orders/{symbol}_orders.json"
     try:
         if os.path.exists(file_name) and os.path.getsize(file_name) > 0:
             with open(file_name, 'r') as file:

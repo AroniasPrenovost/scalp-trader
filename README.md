@@ -631,7 +631,11 @@ Each completed trade adds to the learning dataset, improving future decision-mak
 │   ├── BTC-USD_chart_buy_20251015120000.png
 │   └── (auto-generated)
 │
-├── {SYMBOL}_orders.json                  # Per-symbol order ledger (auto-generated)
+├── coinbase-orders/                      # Per-symbol order ledgers (auto-generated)
+│   ├── BTC-USD_orders.json
+│   ├── ETH-USD_orders.json
+│   └── {SYMBOL}_orders.json
+│
 └── venv/                                 # Python virtual environment (if using Option 2)
 ```
 

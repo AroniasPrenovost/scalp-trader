@@ -1180,7 +1180,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 # Now replace the entire ledger with the filled order (including preserved data)
                                 # This prevents the ledger from accumulating multiple entries
                                 import json
-                                file_name = f"{symbol}_orders.json"
+                                file_name = f"coinbase-orders/{symbol}_orders.json"
                                 with open(file_name, 'w') as file:
                                     json.dump([full_order_dict], file, indent=4)
                                 print('STATUS: Updated ledger with filled order data (analysis preserved until sell)')
@@ -1251,7 +1251,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                         if has_open_position:
                             print(f"{Colors.RED}⚠️  SAFETY CHECK FAILED: Detected open position but last_order_type='{last_order_type}'{Colors.ENDC}")
                             print(f"{Colors.RED}   This indicates a ledger inconsistency. Skipping buy logic to prevent double-position.{Colors.ENDC}")
-                            print(f"{Colors.YELLOW}   Please review the ledger file: {symbol}_orders.json{Colors.ENDC}\n")
+                            print(f"{Colors.YELLOW}   Please review the ledger file: coinbase-orders/{symbol}_orders.json{Colors.ENDC}\n")
                             continue
 
                         MARKET_TREND = analysis.get('market_trend', 'N/A')
@@ -1501,7 +1501,7 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                                 }
                                             # Re-save the ledger with both the screenshot path and analysis
                                             import json
-                                            file_name = f"{symbol}_orders.json"
+                                            file_name = f"coinbase-orders/{symbol}_orders.json"
                                             with open(file_name, 'w') as file:
                                                 json.dump([last_order], file, indent=4)
                                             print(f"✓ Stored buy screenshot and trade data in ledger")
