@@ -12,7 +12,7 @@ from collections import defaultdict
 
 def load_analysis():
     """Load the historical moves analysis"""
-    with open('historical_moves_analysis.json', 'r') as f:
+    with open('analysis/historical_moves_analysis.json', 'r') as f:
         return json.load(f)
 
 
@@ -483,11 +483,11 @@ def main():
         'recommended_scoring_weights': weights
     }
 
-    with open('pattern_recognition_results.json', 'w') as f:
+    with open('analysis/pattern_recognition_results.json', 'w') as f:
         json.dump(output, f, indent=2)
 
     print("\n" + "="*80)
-    print("Results saved to: pattern_recognition_results.json")
+    print("Results saved to: analysis/pattern_recognition_results.json")
     print("="*80 + "\n")
 
 

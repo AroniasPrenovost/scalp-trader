@@ -11,7 +11,8 @@ coinbase-orders/*_orders.json
 
 /screenshots
 
-last_hourly_operation.json
-last_screenshot_cleanup.json
+/local-state
+
+/venv
 
 .DS_Store

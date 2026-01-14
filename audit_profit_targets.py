@@ -325,10 +325,10 @@ def main():
         'results': results
     }
 
-    with open('profit_target_audit_results.json', 'w') as f:
+    with open('analysis/profit_target_audit_results.json', 'w') as f:
         json.dump(output, f, indent=2)
 
-    print(f"📊 Detailed results saved to profit_target_audit_results.json\n")
+    print(f"📊 Detailed results saved to analysis/profit_target_audit_results.json\n")
 
 
 if __name__ == '__main__':

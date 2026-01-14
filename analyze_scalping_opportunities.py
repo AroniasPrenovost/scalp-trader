@@ -392,10 +392,10 @@ def main():
         'results': all_results
     }
 
-    with open('scalping_opportunity_analysis.json', 'w') as f:
+    with open('analysis/scalping_opportunity_analysis.json', 'w') as f:
         json.dump(output, f, indent=2, default=str)
 
-    print(f"📊 Detailed results saved to scalping_opportunity_analysis.json\n")
+    print(f"📊 Detailed results saved to analysis/scalping_opportunity_analysis.json\n")
 
 
 if __name__ == '__main__':

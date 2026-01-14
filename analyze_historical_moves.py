@@ -400,7 +400,7 @@ def main():
     # Directories
     coinbase_dir = 'coinbase-data'
     coingecko_dir = 'coingecko-global-volume'
-    output_file = 'historical_moves_analysis.json'
+    output_file = 'analysis/historical_moves_analysis.json'
 
     # Load config to get enabled cryptos
     with open('config.json', 'r') as f:

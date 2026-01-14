@@ -116,7 +116,7 @@ LAST_HOURLY_OPERATION_TIME = 0
 #
 # Hourly operation timestamp persistence
 #
-HOURLY_TIMESTAMP_FILE = 'last_hourly_operation.json'
+HOURLY_TIMESTAMP_FILE = 'local-state/last_hourly_operation.json'
 
 def save_last_hourly_operation_time(timestamp):
     """Save the last hourly operation timestamp to a file"""
@@ -142,7 +142,7 @@ def load_last_hourly_operation_time():
 #
 # Screenshot cleanup timestamp persistence
 #
-SCREENSHOT_CLEANUP_TIMESTAMP_FILE = 'last_screenshot_cleanup.json'
+SCREENSHOT_CLEANUP_TIMESTAMP_FILE = 'local-state/last_screenshot_cleanup.json'
 
 def save_last_screenshot_cleanup_time(timestamp):
     """Save the last screenshot cleanup timestamp to a file"""
