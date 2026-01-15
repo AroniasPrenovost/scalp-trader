@@ -1,41 +1,38 @@
 {
-  "min_profit_target_percentage": 2.5,
-  "no_trade_refresh_hours": 1,
-  "cooldown_hours_after_sell": 3,
-  "low_confidence_wait_hours": 1.5,
-  "medium_confidence_wait_hours": 1,
-  "daily_summary": {
-    "enabled": true,
-    "send_hour": 8
-  },
-  "llm_learning": {
-    "enabled": true,
-    "max_historical_trades": 10,
-    "include_screenshots": false,
-    "prune_old_trades_after": 1000
-  },
   "data_retention": {
     "max_hours": 4380,
-    "interval_seconds": 3600
+    "interval_seconds": 60,
+    "check_interval_seconds": 20
   },
-  "dynamic_refresh": {
+  "screenshot_retention": {
     "enabled": true,
-    "price_change_threshold_percentage": 1.5,
-    "volume_spike_threshold_multiplier": 1.5,
-    "rsi_oversold_threshold": 30,
-    "rsi_overbought_threshold": 70,
-    "support_resistance_proximity_percentage": 0.6
+    "event_days": 30,
+    "cleanup_interval_hours": 6
   },
-  "position_sizing": {
-    "volatility_scaling_enabled": true,
-    "low_volatility_max_percentage": 15,
-    "moderate_volatility_max_percentage": 30,
-    "high_volatility_max_percentage": 50,
-    "base_position_size_high_confidence": 75,
-    "low_volatility_position_multiplier": 1.0,
-    "moderate_volatility_position_multiplier": 0.85,
-    "high_volatility_position_multiplier": 0.65,
-    "extreme_volatility_position_multiplier": 0.5
+  "market_rotation": {
+    "enabled": true,
+    "mode": "single_best",
+    "scan_all_enabled_assets": true,
+    "total_trading_capital_usd": 4500,
+    "min_score_for_entry": 75,
+    "max_concurrent_orders": 1,
+    "print_opportunity_report": true,
+    "intelligent_rotation": {
+      "enabled": true,
+      "min_profit_to_consider_rotation": 0.5,
+      "min_score_advantage": 15,
+      "require_profit_target_advantage": true,
+      "min_profit_target_advantage_percentage": 1.0
+    },
+    "early_profit_rotation": {
+      "enabled": true,
+      "min_profit_percentage": 1.0,
+      "min_new_opportunity_score": 80,
+      "ignore_profit_advantage_requirement": false,
+      "require_downturn_from_peak": true,
+      "min_peak_profit_usd": 2.25,
+      "downturn_threshold_usd": 0.45
+    }
   },
   "wallets": [
       {
@@ -44,9 +41,8 @@
         "coingecko_id": "bitcoin",
         "enabled": true,
         "ready_to_trade": false,
-        "starting_capital_usd": 1300,
-        "enable_ai_analysis": true,
-        "enable_chart_snapshot": false
+        "starting_capital_usd": 4500,
+        "comment": ""
       },
       {
         "title": "ETH",
@@ -54,9 +50,44 @@
         "coingecko_id": "ethereum",
         "enabled": true,
         "ready_to_trade": false,
-        "starting_capital_usd": 1300,
-        "enable_ai_analysis": true,
-        "enable_chart_snapshot": false
+        "starting_capital_usd": 4500,
+        "comment": ""
+      },
+      {
+        "title": "SOL",
+        "symbol": "SOL-USD",
+        "coingecko_id": "solana",
+        "enabled": true,
+        "ready_to_trade": false,
+        "starting_capital_usd": 4500,
+        "comment": ""
+      },
+      {
+        "title": "AVAX",
+        "symbol": "AVAX-USD",
+        "coingecko_id": "avalanche-2",
+        "enabled": true,
+        "ready_to_trade": false,
+        "starting_capital_usd": 4500,
+        "comment": ""
+      },
+      {
+        "title": "LINK",
+        "symbol": "LINK-USD",
+        "coingecko_id": "chainlink",
+        "enabled": true,
+        "ready_to_trade": false,
+        "starting_capital_usd": 4500,
+        "comment": ""
+      },
+      {
+        "title": "UNI",
+        "symbol": "UNI-USD",
+        "coingecko_id": "uniswap",
+        "enabled": true,
+        "ready_to_trade": false,
+        "starting_capital_usd": 4500,
+        "comment": ""
       },
       {
         "title": "XRP",
@@ -64,9 +95,17 @@
         "coingecko_id": "ripple",
         "enabled": true,
         "ready_to_trade": false,
-        "starting_capital_usd": 1300,
-        "enable_ai_analysis": true,
-        "enable_chart_snapshot": false
+        "starting_capital_usd": 4500,
+        "comment": ""
+      },
+      {
+        "title": "NEAR",
+        "symbol": "NEAR-USD",
+        "coingecko_id": "near",
+        "enabled": true,
+        "ready_to_trade": false,
+        "starting_capital_usd": 4500,
+        "comment": ""
       }
     ]
 }

@@ -303,15 +303,23 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                 # Store data for each enabled crypto
                 for coin in coinbase_data_dictionary:
                     product_id = coin['product_id']
-                    # Create entry with only the 4 required properties
+                    # Create entry with core properties + momentum/volume indicators
                     data_entry = {
                         'timestamp': time.time(),
                         'product_id': product_id,
                         'price': coin.get('price'),
-                        'volume_24h': coin.get('volume_24h')
+                        'volume_24h': coin.get('volume_24h'),
+                        # NEW: Built-in momentum indicators from Coinbase
+                        'price_percentage_change_24h': coin.get('price_percentage_change_24h'),
+                        'volume_percentage_change_24h': coin.get('volume_percentage_change_24h'),
+                        # NEW: Trading status flags (filter out disabled markets)
+                        'trading_disabled': coin.get('trading_disabled', False),
+                        'cancel_only': coin.get('cancel_only', False),
+                        'post_only': coin.get('post_only', False),
+                        'is_disabled': coin.get('is_disabled', False)
                     }
                     append_crypto_data_to_file(coinbase_data_directory, product_id, data_entry)
-                print(f"✓ Appended 1 new data point for {len(coinbase_data_dictionary)} cryptos (next append in 1 hour)\n")
+                print(f"✓ Appended 1 new data point for {len(coinbase_data_dictionary)} cryptos (next append in {INTERVAL_SAVE_DATA_EVERY_X_MINUTES:.0f} min)\n")
 
             # Update the last hourly operation timestamp and save to file
             LAST_HOURLY_OPERATION_TIME = time.time()
