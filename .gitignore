@@ -21,3 +21,9 @@ coinbase-orders/*_orders.json
 /backtest/*.json
 *.json.backup*
 *_results.json
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
