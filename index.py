@@ -30,7 +30,7 @@ from utils.profit_calculator import calculate_net_profit_from_price_move
 from utils.wallet_helpers import calculate_wallet_metrics
 
 # Matplotlib for charting
-from utils.matplotlib import plot_graph
+from utils.matplotlib import plot_graph, plot_coinbase_metrics_chart
 
 # Terminal colors for output formatting
 class Colors:
@@ -1055,6 +1055,37 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
                                                 event_type='buy'
                                             )
 
+                                            # Generate Coinbase metrics correlation chart for buy event
+                                            buy_coin_volume_24h = get_property_values_from_crypto_file(
+                                                coinbase_data_directory, symbol, 'volume_24h', max_age_hours=DATA_RETENTION_HOURS
+                                            )
+                                            buy_coin_price_pct_change_24h = get_property_values_from_crypto_file(
+                                                coinbase_data_directory, symbol, 'price_percentage_change_24h', max_age_hours=DATA_RETENTION_HOURS
+                                            )
+                                            buy_coin_volume_pct_change_24h = get_property_values_from_crypto_file(
+                                                coinbase_data_directory, symbol, 'volume_percentage_change_24h', max_age_hours=DATA_RETENTION_HOURS
+                                            )
+
+                                            # Align metrics data with price data window
+                                            if (buy_coin_volume_24h and buy_coin_price_pct_change_24h and
+                                                buy_coin_volume_pct_change_24h):
+                                                buy_metrics_volume = buy_coin_volume_24h[-buy_chart_data_points:] if len(buy_coin_volume_24h) > buy_chart_data_points else buy_coin_volume_24h
+                                                buy_metrics_price_pct = buy_coin_price_pct_change_24h[-buy_chart_data_points:] if len(buy_coin_price_pct_change_24h) > buy_chart_data_points else buy_coin_price_pct_change_24h
+                                                buy_metrics_volume_pct = buy_coin_volume_pct_change_24h[-buy_chart_data_points:] if len(buy_coin_volume_pct_change_24h) > buy_chart_data_points else buy_coin_volume_pct_change_24h
+
+                                                buy_metrics_screenshot_path = plot_coinbase_metrics_chart(
+                                                    time.time(),
+                                                    INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                                                    symbol,
+                                                    buy_chart_prices,
+                                                    buy_metrics_volume,
+                                                    buy_metrics_price_pct,
+                                                    buy_metrics_volume_pct,
+                                                    event_type='buy'
+                                                )
+                                                if buy_metrics_screenshot_path:
+                                                    print(f"📊 Buy metrics chart: {buy_metrics_screenshot_path}")
+
                                             print(f"Placing MARKET buy order for {shares_to_buy} shares at ${current_price:.4f}")
                                             place_market_buy_order(coinbase_client, symbol, shares_to_buy)
                                         else:
@@ -1541,6 +1572,36 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
                                 event_type='sell'
                             )
 
+                            # Generate Coinbase metrics correlation chart for sell event
+                            sell_coin_volume_24h = get_property_values_from_crypto_file(
+                                coinbase_data_directory, symbol, 'volume_24h', max_age_hours=DATA_RETENTION_HOURS
+                            )
+                            sell_coin_price_pct_change_24h = get_property_values_from_crypto_file(
+                                coinbase_data_directory, symbol, 'price_percentage_change_24h', max_age_hours=DATA_RETENTION_HOURS
+                            )
+                            sell_coin_volume_pct_change_24h = get_property_values_from_crypto_file(
+                                coinbase_data_directory, symbol, 'volume_percentage_change_24h', max_age_hours=DATA_RETENTION_HOURS
+                            )
+
+                            if (sell_coin_volume_24h and sell_coin_price_pct_change_24h and
+                                sell_coin_volume_pct_change_24h):
+                                sell_metrics_volume = sell_coin_volume_24h[-sell_chart_data_points:] if len(sell_coin_volume_24h) > sell_chart_data_points else sell_coin_volume_24h
+                                sell_metrics_price_pct = sell_coin_price_pct_change_24h[-sell_chart_data_points:] if len(sell_coin_price_pct_change_24h) > sell_chart_data_points else sell_coin_price_pct_change_24h
+                                sell_metrics_volume_pct = sell_coin_volume_pct_change_24h[-sell_chart_data_points:] if len(sell_coin_volume_pct_change_24h) > sell_chart_data_points else sell_coin_volume_pct_change_24h
+
+                                sell_metrics_screenshot_path = plot_coinbase_metrics_chart(
+                                    time.time(),
+                                    INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                                    symbol,
+                                    sell_chart_prices,
+                                    sell_metrics_volume,
+                                    sell_metrics_price_pct,
+                                    sell_metrics_volume_pct,
+                                    event_type='sell'
+                                )
+                                if sell_metrics_screenshot_path:
+                                    print(f"📊 Sell metrics chart: {sell_metrics_screenshot_path}")
+
                             if READY_TO_TRADE:
                                 # Execute the rotation sell
                                 place_market_sell_order(coinbase_client, symbol, number_of_shares, net_profit_after_all_costs_usd, net_profit_percentage)
@@ -1636,6 +1697,36 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
                                 event_type='sell'
                             )
 
+                            # Generate Coinbase metrics correlation chart for stop loss sell
+                            sell_coin_volume_24h = get_property_values_from_crypto_file(
+                                coinbase_data_directory, symbol, 'volume_24h', max_age_hours=DATA_RETENTION_HOURS
+                            )
+                            sell_coin_price_pct_change_24h = get_property_values_from_crypto_file(
+                                coinbase_data_directory, symbol, 'price_percentage_change_24h', max_age_hours=DATA_RETENTION_HOURS
+                            )
+                            sell_coin_volume_pct_change_24h = get_property_values_from_crypto_file(
+                                coinbase_data_directory, symbol, 'volume_percentage_change_24h', max_age_hours=DATA_RETENTION_HOURS
+                            )
+
+                            if (sell_coin_volume_24h and sell_coin_price_pct_change_24h and
+                                sell_coin_volume_pct_change_24h):
+                                sell_metrics_volume = sell_coin_volume_24h[-sell_chart_data_points:] if len(sell_coin_volume_24h) > sell_chart_data_points else sell_coin_volume_24h
+                                sell_metrics_price_pct = sell_coin_price_pct_change_24h[-sell_chart_data_points:] if len(sell_coin_price_pct_change_24h) > sell_chart_data_points else sell_coin_price_pct_change_24h
+                                sell_metrics_volume_pct = sell_coin_volume_pct_change_24h[-sell_chart_data_points:] if len(sell_coin_volume_pct_change_24h) > sell_chart_data_points else sell_coin_volume_pct_change_24h
+
+                                sell_metrics_screenshot_path = plot_coinbase_metrics_chart(
+                                    time.time(),
+                                    INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                                    symbol,
+                                    sell_chart_prices,
+                                    sell_metrics_volume,
+                                    sell_metrics_price_pct,
+                                    sell_metrics_volume_pct,
+                                    event_type='sell'
+                                )
+                                if sell_metrics_screenshot_path:
+                                    print(f"📊 Stop loss metrics chart: {sell_metrics_screenshot_path}")
+
                             if READY_TO_TRADE:
                                 # Use market order for guaranteed execution on stop loss
                                 place_market_sell_order(coinbase_client, symbol, number_of_shares, net_profit_after_all_costs_usd, net_profit_percentage)
@@ -1728,6 +1819,36 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
                                 analysis=analysis,
                                 event_type='sell'
                             )
+
+                            # Generate Coinbase metrics correlation chart for profit target sell
+                            sell_coin_volume_24h = get_property_values_from_crypto_file(
+                                coinbase_data_directory, symbol, 'volume_24h', max_age_hours=DATA_RETENTION_HOURS
+                            )
+                            sell_coin_price_pct_change_24h = get_property_values_from_crypto_file(
+                                coinbase_data_directory, symbol, 'price_percentage_change_24h', max_age_hours=DATA_RETENTION_HOURS
+                            )
+                            sell_coin_volume_pct_change_24h = get_property_values_from_crypto_file(
+                                coinbase_data_directory, symbol, 'volume_percentage_change_24h', max_age_hours=DATA_RETENTION_HOURS
+                            )
+
+                            if (sell_coin_volume_24h and sell_coin_price_pct_change_24h and
+                                sell_coin_volume_pct_change_24h):
+                                sell_metrics_volume = sell_coin_volume_24h[-sell_chart_data_points:] if len(sell_coin_volume_24h) > sell_chart_data_points else sell_coin_volume_24h
+                                sell_metrics_price_pct = sell_coin_price_pct_change_24h[-sell_chart_data_points:] if len(sell_coin_price_pct_change_24h) > sell_chart_data_points else sell_coin_price_pct_change_24h
+                                sell_metrics_volume_pct = sell_coin_volume_pct_change_24h[-sell_chart_data_points:] if len(sell_coin_volume_pct_change_24h) > sell_chart_data_points else sell_coin_volume_pct_change_24h
+
+                                sell_metrics_screenshot_path = plot_coinbase_metrics_chart(
+                                    time.time(),
+                                    INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                                    symbol,
+                                    sell_chart_prices,
+                                    sell_metrics_volume,
+                                    sell_metrics_price_pct,
+                                    sell_metrics_volume_pct,
+                                    event_type='sell'
+                                )
+                                if sell_metrics_screenshot_path:
+                                    print(f"📊 Profit target metrics chart: {sell_metrics_screenshot_path}")
 
                             if READY_TO_TRADE:
                                 # Use market order for guaranteed execution on profit target
@@ -1840,6 +1961,38 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
 
                             if iteration_screenshot_path and show_detailed_logs:
                                 print(f"📸 Iteration screenshot saved: {iteration_screenshot_path}")
+
+                            # COINBASE METRICS SCREENSHOT: Generate correlation chart
+                            # Get all Coinbase metrics data for correlation analysis
+                            coin_volume_24h_LIST = get_property_values_from_crypto_file(
+                                coinbase_data_directory, symbol, 'volume_24h', max_age_hours=DATA_RETENTION_HOURS
+                            )
+                            coin_price_pct_change_24h_LIST = get_property_values_from_crypto_file(
+                                coinbase_data_directory, symbol, 'price_percentage_change_24h', max_age_hours=DATA_RETENTION_HOURS
+                            )
+                            coin_volume_pct_change_24h_LIST = get_property_values_from_crypto_file(
+                                coinbase_data_directory, symbol, 'volume_percentage_change_24h', max_age_hours=DATA_RETENTION_HOURS
+                            )
+
+                            # Generate metrics correlation chart if we have data
+                            if (coin_volume_24h_LIST and coin_price_pct_change_24h_LIST and
+                                coin_volume_pct_change_24h_LIST and len(coin_prices_LIST) > 0):
+
+                                metrics_screenshot_path = plot_coinbase_metrics_chart(
+                                    time.time(),
+                                    INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                                    symbol,
+                                    coin_prices_LIST,
+                                    coin_volume_24h_LIST,
+                                    coin_price_pct_change_24h_LIST,
+                                    coin_volume_pct_change_24h_LIST,
+                                    event_type=None,
+                                    screenshot_type='iteration',
+                                    timeframe_label=timeframe_label
+                                )
+
+                                if metrics_screenshot_path and show_detailed_logs:
+                                    print(f"📊 Metrics correlation screenshot saved: {metrics_screenshot_path}")
 
                     print('\n')
 

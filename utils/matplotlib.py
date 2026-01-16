@@ -796,3 +796,216 @@ def plot_graph(
     plt.close('all')  # Ensure all figures are closed
     print(f"Chart saved as {filename}")
     return filename
+
+
+def format_price(x, p):
+    """Format price labels"""
+    if x >= 1000:
+        return f'${x:,.0f}'
+    elif x >= 1:
+        return f'${x:.2f}'
+    else:
+        return f'${x:.4f}'
+
+
+def format_volume(x, p):
+    """Format volume labels"""
+    if x >= 1e9:
+        return f'{x/1e9:.2f}B'
+    elif x >= 1e6:
+        return f'{x/1e6:.1f}M'
+    elif x >= 1e3:
+        return f'{x/1e3:.1f}K'
+    else:
+        return f'{x:.0f}'
+
+
+def plot_coinbase_metrics_chart(
+    current_timestamp,
+    interval,
+    symbol,
+    price_data,
+    volume_24h_data,
+    price_pct_change_24h_data,
+    volume_pct_change_24h_data,
+    event_type=None,
+    screenshot_type=None,
+    timeframe_label=None
+):
+    """
+    Generate a multi-panel chart showing all Coinbase metrics to visualize correlations.
+
+    Args:
+        current_timestamp: timestamp for filename
+        interval: data interval in minutes
+        symbol: trading pair symbol
+        price_data: list of price values
+        volume_24h_data: list of 24h volume values
+        price_pct_change_24h_data: list of 24h price percentage change values
+        volume_pct_change_24h_data: list of 24h volume percentage change values
+        event_type: optional event type ('buy', 'sell') to include in filename
+        screenshot_type: optional screenshot type ('iteration') for special formatting
+        timeframe_label: optional timeframe label for iteration screenshots
+
+    Returns:
+        Path to generated chart, or None if insufficient data
+    """
+    # Clean and validate data
+    def clean_numeric_data(data):
+        clean_data = []
+        for v in data:
+            try:
+                if v is None:
+                    clean_data.append(None)
+                elif isinstance(v, str):
+                    v = v.strip()
+                    if v == '':
+                        clean_data.append(None)
+                    else:
+                        clean_data.append(float(v))
+                else:
+                    clean_data.append(float(v))
+            except (ValueError, TypeError):
+                clean_data.append(None)
+        return clean_data
+
+    price_data = clean_numeric_data(price_data)
+    volume_24h_data = clean_numeric_data(volume_24h_data)
+    price_pct_change_24h_data = clean_numeric_data(price_pct_change_24h_data)
+    volume_pct_change_24h_data = clean_numeric_data(volume_pct_change_24h_data)
+
+    # Ensure all data lists have the same length
+    min_length = min(len(price_data), len(volume_24h_data),
+                     len(price_pct_change_24h_data), len(volume_pct_change_24h_data))
+
+    if min_length < 3:
+        print(f"Insufficient data for Coinbase metrics chart ({min_length} points)")
+        return None
+
+    # Truncate all lists to the same length
+    price_data = price_data[:min_length]
+    volume_24h_data = volume_24h_data[:min_length]
+    price_pct_change_24h_data = price_pct_change_24h_data[:min_length]
+    volume_pct_change_24h_data = volume_pct_change_24h_data[:min_length]
+
+    # Create figure with 4 subplots
+    fig = plt.figure(figsize=(14, 12))
+    gs = fig.add_gridspec(4, 1, height_ratios=[1, 1, 1, 1], hspace=0.3)
+
+    x_values = list(range(min_length))
+
+    # Set time-based x-axis labels
+    positions, labels = create_time_labels(min_length, interval, current_timestamp)
+
+    # Subplot 1: Price
+    ax1 = fig.add_subplot(gs[0])
+    # Filter out None values for plotting
+    price_clean = [val if val is not None else np.nan for val in price_data]
+    ax1.plot(x_values, price_clean, color='#000000', linewidth=1.5, label='Price', zorder=3)
+
+    # Add moving average if enough data
+    if min_length >= 20:
+        ma20 = calculate_moving_average(price_data, 20)
+        ma20_clean = [val if val is not None else np.nan for val in ma20]
+        ax1.plot(x_values, ma20_clean, label='MA(20)', c='#1565C0', linewidth=1.5, alpha=0.8, linestyle='--')
+
+    ax1.set_ylabel('Price (USD)', fontsize=10, fontweight='bold')
+    ax1.yaxis.set_major_formatter(ticker.FuncFormatter(format_price))
+    ax1.grid(True, alpha=0.3, linewidth=0.5)
+    ax1.legend(loc='upper left', fontsize='small')
+    ax1.set_xticks(positions)
+    ax1.set_xticklabels(labels, rotation=45, ha='right')
+    padding = min_length * 0.01
+    ax1.set_xlim(-padding, min_length - 1 + padding)
+    ax1.set_title(f"{symbol} - Coinbase Metrics Correlation Analysis", fontsize=12, fontweight='bold')
+
+    # Subplot 2: Volume 24h
+    ax2 = fig.add_subplot(gs[1])
+    volume_clean = [val if val is not None else np.nan for val in volume_24h_data]
+    ax2.plot(x_values, volume_clean, color='#1565C0', linewidth=1.5, label='24h Volume', zorder=3)
+    ax2.fill_between(x_values, 0, volume_clean, alpha=0.2, color='#1565C0', zorder=2)
+
+    # Add moving average if enough data
+    if min_length >= 20:
+        vol_ma = calculate_moving_average(volume_24h_data, 20)
+        vol_ma_clean = [val if val is not None else np.nan for val in vol_ma]
+        ax2.plot(x_values, vol_ma_clean, label='MA(20)', c='#D32F2F', linewidth=1.5, alpha=0.8, linestyle='--')
+
+    ax2.set_ylabel('24h Volume', fontsize=10, fontweight='bold')
+    ax2.yaxis.set_major_formatter(ticker.FuncFormatter(format_volume))
+    ax2.grid(True, alpha=0.3, linewidth=0.5)
+    ax2.legend(loc='upper left', fontsize='small')
+    ax2.set_xticks(positions)
+    ax2.set_xticklabels(labels, rotation=45, ha='right')
+    ax2.set_xlim(-padding, min_length - 1 + padding)
+
+    # Subplot 3: Price % Change 24h
+    ax3 = fig.add_subplot(gs[2])
+    price_pct_clean = [val if val is not None else np.nan for val in price_pct_change_24h_data]
+    # Color based on positive/negative
+    colors_price_pct = ['#2E7D32' if (v is not None and not np.isnan(v) and v >= 0) else '#C62828'
+                        for v in price_pct_clean]
+    ax3.bar(x_values, price_pct_clean, color=colors_price_pct, alpha=0.7, width=0.8, edgecolor='none')
+    ax3.axhline(y=0, color='#000000', linewidth=1, linestyle='-', alpha=0.5)
+
+    ax3.set_ylabel('Price Change 24h (%)', fontsize=10, fontweight='bold')
+    ax3.grid(True, alpha=0.3, linewidth=0.5, axis='y')
+    ax3.set_xticks(positions)
+    ax3.set_xticklabels(labels, rotation=45, ha='right')
+    ax3.set_xlim(-padding, min_length - 1 + padding)
+
+    # Subplot 4: Volume % Change 24h
+    ax4 = fig.add_subplot(gs[3])
+    volume_pct_clean = [val if val is not None else np.nan for val in volume_pct_change_24h_data]
+    # Color based on positive/negative
+    colors_vol_pct = ['#1565C0' if (v is not None and not np.isnan(v) and v >= 0) else '#FF6F00'
+                      for v in volume_pct_clean]
+    ax4.bar(x_values, volume_pct_clean, color=colors_vol_pct, alpha=0.7, width=0.8, edgecolor='none')
+    ax4.axhline(y=0, color='#000000', linewidth=1, linestyle='-', alpha=0.5)
+
+    ax4.set_ylabel('Volume Change 24h (%)', fontsize=10, fontweight='bold')
+    ax4.set_xlabel('Time', fontsize=10, fontweight='bold')
+    ax4.grid(True, alpha=0.3, linewidth=0.5, axis='y')
+    ax4.set_xticks(positions)
+    ax4.set_xticklabels(labels, rotation=45, ha='right')
+    ax4.set_xlim(-padding, min_length - 1 + padding)
+
+    # Save figure
+    timestamp_str = time.strftime("%Y%m%d%H%M%S", time.localtime(current_timestamp))
+
+    # Generate filename based on screenshot type
+    if screenshot_type == 'iteration' and timeframe_label:
+        filename = os.path.join("./screenshots", f"{symbol}_{timeframe_label}_metrics_{timestamp_str}.png")
+    elif event_type:
+        if interval >= 10080:
+            weeks = int(interval / 10080)
+            candle_label = "1w" if weeks == 1 else f"{weeks}w"
+        elif interval >= 1440:
+            days = int(interval / 1440)
+            candle_label = "1d" if days == 1 else f"{days}d"
+        elif interval >= 60:
+            hours = int(interval / 60)
+            candle_label = "1h" if hours == 1 else f"{hours}h"
+        else:
+            candle_label = f"{int(interval)}m"
+        filename = os.path.join("./screenshots", f"{symbol}_{candle_label}_metrics_{event_type}_{timestamp_str}.png")
+    else:
+        if interval >= 10080:
+            weeks = int(interval / 10080)
+            candle_label = "1w" if weeks == 1 else f"{weeks}w"
+        elif interval >= 1440:
+            days = int(interval / 1440)
+            candle_label = "1d" if days == 1 else f"{days}d"
+        elif interval >= 60:
+            hours = int(interval / 60)
+            candle_label = "1h" if hours == 1 else f"{hours}h"
+        else:
+            candle_label = f"{int(interval)}m"
+        filename = os.path.join("./screenshots", f"{symbol}_{candle_label}_metrics_snapshot_{timestamp_str}.png")
+
+    print(f"Generating Coinbase metrics chart: {filename}")
+    plt.savefig(filename, dpi=300, bbox_inches='tight')
+    plt.close(fig)
+    plt.close('all')
+    print(f"Coinbase metrics chart saved as {filename}")
+    return filename
