@@ -16,3 +16,8 @@ coinbase-orders/*_orders.json
 /venv
 
 .DS_Store
+
+# Large backtest result files
+/backtest/*.json
+*.json.backup*
+*_results.json
