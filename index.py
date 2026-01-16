@@ -86,7 +86,6 @@ def load_config(file_path):
 config = load_config('config.json')
 
 INTERVAL_SECONDS = config['data_retention']['interval_seconds'] # 3600 1 hour
-CHECK_INTERVAL_SECONDS = config['data_retention'].get('check_interval_seconds', 300) # 300 = 5 minutes
 INTERVAL_SAVE_DATA_EVERY_X_MINUTES = (INTERVAL_SECONDS / 60)
 DATA_RETENTION_HOURS = config['data_retention']['max_hours'] # 730 # 1 month #
 
@@ -215,7 +214,7 @@ if LAST_SCREENSHOT_CLEANUP_TIME > 0:
     hours_since = (time.time() - LAST_SCREENSHOT_CLEANUP_TIME) / 3600
     print(f"Loaded last screenshot cleanup timestamp: {hours_since:.2f} hours ago\n")
 
-def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
+def iterate_wallets(data_collection_interval_seconds):
     # Ensure screenshots directory exists
     os.makedirs('screenshots', exist_ok=True)
 
@@ -2133,12 +2132,12 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
         #
         #
         # End of iteration function
-        time.sleep(check_interval_seconds)
+        time.sleep(data_collection_interval_seconds)
 
 if __name__ == "__main__":
     while True:
         try:
-            iterate_wallets(CHECK_INTERVAL_SECONDS, INTERVAL_SECONDS)
+            iterate_wallets(INTERVAL_SECONDS)
         except Exception as e:
             current_exception_error = str(e)
             print(f"An error occurred: {current_exception_error}. Restarting the program...")
