@@ -455,14 +455,6 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
         racing_opportunities = []
     if current_prices is None:
         current_prices = {}
-    from utils.time_helpers import print_local_time
-
-    print("\n" + "="*120)
-    print("OPPORTUNITY SCANNER - Market Rotation Analysis")
-    print("="*120)
-    print_local_time()
-    print()
-
     # Sort by score
     sorted_opps = sorted(opportunities_list, key=lambda x: x['score'], reverse=True)
 
@@ -683,7 +675,5 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
         print("="*120)
     else:
         print("⚠️  NO TRADEABLE OPPORTUNITIES FOUND")
-        print("   All assets either have positions open or lack strong setups")
-        print("="*120)
 
     print()

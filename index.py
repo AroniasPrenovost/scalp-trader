@@ -456,6 +456,9 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 coin_prices_list = get_property_values_from_crypto_file(
                                     coinbase_data_directory, symbol, 'price', max_age_hours=DATA_RETENTION_HOURS
                                 )
+
+                                # Calculate volatility metrics (will be 0 if no data)
+                                range_pct = 0
                                 if coin_prices_list and len(coin_prices_list) > 0:
                                     volatility_window_hours = 24
                                     volatility_data_points = int(volatility_window_hours / (INTERVAL_SECONDS / 3600))
@@ -464,15 +467,17 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                     max_price = max(recent_prices)
                                     range_pct = calculate_percentage_from_min(min_price, max_price)
 
-                                    opp = score_opportunity(
-                                        symbol=symbol,
-                                        config=config,
-                                        coinbase_client=coinbase_client,
-                                        coin_prices_list=coin_prices_list,
-                                        current_price=current_price,
-                                        range_percentage_from_min=range_pct
-                                    )
-                                    all_opportunities.append(opp)
+                                # Score ALL symbols, even with insufficient data
+                                # score_opportunity handles the no-data case gracefully
+                                opp = score_opportunity(
+                                    symbol=symbol,
+                                    config=config,
+                                    coinbase_client=coinbase_client,
+                                    coin_prices_list=coin_prices_list or [],
+                                    current_price=current_price,
+                                    range_percentage_from_min=range_pct
+                                )
+                                all_opportunities.append(opp)
                             except Exception as e:
                                 print(f"  Error scoring {symbol}: {e}")
                                 continue
@@ -681,8 +686,11 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                                 print(f"⚠️  Warning: Open position but no original_analysis in ledger - will try to process anyway")
 
                     if not analysis and not is_selected_for_rotation and not has_open_position:
-                        print(f"No market analysis available for {symbol}. Skipping trading logic.")
-                        print('\n')
+                        # Only print individual skip messages if opportunity report is disabled
+                        # (otherwise the report already shows all symbols and their status)
+                        if not market_rotation_config.get('print_opportunity_report', True):
+                            print(f"No market analysis available for {symbol}. Skipping trading logic.")
+                            print('\n')
                         continue
 
                     # If we don't have analysis but we ARE selected for rotation, create a placeholder

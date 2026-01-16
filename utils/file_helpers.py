@@ -30,12 +30,11 @@ def count_files_in_directory(directory):
         entries = os.listdir(directory)
 
         # Filter out directories, only count files
-        file_path = os.path.join(directory, filename)
-        if os.path.isfile(file_path):
-            file_creation_time = os.path.getctime(file_path)
-            if file_creation_time < cutoff_time:
-                os.remove(file_path)
-                print(f"Deleted old file: {file_path}")
+        files = [entry for entry in entries if os.path.isfile(os.path.join(directory, entry))]
+        return len(files)
+    except Exception as e:
+        print(f"Error counting files in directory {directory}: {e}")
+        return 0
 
 
 
