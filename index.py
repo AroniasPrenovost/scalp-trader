@@ -27,8 +27,8 @@ coinbase_client = get_coinbase_client()
 # profit calculator for standardized profitability calculations
 from utils.profit_calculator import calculate_net_profit_from_price_move
 
-# Trading context for wallet metrics
-from utils.trade_context import calculate_wallet_metrics
+# Wallet metrics helpers
+from utils.wallet_helpers import calculate_wallet_metrics
 
 # Matplotlib for charting
 from utils.matplotlib import plot_graph
@@ -184,7 +184,7 @@ def get_hours_since_last_sell(symbol):
     Returns None if no previous sells found.
     """
     from datetime import datetime, timezone
-    from utils.trade_context import load_transaction_history
+    from utils.wallet_helpers import load_transaction_history
 
     try:
         transactions = load_transaction_history(symbol)
@@ -273,14 +273,6 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
         low_confidence_wait_hours = config.get('low_confidence_wait_hours', 1.0)
         medium_confidence_wait_hours = config.get('medium_confidence_wait_hours', 1.0)
         high_confidence_max_age_hours = config.get('high_confidence_max_age_hours', 2.0)
-
-        # LLM Learning configuration
-        llm_learning_config = config.get('llm_learning', {})
-        llm_learning_enabled = llm_learning_config.get('enabled', True)
-        max_historical_trades = llm_learning_config.get('max_historical_trades', 10)
-        include_screenshots = llm_learning_config.get('include_screenshots', True)
-        prune_old_trades_after = llm_learning_config.get('prune_old_trades_after', 50)
-
 
         #
         #
@@ -1691,16 +1683,6 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
                                 from utils.position_tracker import clear_position_state
                                 clear_position_state(symbol)
 
-                                # Update core learnings based on trade outcome
-                                from utils.trade_context import load_transaction_history
-                                trade_outcome = {
-                                    'profit': net_profit_after_all_costs_usd,
-                                    'exit_trigger': 'stop_loss',
-                                    'confidence_level': analysis.get('confidence_level', 'unknown'),
-                                }
-                                transactions = load_transaction_history(symbol)
-                                update_learnings_from_trade(symbol, trade_outcome, transactions)
-
                                 delete_analysis_file(symbol)
 
                                 # IMMEDIATE ROTATION: Recalculate best opportunity after exit
@@ -1793,16 +1775,6 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
                                 # Clear position state (peak profit tracking)
                                 from utils.position_tracker import clear_position_state
                                 clear_position_state(symbol)
-
-                                # Update core learnings based on trade outcome
-                                from utils.trade_context import load_transaction_history
-                                trade_outcome = {
-                                    'profit': net_profit_after_all_costs_usd,
-                                    'exit_trigger': 'profit_target',
-                                    'confidence_level': analysis.get('confidence_level', 'unknown'),
-                                }
-                                transactions = load_transaction_history(symbol)
-                                update_learnings_from_trade(symbol, trade_outcome, transactions)
 
                                 delete_analysis_file(symbol)
 
@@ -1906,7 +1878,7 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
                     wins = 0
 
                     # Count total trades and wins from transaction history
-                    from utils.trade_context import load_transaction_history
+                    from utils.wallet_helpers import load_transaction_history
                     summary_transactions = load_transaction_history(summary_symbol)
                     total_trades = len(summary_transactions)
                     wins = len([t for t in summary_transactions if t.get('total_profit', 0) > 0])

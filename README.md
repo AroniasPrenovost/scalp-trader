@@ -1,13 +1,12 @@
 # Scalp-Scripts: AI-Powered Cryptocurrency Trading Bot
 
-An advanced cryptocurrency scalp trading bot that leverages GPT-4o Vision for intelligent market analysis, self-learning from historical trades, and automated execution on the Coinbase exchange. The bot combines multi-timeframe technical analysis with AI-driven decision-making to identify and execute profitable short-term trades while managing risk, taxes, and fees.
+An advanced cryptocurrency scalp trading bot that leverages GPT-4o Vision for intelligent market analysis and automated execution on the Coinbase exchange. The bot combines multi-timeframe technical analysis with AI-driven decision-making to identify and execute profitable short-term trades while managing risk, taxes, and fees.
 
 ## Overview
 
 **Scalp-Scripts** automates the entire trading lifecycle:
 - Continuously monitors cryptocurrency prices on Coinbase
 - Analyzes market conditions using GPT-4o Vision across multiple timeframes
-- Learns from its own trading history to improve decision-making
 - Executes buy/sell orders automatically when conditions are favorable
 - Manages risk with stop-loss triggers and profit targets
 - Tracks all costs: exchange fees, taxes, net profits
@@ -26,24 +25,6 @@ An advanced cryptocurrency scalp trading bot that leverages GPT-4o Vision for in
 - **Technical Indicators**: Calculates and analyzes RSI, Bollinger Bands, Moving Averages, Support/Resistance levels
 - **Confidence Scoring**: Provides high/medium/low confidence levels for each trade recommendation
 - **Trend Classification**: Identifies bullish, bearish, or sideways market conditions
-
-### 📚 Self-Learning System (LLM Experience-Based Learning)
-- **Historical Context Injection**: Provides the AI with past trade performance for symbol-specific learning
-- **Trade Screenshot Archive**: Stores visual snapshots at each buy event for pattern recognition
-- **Performance Metrics Tracking**:
-  - Win rate calculation (percentage of profitable trades)
-  - Average profit per trade
-  - Cumulative profit tracking
-  - Gross vs. net profit analysis (after taxes and fees)
-- **Pattern Recognition**: The AI learns:
-  - Which entry conditions historically worked best for each asset
-  - Optimal hold times for specific cryptocurrencies
-  - Support/resistance levels that have been tested
-  - Market conditions that preceded losses
-- **Automatic Trade Pruning**: Manages context size by keeping only the N most recent trades
-- **Continuous Improvement**: Each completed trade adds to the learning dataset
-
-For detailed information about the LLM learning system, see [LLM Experience-Based Learning Guide](docs/LLM_EXPERIENCE_BASED_LEARNING.md).
 
 ### 💰 Professional Risk Management
 - **Stop Loss Protection**: Automated exit if price drops below calculated stop loss
@@ -235,24 +216,6 @@ cp example-config.json config.json
 - **`cooldown_hours_after_sell`**: Hours to pause trading after selling a position, allowing the market to settle. Default: `6`
 - **`low_confidence_wait_hours`**: Hours to wait before re-analyzing after a low-confidence recommendation. Default: `3`
 - **`medium_confidence_wait_hours`**: Hours to wait before re-analyzing after a medium-confidence recommendation. Default: `2`
-
-#### LLM Learning Settings
-
-```json
-{
-  "llm_learning": {
-    "enabled": true,
-    "max_historical_trades": 5,
-    "include_screenshots": true,
-    "prune_old_trades_after": 100
-  }
-}
-```
-
-- **`enabled`**: Enable/disable the LLM learning system. When `true`, the AI learns from past trades. Default: `true`
-- **`max_historical_trades`**: Number of recent trades to include in the AI's context for learning. Default: `5`
-- **`include_screenshots`**: Whether to send buy event screenshots to the Vision API for visual pattern recognition. Default: `true`
-- **`prune_old_trades_after`**: Automatically prune old trades when total trade count exceeds this number. Default: `100`
 
 #### Data Management Settings
 
@@ -495,11 +458,9 @@ The bot runs continuously in a loop (default: every 15 minutes):
    - If `placeholder` (pending), polls Coinbase for final order status
 
 3. **Market Analysis** (when needed)
-   - Loads historical trading context (last N trades for learning)
    - Generates multi-timeframe charts (24-hour, 7-day, 90-day)
    - Calls GPT-4o Vision API with:
      - Chart images (high detail for short-term, lower detail for medium/long-term)
-     - Historical trade screenshots (if LLM learning is enabled)
      - Current price/volume data
      - Cost structure (fees, taxes)
    - Receives JSON analysis with: buy price, sell price, confidence level, trade recommendation
@@ -557,17 +518,6 @@ The bot uses a **Technical Analysis + AI Decision-Making** strategy:
 - Respects cooldown periods after sells
 - Position sizing limited to prevent over-allocation
 
-### Learning Component
-
-The LLM analyzes past winning and losing trades to identify:
-- Entry conditions that historically worked (RSI levels, Bollinger Band positions, price actions)
-- Optimal hold times for each specific asset
-- Probability-weighted profit targets
-- Risk factors observed in losing trades
-- Support/resistance levels that have been repeatedly tested
-
-Each completed trade adds to the learning dataset, improving future decision-making.
-
 ## File Structure
 
 ```
@@ -583,7 +533,7 @@ Each completed trade adds to the learning dataset, improving future decision-mak
 ├── utils/                                # Utility modules
 │   ├── coinbase.py                       # Coinbase API wrapper & order management
 │   ├── openai_analysis.py                # GPT-4o integration & market analysis
-│   ├── trade_context.py                  # LLM learning & historical context builder
+│   ├── wallet_helpers.py                 # Wallet metrics & transaction history helpers
 │   ├── matplotlib.py                     # Chart generation & visualization
 │   ├── price_helpers.py                  # Price calculation utilities
 │   ├── file_helpers.py                   # File I/O & data management
@@ -591,8 +541,7 @@ Each completed trade adds to the learning dataset, improving future decision-mak
 │   ├── email.py                          # Email notifications (Mailjet)
 │   └── new_coinbase_listings.py          # New listing detection
 │
-├── docs/
-│   └── LLM_EXPERIENCE_BASED_LEARNING.md  # Detailed LLM learning documentation
+├── docs/                                 # Documentation files
 │
 ├── coinbase-data/                        # Runtime: Price history per symbol
 │   ├── BTC-USD.json                      # Historical price snapshots
@@ -736,7 +685,6 @@ Each asset maintains independent:
 - Transaction history
 - Price data
 - Analysis cache
-- Learning context
 
 ### Custom Profit Targets
 Adjust the global `min_profit_target_percentage` or let the AI calculate dynamic targets based on:
