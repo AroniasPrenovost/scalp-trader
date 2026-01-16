@@ -111,7 +111,7 @@ Every 5 minutes:
 
 1. **Scan** all enabled coins
 2. **Score** each one (0-100) based on:
-   - Is there a buy signal? (range support, mean reversion, AI)
+   - Is there a buy signal? (range support, mean reversion)
    - How strong is the signal?
    - What's the market trend? (uptrend > sideways > downtrend)
    - Risk/reward ratio

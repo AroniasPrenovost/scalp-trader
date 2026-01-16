@@ -13,7 +13,7 @@ The **Market Rotation System** enables your trading bot to actively scan 4-11 cr
 
 ### 2. Opportunity Scoring
 Every enabled asset gets scored 0-100 based on:
-- **Strategy match** (50 points base): Does it fit range support, mean reversion, or AI strategy?
+- **Strategy match** (50 points base): Does it fit range support or mean reversion?
 - **Setup strength** (0-20 points): How strong is the signal? (zone touches, dip depth, etc.)
 - **Market trend** (0-20 points): Uptrend > Sideways > Downtrend
 - **Risk/Reward** (0-10 points): Bonus for 2:1 or better R/R ratio
@@ -64,7 +64,6 @@ Add top crypto coins to the `wallets` array:
       "enabled": true,              // Must be true to scan
       "ready_to_trade": false,       // Set to true when you want to trade (start with false)
       "starting_capital_usd": 2500,
-      "enable_ai_analysis": true,
       "enable_chart_snapshot": false
     },
     {
@@ -74,7 +73,6 @@ Add top crypto coins to the `wallets` array:
       "enabled": true,
       "ready_to_trade": false,
       "starting_capital_usd": 2500,
-      "enable_ai_analysis": true,
       "enable_chart_snapshot": false
     }
     // ... add more coins (SOL, XRP, DOGE, ADA, AVAX, DOT, MATIC, LINK, UNI)
@@ -129,21 +127,6 @@ Buys dips 2-3% below 24h moving average in uptrending markets.
 - Price is 2-3% below 24h MA
 - Market is uptrend or sideways
 - Not in downtrend
-
-### 3. AI Analysis
-**Best for:** Complex market conditions
-
-Uses GPT-4 Vision to analyze multi-timeframe charts and detect nuanced patterns.
-
-**Scoring:**
-- Base: 40 points
-- +25 for high confidence
-- +15 for favorable trend
-
-**When it triggers:**
-- AI recommends "buy"
-- Confidence level is "high"
-- Market conditions favorable
 
 ## How It Works
 
@@ -396,9 +379,9 @@ Track these to measure success:
 
 2. **Win Rate by Strategy**
    - Which strategy produces the best results?
-   - Range support: typically 55-65% win rate
-   - Mean reversion: typically 50-60% win rate
-   - AI analysis: typically 60-70% win rate (with high confidence)
+   - Support bounce: typically 55-65% win rate
+   - Breakout: typically 50-60% win rate
+   - Consolidation break: typically 50-60% win rate
 
 3. **Capital Efficiency**
    - Old: $2500 / 3 coins = $833 per trade

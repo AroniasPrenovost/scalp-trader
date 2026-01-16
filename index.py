@@ -20,7 +20,6 @@ from utils.file_helpers import count_files_in_directory, append_crypto_data_to_f
 from utils.price_helpers import calculate_percentage_from_min
 from utils.time_helpers import print_local_time
 
-# Coinbase-related
 # Coinbase helpers and define client
 from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order, get_asset_price, calculate_exchange_fee, save_order_data_to_local_json_ledger, get_last_order_from_local_json_ledger, reset_json_ledger_file, detect_stored_coinbase_order_type, save_transaction_record, get_current_fee_rates, cancel_order, clear_order_ledger
 coinbase_client = get_coinbase_client()
@@ -663,7 +662,7 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
                     analysis = None
 
                     # Only proceed with trading if we have a valid analysis
-                    # EXCEPTION: In market rotation mode, selected opportunities don't need AI analysis
+                    # EXCEPTION: In market rotation mode, selected opportunities use strategy-based analysis
                     # EXCEPTION: Symbols with open positions ALWAYS need to be processed (for sell logic and placeholder fills)
                     is_selected_for_rotation = market_rotation_enabled and (symbol == best_opportunity_symbol or is_racing_opportunity)
 
@@ -711,7 +710,7 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
                             analysis = {
                                 'analyzed_at': time.time(),
                                 'source': 'market_rotation',
-                                'note': 'Selected by momentum scalping strategy - AI analysis not required'
+                                'note': 'Selected by momentum scalping strategy'
                             }
 
                     # Note: Analysis loading for open positions now happens earlier (before skip check)
@@ -831,7 +830,7 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
                                     full_order_dict['buy_screenshot_path'] = last_order['buy_screenshot_path']
                                     print('✓ Preserved buy screenshot path from placeholder order')
 
-                                # POST-FILL ADJUSTMENT: Check if actual fill price differs significantly from AI recommendation
+                                # POST-FILL ADJUSTMENT: Check if actual fill price differs significantly from recommended price
                                 if 'original_analysis' in full_order_dict:
                                     original_analysis = full_order_dict['original_analysis']
                                     recommended_entry_price = original_analysis.get('buy_in_price')
@@ -851,7 +850,7 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
                                             original_sell_price = original_analysis.get('sell_price')
 
                                             if original_stop_loss and original_sell_price:
-                                                # Calculate percentage distances from AI's recommended entry
+                                                # Calculate percentage distances from recommended entry
                                                 stop_loss_pct = ((recommended_entry_price - original_stop_loss) / recommended_entry_price)
                                                 profit_target_pct = ((original_sell_price - recommended_entry_price) / recommended_entry_price)
 
@@ -1238,9 +1237,9 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
                         net_profit_after_all_costs_usd = profit_calc['net_profit_usd']
                         net_profit_percentage = profit_calc['net_profit_pct']
 
-                        # Use the maximum of AI's target and configured minimum
+                        # Use the maximum of calculated target and configured minimum
                         effective_profit_target = max(PROFIT_PERCENTAGE, min_profit_target_percentage)
-                        print(f"effective_profit_target: {effective_profit_target}% (AI: {PROFIT_PERCENTAGE}%, Min: {min_profit_target_percentage}%)")
+                        print(f"effective_profit_target: {effective_profit_target}% (Calculated: {PROFIT_PERCENTAGE}%, Min: {min_profit_target_percentage}%)")
 
                         print(f"--- POSITION STATUS ---")
                         print(f"Entry price: ${entry_price:.2f}")
@@ -1584,8 +1583,6 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
                                 # Clear position state (peak profit tracking)
                                 from utils.position_tracker import clear_position_state
                                 clear_position_state(symbol)
-
-                                # Trade completed - no learning system needed in pure scalping mode
 
                                 # IMMEDIATE ROTATION: Recalculate best opportunity after exit
                                 print(f"\n{Colors.BOLD}{Colors.CYAN}🔄 CAPITAL FREED - Recalculating best opportunity...{Colors.ENDC}\n")

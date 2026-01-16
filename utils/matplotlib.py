@@ -439,7 +439,7 @@ def _generate_single_timeframe_chart(
         ax1.plot(x_values, bb_lower_clean, label='BB Lower', c='#607D8B', linewidth=1.8, alpha=0.9, linestyle=':')
         ax1.fill_between(x_values, bb_upper_clean, bb_lower_clean, alpha=0.15, color='#607D8B')
 
-    # Plot AI analysis levels if available
+    # Plot analysis levels if available
     if analysis:
         if analysis.get('major_support'):
             ax1.axhline(y=analysis['major_support'], color='#27AE60', linewidth=1.5,
@@ -455,10 +455,10 @@ def _generate_single_timeframe_chart(
                        linestyle=':', label=f"Minor Resistance (${analysis['minor_resistance']:.4f})", alpha=0.7)
         if analysis.get('buy_in_price'):
             ax1.axhline(y=analysis['buy_in_price'], color='#17A589', linewidth=1.8,
-                       linestyle='-', label=f"AI Buy Target (${analysis['buy_in_price']:.4f})", alpha=0.9)
+                       linestyle='-', label=f"Buy Target (${analysis['buy_in_price']:.4f})", alpha=0.9)
         if analysis.get('sell_price'):
             ax1.axhline(y=analysis['sell_price'], color='#8E44AD', linewidth=1.8,
-                       linestyle='-', label=f"AI Sell Target (${analysis['sell_price']:.4f})", alpha=0.9)
+                       linestyle='-', label=f"Sell Target (${analysis['sell_price']:.4f})", alpha=0.9)
 
     # Configure main chart
     price_range = max_price - min_price
@@ -577,7 +577,7 @@ def plot_graph(
     timeframe_label=None
 ):
     """
-    Enhanced plot with technical indicators and AI analysis
+    Enhanced plot with technical indicators and market analysis
     NOTE: volume_data parameter is deprecated and ignored (rolling 24h volume is misleading on long timeframes)
 
     Args:
@@ -590,7 +590,7 @@ def plot_graph(
         range_percentage_from_min: percentage change from min to max price
         entry_price: entry price if in position
         volume_data: DEPRECATED - ignored (use plot_multi_timeframe_charts for 24h volume)
-        analysis: optional AI analysis dictionary with support/resistance/buy/sell levels
+        analysis: optional analysis dictionary with support/resistance/buy/sell levels
         event_type: optional event type ('buy', 'sell') to include in filename
         screenshot_type: optional screenshot type ('iteration') for special formatting
         timeframe_label: optional timeframe label for iteration screenshots
@@ -670,7 +670,7 @@ def plot_graph(
         ax1.plot(x_values, bb_lower_clean, label='BB Lower', c='#607D8B', linewidth=1.8, alpha=0.9, linestyle=':')
         ax1.fill_between(x_values, bb_upper_clean, bb_lower_clean, alpha=0.15, color='#607D8B')
 
-    # Plot AI analysis levels if available
+    # Plot analysis levels if available
     if analysis:
         # Support levels
         if analysis.get('major_support'):
@@ -691,10 +691,10 @@ def plot_graph(
         # Buy/Sell targets
         if analysis.get('buy_in_price'):
             ax1.axhline(y=analysis['buy_in_price'], color='#17A589', linewidth=1.8,
-                       linestyle='-', label=f"AI Buy Target (${analysis['buy_in_price']:.4f})", alpha=0.9)
+                       linestyle='-', label=f"Buy Target (${analysis['buy_in_price']:.4f})", alpha=0.9)
         if analysis.get('sell_price'):
             ax1.axhline(y=analysis['sell_price'], color='#8E44AD', linewidth=1.8,
-                       linestyle='-', label=f"AI Sell Target (${analysis['sell_price']:.4f})", alpha=0.9)
+                       linestyle='-', label=f"Sell Target (${analysis['sell_price']:.4f})", alpha=0.9)
 
     # Plot entry price if in position
     if entry_price > 0:

@@ -392,7 +392,7 @@ def save_transaction_record(symbol, buy_price, sell_price, potential_profit_perc
         total_profit: Net profit after all costs
         buy_timestamp: Timestamp when position was opened
         buy_screenshot_path: Optional path to the buy event screenshot
-        analysis: Optional dict containing AI analysis data (support, resistance, reasoning, etc.)
+        analysis: Optional dict containing analysis data (support, resistance, reasoning, etc.)
         entry_market_conditions: Optional dict with market context at entry (volatility, trend, etc.)
         exit_trigger: Optional string indicating what triggered the exit ('profit_target', 'stop_loss', 'manual')
         position_sizing_data: Optional dict with position sizing decisions (amount, allocation %, etc.)
@@ -437,7 +437,7 @@ def save_transaction_record(symbol, buy_price, sell_price, potential_profit_perc
     if entry_market_conditions:
         transaction_record["market_context_at_entry"] = entry_market_conditions
 
-    # Add technical signals and AI analysis if provided
+    # Add technical signals and analysis if provided
     if analysis:
         # Extract technical signals from analysis
         technical_signals = {

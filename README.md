@@ -31,7 +31,7 @@ An advanced cryptocurrency scalp trading bot that leverages GPT-4o Vision for in
 - **Profit Target Tracking**: Sells automatically when profit percentage reaches target
 - **Tax Calculation**: Factors in federal tax rates on realized capital gains
 - **Exchange Fee Accounting**: Calculates Coinbase taker fees on both buy and sell sides
-- **Dynamic Position Sizing**: AI-driven USD allocation per trade based on:
+- **Dynamic Position Sizing**: Strategy-driven USD allocation per trade based on:
   - Confidence level of the analysis
   - Current wallet metrics
   - Trade quality assessment
@@ -45,7 +45,7 @@ An advanced cryptocurrency scalp trading bot that leverages GPT-4o Vision for in
   - `buy` - Currently holding position
   - `sell` - Just exited position
   - `placeholder` - Pending order confirmation
-- **Buy Event Documentation**: Captures screenshots at time of purchase for later AI analysis
+- **Buy Event Documentation**: Captures screenshots at time of purchase for later analysis
 - **Complete Transaction Records**: Stores detailed data for every trade:
   - Entry/exit prices and timestamps
   - Time held position
@@ -150,7 +150,7 @@ Using a virtual environment isolates your project dependencies and is the recomm
    python3 index.py
    ```
 
-The bot will run continuously, monitoring your specified assets and executing trades based on AI analysis.
+The bot will run continuously, monitoring your specified assets and executing trades based on market analysis.
 
 ## Environment Setup
 
@@ -212,7 +212,7 @@ cp example-config.json config.json
 ```
 
 - **`min_profit_target_percentage`**: Minimum net profit percentage threshold to trigger a sell signal (after fees and taxes). Default: `3.8`
-- **`no_trade_refresh_hours`**: Hours to wait before re-analyzing an asset after the AI determines no trade should be made. Default: `5`
+- **`no_trade_refresh_hours`**: Hours to wait before re-analyzing an asset after analysis determines no trade should be made. Default: `5`
 - **`cooldown_hours_after_sell`**: Hours to pause trading after selling a position, allowing the market to settle. Default: `6`
 - **`low_confidence_wait_hours`**: Hours to wait before re-analyzing after a low-confidence recommendation. Default: `3`
 - **`medium_confidence_wait_hours`**: Hours to wait before re-analyzing after a medium-confidence recommendation. Default: `2`
@@ -243,7 +243,6 @@ cp example-config.json config.json
       "enabled": true,
       "ready_to_trade": false,
       "starting_capital_usd": 100,
-      "enable_ai_analysis": false,
       "enable_chart_snapshot": false
     }
   ]
@@ -259,7 +258,6 @@ Each asset in the `wallets` array supports the following parameters:
 - **`ready_to_trade`**: Whether to execute actual trades (`true`) or run in simulation mode (`false`)
   - **IMPORTANT**: Start with `false` to test the bot in simulation mode before risking real money
 - **`starting_capital_usd`**: Initial capital allocated for this asset (used for performance metrics calculation)
-- **`enable_ai_analysis`**: Whether to use AI analysis for this asset (`true`) or skip analysis (`false`)
 - **`enable_chart_snapshot`**: Whether to generate chart images for this asset (`true`/`false`)
 
 ### Finding CoinGecko IDs
@@ -277,7 +275,7 @@ To find other IDs:
 
 ## Historical Data Backfilling
 
-Before the bot has accumulated enough price history naturally, you can backfill historical data from CoinGecko. This is useful for enabling technical analysis and AI decision-making from day one.
+Before the bot has accumulated enough price history naturally, you can backfill historical data from CoinGecko. This is useful for enabling technical analysis and decision-making from day one.
 
 ### How the Backfilling Function Works
 
@@ -468,7 +466,7 @@ The bot runs continuously in a loop (default: every 15 minutes):
 4. **Trading Logic**
 
    **If no position (last order = 'none' or 'sell')**:
-   - If AI recommends `buy` AND confidence is `high` AND market trend is `bullish`:
+   - If analysis recommends `buy` AND confidence is `high` AND market trend is `bullish`:
      - If current price ≤ buy-in price:
        - Calculate shares to buy (USD amount ÷ current price, rounded down)
        - Place market buy order on Coinbase
@@ -493,23 +491,23 @@ The bot runs continuously in a loop (default: every 15 minutes):
 
 ### Trading Strategy
 
-The bot uses a **Technical Analysis + AI Decision-Making** strategy:
+The bot uses a **Technical Analysis + Strategy-Based Decision-Making** approach:
 
 #### Entry Signals
-- Price reaches or falls below AI-calculated buy price
+- Price reaches or falls below calculated buy price
 - RSI indicates oversold conditions
 - Price touches lower Bollinger Band
 - Market trend is bullish (confirmed across multiple timeframes)
-- AI confidence level is HIGH
+- Confidence level is HIGH
 - Support level identified by multi-timeframe analysis
 
 #### Exit Signals (Take Profit)
 - Profit percentage reaches or exceeds target (after fees and taxes)
-- Price reaches AI-calculated sell price
+- Price reaches calculated sell price
 - Resistance level reached
 
 #### Exit Signals (Stop Loss)
-- Price falls below AI-calculated stop loss
+- Price falls below calculated stop loss
 - Immediate exit to prevent further losses
 
 #### Market Filtering
@@ -572,7 +570,7 @@ The bot uses a **Technical Analysis + AI Decision-Making** strategy:
 The bot provides real-time status updates in the console:
 - Current prices and volume changes
 - Analysis stage (short-term, medium-term, long-term)
-- AI confidence levels and trade recommendations
+- Confidence levels and trade recommendations
 - Order placement and execution
 - Profit/loss calculations
 - Error messages and warnings
@@ -593,7 +591,7 @@ All completed trades are logged in `transactions/data.json` with complete detail
 - Symbol and trade metadata
 
 ### Analysis Files
-Current AI analysis is cached in `analysis/{SYMBOL}_analysis.json` files, showing:
+Current market analysis is cached in `analysis/{SYMBOL}_analysis.json` files, showing:
 - Buy-in price and sell price recommendations
 - Support and resistance levels
 - Confidence level and market trend
@@ -604,10 +602,9 @@ Current AI analysis is cached in `analysis/{SYMBOL}_analysis.json` files, showin
 
 ### Start in Simulation Mode
 1. Set `ready_to_trade: false` for all wallets initially
-2. Set `enable_ai_analysis: true` to see what the AI would recommend
-3. Monitor the console output and email notifications
-4. Review the analysis files to understand the AI's decision-making
-5. Only set `ready_to_trade: true` when you're confident in the bot's behavior
+2. Monitor the console output and email notifications
+3. Review the analysis files to understand the bot's decision-making
+4. Only set `ready_to_trade: true` when you're confident in the bot's behavior
 
 ### Risk Management
 - **Never invest more than you can afford to lose**
@@ -634,7 +631,6 @@ Current AI analysis is cached in `analysis/{SYMBOL}_analysis.json` files, showin
 **Bot not executing trades despite recommendations:**
 - Check that `ready_to_trade: true` for the specific wallet
 - Verify `enabled: true` for the wallet
-- Ensure `enable_ai_analysis: true` to get recommendations
 - Check that you have sufficient balance in your Coinbase account
 
 **OpenAI API errors:**
@@ -687,7 +683,7 @@ Each asset maintains independent:
 - Analysis cache
 
 ### Custom Profit Targets
-Adjust the global `min_profit_target_percentage` or let the AI calculate dynamic targets based on:
+Adjust the global `min_profit_target_percentage` or let the system calculate dynamic targets based on:
 - Market volatility
 - Historical performance
 - Current confidence level
@@ -732,7 +728,7 @@ This project is open source and available for educational purposes.
 - Cryptocurrency trading involves **significant financial risk**
 - You should only trade with money you can **afford to lose completely**
 - Past performance does not guarantee future results
-- The AI's recommendations are not financial advice
+- The bot's recommendations are not financial advice
 - The author is **not responsible** for any financial losses incurred while using this bot
 - Always do your own research and consult with financial professionals
 - Test thoroughly in simulation mode before risking real capital
@@ -745,6 +741,6 @@ For issues, questions, or feature requests, please open an issue on the GitHub r
 ## Acknowledgments
 
 - Built with [Coinbase Advanced Trade API](https://docs.cloud.coinbase.com/advanced-trade-api/docs)
-- AI analysis powered by [OpenAI GPT-4o Vision](https://openai.com/index/gpt-4o-vision/)
+- Market analysis powered by [OpenAI GPT-4o Vision](https://openai.com/index/gpt-4o-vision/)
 - Historical data from [CoinGecko API](https://www.coingecko.com/en/api)
 - Email notifications via [Mailjet](https://www.mailjet.com/)
