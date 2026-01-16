@@ -29,32 +29,13 @@ import statistics
 from utils.file_helpers import get_property_values_from_crypto_file
 from utils.coinbase import get_asset_price, get_last_order_from_local_json_ledger, detect_stored_coinbase_order_type
 from utils.momentum_scalping_strategy import check_scalp_entry_signal
+from utils.price_helpers import calculate_rsi
 
 
 # ========================================
 # QUANTITATIVE SCORING FUNCTIONS
 # Based on historical pattern analysis
 # ========================================
-
-def calculate_rsi(prices, period=14):
-    """Calculate RSI (Relative Strength Index)"""
-    if len(prices) < period + 1:
-        return None
-
-    deltas = [prices[i] - prices[i-1] for i in range(1, len(prices))]
-    gains = [delta if delta > 0 else 0 for delta in deltas]
-    losses = [-delta if delta < 0 else 0 for delta in deltas]
-
-    avg_gain = statistics.mean(gains[-period:]) if gains else 0
-    avg_loss = statistics.mean(losses[-period:]) if losses else 0
-
-    if avg_loss == 0:
-        return 100
-
-    rs = avg_gain / avg_loss
-    rsi = 100 - (100 / (1 + rs))
-    return rsi
-
 
 def score_rsi_component(prices):
     """Score RSI (20% weight) - Based on pattern recognition"""

@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
 import pandas as pd
-from utils.price_helpers import calculate_percentage_from_min
+from utils.price_helpers import calculate_percentage_from_min, calculate_rsi
 
 def create_time_labels(num_points, interval_minutes, current_timestamp):
     """

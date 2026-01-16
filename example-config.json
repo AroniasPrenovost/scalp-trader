@@ -4,10 +4,9 @@
     "interval_seconds": 60,
     "check_interval_seconds": 20
   },
-  "screenshot_retention": {
+  "screenshot": {
     "enabled": true,
-    "event_days": 30,
-    "cleanup_interval_hours": 6
+    "deletion_at_x_days": 3
   },
   "market_rotation": {
     "enabled": true,

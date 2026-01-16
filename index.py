@@ -1,22 +1,13 @@
 import os
-import base64
 from dotenv import load_dotenv
-from json import dumps, load
+from json import load
 import json
 import math
 import time
-from pprint import pprint
-from collections import deque
-import numpy as np
-import pandas as pd
-from coinbase.rest import RESTClient # coinbase api
-# from mailjet_rest import Client
-import argparse # parse CLI args
-import glob # related to price change % logic
 
 # custom imports
 from utils.email import send_email_notification
-from utils.file_helpers import count_files_in_directory, append_crypto_data_to_file, get_property_values_from_crypto_file, cleanup_old_crypto_data, cleanup_old_screenshots
+from utils.file_helpers import count_files_in_directory, append_crypto_data_to_file, get_property_values_from_crypto_file, cleanup_old_crypto_data, cleanup_old_screenshots, convert_products_to_dicts
 from utils.price_helpers import calculate_percentage_from_min
 from utils.time_helpers import print_local_time
 
@@ -171,11 +162,6 @@ def load_last_screenshot_cleanup_time():
 #
 #
 #
-
-# Function to convert Product objects to dictionaries
-def convert_products_to_dicts(products):
-    return [product.to_dict() if hasattr(product, 'to_dict') else product for product in products]
-
 
 def get_hours_since_last_sell(symbol):
     """
@@ -1415,37 +1401,38 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
 
                                 # Check peak-based downturn if enabled
                                 downturn_triggered = False
-                                if require_downturn:
-                                    from utils.position_tracker import should_exit_on_downturn, get_peak_profit
-
-                                    should_exit, peak_info = should_exit_on_downturn(
-                                        symbol=symbol,
-                                        current_profit_usd=net_profit_after_all_costs_usd,
-                                        current_profit_pct=net_profit_percentage,
-                                        min_peak_profit_usd=min_peak_profit_usd,
-                                        downturn_threshold_usd=downturn_threshold_usd
-                                    )
-
-                                    if peak_info:
-                                        peak_profit_usd = peak_info['peak_profit_usd']
-                                        downturn_amount = peak_profit_usd - net_profit_after_all_costs_usd
-
-                                        print(f"\n  {Colors.CYAN}PEAK DOWNTURN ANALYSIS:{Colors.ENDC}")
-                                        print(f"  Peak profit reached: ${peak_profit_usd:.2f}")
-                                        print(f"  Current profit: ${net_profit_after_all_costs_usd:.2f}")
-                                        print(f"  Downturn from peak: ${downturn_amount:.2f}")
-                                        print(f"  Minimum peak to consider: ${min_peak_profit_usd:.2f}")
-                                        print(f"  Downturn threshold: ${downturn_threshold_usd:.2f}")
-
-                                        if should_exit:
-                                            print(f"  {Colors.GREEN}✓ Downturn trigger met - exiting to preserve gains{Colors.ENDC}")
-                                            downturn_triggered = True
-                                        else:
-                                            if peak_profit_usd < min_peak_profit_usd:
-                                                print(f"  {Colors.YELLOW}⏳ Peak not high enough yet (${peak_profit_usd:.2f} < ${min_peak_profit_usd:.2f}){Colors.ENDC}")
-                                            else:
-                                                print(f"  {Colors.YELLOW}⏳ Downturn not significant enough (${downturn_amount:.2f} < ${downturn_threshold_usd:.2f}){Colors.ENDC}")
-                                            print(f"  {Colors.YELLOW}→ Holding position - waiting for larger downturn{Colors.ENDC}")
+                                # NOTE: position_tracker module not implemented yet
+                                # if require_downturn:
+                                #     from utils.position_tracker import should_exit_on_downturn, get_peak_profit
+                                #
+                                #     should_exit, peak_info = should_exit_on_downturn(
+                                #         symbol=symbol,
+                                #         current_profit_usd=net_profit_after_all_costs_usd,
+                                #         current_profit_pct=net_profit_percentage,
+                                #         min_peak_profit_usd=min_peak_profit_usd,
+                                #         downturn_threshold_usd=downturn_threshold_usd
+                                #     )
+                                #
+                                #     if peak_info:
+                                #         peak_profit_usd = peak_info['peak_profit_usd']
+                                #         downturn_amount = peak_profit_usd - net_profit_after_all_costs_usd
+                                #
+                                #         print(f"\n  {Colors.CYAN}PEAK DOWNTURN ANALYSIS:{Colors.ENDC}")
+                                #         print(f"  Peak profit reached: ${peak_profit_usd:.2f}")
+                                #         print(f"  Current profit: ${net_profit_after_all_costs_usd:.2f}")
+                                #         print(f"  Downturn from peak: ${downturn_amount:.2f}")
+                                #         print(f"  Minimum peak to consider: ${min_peak_profit_usd:.2f}")
+                                #         print(f"  Downturn threshold: ${downturn_threshold_usd:.2f}")
+                                #
+                                #         if should_exit:
+                                #             print(f"  {Colors.GREEN}✓ Downturn trigger met - exiting to preserve gains{Colors.ENDC}")
+                                #             downturn_triggered = True
+                                #         else:
+                                #             if peak_profit_usd < min_peak_profit_usd:
+                                #                 print(f"  {Colors.YELLOW}⏳ Peak not high enough yet (${peak_profit_usd:.2f} < ${min_peak_profit_usd:.2f}){Colors.ENDC}")
+                                #             else:
+                                #                 print(f"  {Colors.YELLOW}⏳ Downturn not significant enough (${downturn_amount:.2f} < ${downturn_threshold_usd:.2f}){Colors.ENDC}")
+                                #             print(f"  {Colors.YELLOW}→ Holding position - waiting for larger downturn{Colors.ENDC}")
 
                                 # Decision logic
                                 if ignore_profit_advantage and (not require_downturn or downturn_triggered):
@@ -1642,8 +1629,9 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
                                 )
 
                                 # Clear position state (peak profit tracking)
-                                from utils.position_tracker import clear_position_state
-                                clear_position_state(symbol)
+                                # NOTE: position_tracker module not implemented yet
+                                # from utils.position_tracker import clear_position_state
+                                # clear_position_state(symbol)
 
                                 # IMMEDIATE ROTATION: Recalculate best opportunity after exit
                                 print(f"\n{Colors.BOLD}{Colors.CYAN}🔄 CAPITAL FREED - Recalculating best opportunity...{Colors.ENDC}\n")
@@ -1768,8 +1756,9 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
                                 )
 
                                 # Clear position state (peak profit tracking)
-                                from utils.position_tracker import clear_position_state
-                                clear_position_state(symbol)
+                                # NOTE: position_tracker module not implemented yet
+                                # from utils.position_tracker import clear_position_state
+                                # clear_position_state(symbol)
 
                                 delete_analysis_file(symbol)
 
@@ -1891,8 +1880,9 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
                                 )
 
                                 # Clear position state (peak profit tracking)
-                                from utils.position_tracker import clear_position_state
-                                clear_position_state(symbol)
+                                # NOTE: position_tracker module not implemented yet
+                                # from utils.position_tracker import clear_position_state
+                                # clear_position_state(symbol)
 
                                 delete_analysis_file(symbol)
 

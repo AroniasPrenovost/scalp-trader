@@ -8,10 +8,7 @@ import json
 from json import dumps, load
 
 from utils.email import send_email_notification
-
-# Function to convert Product objects to dictionaries
-def convert_products_to_dicts(products):
-    return [product.to_dict() if hasattr(product, 'to_dict') else product for product in products]
+from utils.file_helpers import convert_products_to_dicts
 
 #
 #

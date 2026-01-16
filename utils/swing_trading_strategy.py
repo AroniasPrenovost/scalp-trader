@@ -15,6 +15,7 @@ Expected win rate: 55-65% (typical for swing trading)
 
 from typing import Dict, List, Optional
 from utils.profit_calculator import calculate_required_price_for_target_profit
+from utils.price_helpers import calculate_rsi
 
 
 def calculate_sma(prices: List[float], period: int) -> Optional[float]:
@@ -38,38 +39,6 @@ def calculate_ema(prices: List[float], period: int) -> Optional[float]:
         ema = (price - ema) * multiplier + ema
 
     return ema
-
-
-def calculate_rsi(prices: List[float], period: int = 14) -> Optional[float]:
-    """Calculate RSI."""
-    if len(prices) < period + 1:
-        return None
-
-    gains = []
-    losses = []
-
-    for i in range(1, len(prices)):
-        change = prices[i] - prices[i-1]
-        if change > 0:
-            gains.append(change)
-            losses.append(0)
-        else:
-            gains.append(0)
-            losses.append(abs(change))
-
-    recent_gains = gains[-(period):]
-    recent_losses = losses[-(period):]
-
-    avg_gain = sum(recent_gains) / period
-    avg_loss = sum(recent_losses) / period
-
-    if avg_loss == 0:
-        return 100
-
-    rs = avg_gain / avg_loss
-    rsi = 100 - (100 / (1 + rs))
-
-    return rsi
 
 
 def identify_trend(prices: List[float], volumes: List[float] = None) -> Dict:
