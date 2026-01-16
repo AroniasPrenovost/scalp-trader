@@ -643,6 +643,101 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
                     entry_price = 0
                     # print(f"[MAIN] Last order type detected: '{last_order_type}'")
 
+                    # ITERATION SCREENSHOTS: Take screenshot if enabled (moved before analysis check)
+                    screenshot_config = config.get('screenshot', {})
+                    if screenshot_config.get('enabled', False):
+                        # Use ALL available data points for iteration screenshots
+                        if coin_prices_LIST and len(coin_prices_LIST) > 0:
+                            try:
+                                iteration_chart_min = min(coin_prices_LIST)
+                                iteration_chart_max = max(coin_prices_LIST)
+                                iteration_chart_range_pct = calculate_percentage_from_min(iteration_chart_min, iteration_chart_max)
+                                # print(f"DEBUG: Calculated chart params - min: {iteration_chart_min}, max: {iteration_chart_max}, range: {iteration_chart_range_pct}%")
+
+                                # Determine entry price for chart (if in position)
+                                chart_entry_price = entry_price if last_order_type in ['placeholder', 'buy'] else 0
+
+                                # Calculate timeframe label based on total data span
+                                total_hours = (len(coin_prices_LIST) * INTERVAL_SAVE_DATA_EVERY_X_MINUTES) / 60
+                                if total_hours >= 8760:  # 1 year or more
+                                    timeframe_label = f"{int(total_hours / 8760)}y"
+                                elif total_hours >= 720:  # 1 month or more
+                                    timeframe_label = f"{int(total_hours / 720)}mo"
+                                elif total_hours >= 168:  # 1 week or more
+                                    timeframe_label = f"{int(total_hours / 168)}w"
+                                elif total_hours >= 24:  # 1 day or more
+                                    timeframe_label = f"{int(total_hours / 24)}d"
+                                else:
+                                    timeframe_label = f"{int(total_hours)}h"
+
+                                # print(f"DEBUG: Calling plot_graph for {symbol} with {len(coin_prices_LIST)} data points, timeframe: {timeframe_label}")
+                                iteration_screenshot_path = plot_graph(
+                                    time.time(),
+                                    INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                                    symbol,
+                                    coin_prices_LIST,
+                                    iteration_chart_min,
+                                    iteration_chart_max,
+                                    iteration_chart_range_pct,
+                                    chart_entry_price,
+                                    analysis=None,  # Don't include analysis on iteration screenshots
+                                    event_type=None,
+                                    screenshot_type='iteration',
+                                    timeframe_label=timeframe_label
+                                )
+
+                                print(f"DEBUG: plot_graph returned: {iteration_screenshot_path}")
+                                if iteration_screenshot_path:
+                                    print(f"📸 Iteration screenshot saved: {iteration_screenshot_path}")
+                                else:
+                                    pass
+                                    # print(f"DEBUG: plot_graph returned None for {symbol}")
+
+                                # COINBASE METRICS SCREENSHOT: Generate correlation chart
+                                # Get all Coinbase metrics data for correlation analysis
+                                coin_volume_24h_LIST = get_property_values_from_crypto_file(
+                                    coinbase_data_directory, symbol, 'volume_24h', max_age_hours=DATA_RETENTION_HOURS
+                                )
+                                coin_price_pct_change_24h_LIST = get_property_values_from_crypto_file(
+                                    coinbase_data_directory, symbol, 'price_percentage_change_24h', max_age_hours=DATA_RETENTION_HOURS
+                                )
+                                coin_volume_pct_change_24h_LIST = get_property_values_from_crypto_file(
+                                    coinbase_data_directory, symbol, 'volume_percentage_change_24h', max_age_hours=DATA_RETENTION_HOURS
+                                )
+
+                                # Generate metrics correlation chart if we have data
+                                print(f"DEBUG: Metrics data lengths - volume_24h: {len(coin_volume_24h_LIST) if coin_volume_24h_LIST else 0}, price_pct: {len(coin_price_pct_change_24h_LIST) if coin_price_pct_change_24h_LIST else 0}, volume_pct: {len(coin_volume_pct_change_24h_LIST) if coin_volume_pct_change_24h_LIST else 0}")
+                                if (coin_volume_24h_LIST and coin_price_pct_change_24h_LIST and
+                                    coin_volume_pct_change_24h_LIST and len(coin_prices_LIST) > 0):
+
+                                    print(f"DEBUG: Calling plot_coinbase_metrics_chart for {symbol}")
+                                    metrics_screenshot_path = plot_coinbase_metrics_chart(
+                                        time.time(),
+                                        INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                                        symbol,
+                                        coin_prices_LIST,
+                                        coin_volume_24h_LIST,
+                                        coin_price_pct_change_24h_LIST,
+                                        coin_volume_pct_change_24h_LIST,
+                                        event_type=None,
+                                        screenshot_type='iteration',
+                                        timeframe_label=timeframe_label
+                                    )
+
+                                    print(f"DEBUG: plot_coinbase_metrics_chart returned: {metrics_screenshot_path}")
+                                    if metrics_screenshot_path:
+                                        print(f"📊 Metrics correlation screenshot saved: {metrics_screenshot_path}")
+                                    else:
+                                        print(f"DEBUG: plot_coinbase_metrics_chart returned None for {symbol}")
+                                else:
+                                    print(f"DEBUG: Skipping metrics screenshot - missing data for {symbol}")
+                            except Exception as e:
+                                print(f"{Colors.RED}Error generating screenshots for {symbol}: {e}{Colors.ENDC}")
+                                import traceback
+                                traceback.print_exc()
+                        else:
+                            print(f"DEBUG: Skipping screenshot for {symbol} - no price data available")
+
                     #
                     #
                     #
@@ -1911,104 +2006,6 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
                                         print(f"{Colors.YELLOW}⚠️  No tradeable opportunities found - capital will remain idle{Colors.ENDC}\n")
                             else:
                                 print('STATUS: Trading disabled')
-
-                    # ITERATION SCREENSHOTS: Take screenshot if enabled
-                    screenshot_config = config.get('screenshot', {})
-                    print(f"DEBUG: Screenshot config enabled = {screenshot_config.get('enabled', False)}")
-                    if screenshot_config.get('enabled', False):
-                        print(f"DEBUG: Checking screenshot conditions for {symbol}")
-                        print(f"DEBUG: coin_prices_LIST length = {len(coin_prices_LIST) if coin_prices_LIST else 0}")
-                        # Use ALL available data points for iteration screenshots
-                        if coin_prices_LIST and len(coin_prices_LIST) > 0:
-                            print(f"DEBUG: Entering screenshot generation for {symbol}")
-                            try:
-                                iteration_chart_min = min(coin_prices_LIST)
-                                iteration_chart_max = max(coin_prices_LIST)
-                                iteration_chart_range_pct = calculate_percentage_from_min(iteration_chart_min, iteration_chart_max)
-                                print(f"DEBUG: Calculated chart params - min: {iteration_chart_min}, max: {iteration_chart_max}, range: {iteration_chart_range_pct}%")
-
-                                # Determine entry price for chart (if in position)
-                                chart_entry_price = entry_price if last_order_type in ['placeholder', 'buy'] else 0
-
-                                # Calculate timeframe label based on total data span
-                                total_hours = (len(coin_prices_LIST) * INTERVAL_SAVE_DATA_EVERY_X_MINUTES) / 60
-                                if total_hours >= 8760:  # 1 year or more
-                                    timeframe_label = f"{int(total_hours / 8760)}y"
-                                elif total_hours >= 720:  # 1 month or more
-                                    timeframe_label = f"{int(total_hours / 720)}mo"
-                                elif total_hours >= 168:  # 1 week or more
-                                    timeframe_label = f"{int(total_hours / 168)}w"
-                                elif total_hours >= 24:  # 1 day or more
-                                    timeframe_label = f"{int(total_hours / 24)}d"
-                                else:
-                                    timeframe_label = f"{int(total_hours)}h"
-
-                                print(f"DEBUG: Calling plot_graph for {symbol} with {len(coin_prices_LIST)} data points, timeframe: {timeframe_label}")
-                                iteration_screenshot_path = plot_graph(
-                                    time.time(),
-                                    INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
-                                    symbol,
-                                    coin_prices_LIST,
-                                    iteration_chart_min,
-                                    iteration_chart_max,
-                                    iteration_chart_range_pct,
-                                    chart_entry_price,
-                                    analysis=None,  # Don't include analysis on iteration screenshots
-                                    event_type=None,
-                                    screenshot_type='iteration',
-                                    timeframe_label=timeframe_label
-                                )
-
-                                print(f"DEBUG: plot_graph returned: {iteration_screenshot_path}")
-                                if iteration_screenshot_path:
-                                    print(f"📸 Iteration screenshot saved: {iteration_screenshot_path}")
-                                else:
-                                    print(f"DEBUG: plot_graph returned None for {symbol}")
-
-                                # COINBASE METRICS SCREENSHOT: Generate correlation chart
-                                # Get all Coinbase metrics data for correlation analysis
-                                coin_volume_24h_LIST = get_property_values_from_crypto_file(
-                                    coinbase_data_directory, symbol, 'volume_24h', max_age_hours=DATA_RETENTION_HOURS
-                                )
-                                coin_price_pct_change_24h_LIST = get_property_values_from_crypto_file(
-                                    coinbase_data_directory, symbol, 'price_percentage_change_24h', max_age_hours=DATA_RETENTION_HOURS
-                                )
-                                coin_volume_pct_change_24h_LIST = get_property_values_from_crypto_file(
-                                    coinbase_data_directory, symbol, 'volume_percentage_change_24h', max_age_hours=DATA_RETENTION_HOURS
-                                )
-
-                                # Generate metrics correlation chart if we have data
-                                print(f"DEBUG: Metrics data lengths - volume_24h: {len(coin_volume_24h_LIST) if coin_volume_24h_LIST else 0}, price_pct: {len(coin_price_pct_change_24h_LIST) if coin_price_pct_change_24h_LIST else 0}, volume_pct: {len(coin_volume_pct_change_24h_LIST) if coin_volume_pct_change_24h_LIST else 0}")
-                                if (coin_volume_24h_LIST and coin_price_pct_change_24h_LIST and
-                                    coin_volume_pct_change_24h_LIST and len(coin_prices_LIST) > 0):
-
-                                    print(f"DEBUG: Calling plot_coinbase_metrics_chart for {symbol}")
-                                    metrics_screenshot_path = plot_coinbase_metrics_chart(
-                                        time.time(),
-                                        INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
-                                        symbol,
-                                        coin_prices_LIST,
-                                        coin_volume_24h_LIST,
-                                        coin_price_pct_change_24h_LIST,
-                                        coin_volume_pct_change_24h_LIST,
-                                        event_type=None,
-                                        screenshot_type='iteration',
-                                        timeframe_label=timeframe_label
-                                    )
-
-                                    print(f"DEBUG: plot_coinbase_metrics_chart returned: {metrics_screenshot_path}")
-                                    if metrics_screenshot_path:
-                                        print(f"📊 Metrics correlation screenshot saved: {metrics_screenshot_path}")
-                                    else:
-                                        print(f"DEBUG: plot_coinbase_metrics_chart returned None for {symbol}")
-                                else:
-                                    print(f"DEBUG: Skipping metrics screenshot - missing data for {symbol}")
-                            except Exception as e:
-                                print(f"{Colors.RED}Error generating screenshots for {symbol}: {e}{Colors.ENDC}")
-                                import traceback
-                                traceback.print_exc()
-                        else:
-                            print(f"DEBUG: Skipping screenshot for {symbol} - no price data available")
 
                     print('\n')
 

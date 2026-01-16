@@ -212,8 +212,8 @@ def get_property_values_from_crypto_file(directory, product_id, property_name, m
         if property_name in entry:
             value = entry.get(property_name)
 
-            # Convert numeric string values to float for price/volume properties
-            if property_name in ['price', 'volume_24h']:
+            # Convert numeric string values to float for price/volume/percentage properties
+            if property_name in ['price', 'volume_24h', 'price_percentage_change_24h', 'volume_percentage_change_24h']:
                 # Skip None values
                 if value is None:
                     continue
@@ -223,7 +223,7 @@ def get_property_values_from_crypto_file(directory, product_id, property_name, m
                         value = value.strip()
                         if value == '':
                             continue  # Skip empty strings
-                    # Always convert to float for price/volume properties
+                    # Always convert to float for numeric properties
                     values.append(float(value))
                 except (ValueError, TypeError) as e:
                     # Skip values that can't be converted to float

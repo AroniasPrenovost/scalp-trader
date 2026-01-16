@@ -23,28 +23,56 @@ def create_time_labels(num_points, interval_minutes, current_timestamp):
     """
     # Calculate total time span
     total_minutes = (num_points - 1) * interval_minutes
+    total_hours = total_minutes / 60
     start_time = datetime.fromtimestamp(current_timestamp) - timedelta(minutes=total_minutes)
 
-    # Determine appropriate number of labels (aim for 6-10 labels)
-    target_num_labels = 8
-    step = max(1, num_points // target_num_labels)
+    # Get timezone abbreviation (PST/PDT etc.)
+    import time as time_module
+    tz_name = time_module.tzname[time_module.localtime(current_timestamp).tm_isdst]
 
     positions = []
     labels = []
+
+    # Use 2-hour intervals for all timespans
+    label_interval_minutes = 120
+
+    # Calculate step (how many data points between labels)
+    step = max(1, int(label_interval_minutes / interval_minutes))
+
+    # Limit total number of labels to avoid overcrowding
+    max_labels = 15
+    if num_points // step > max_labels:
+        step = max(1, num_points // max_labels)
 
     for i in range(0, num_points, step):
         positions.append(i)
         point_time = start_time + timedelta(minutes=i * interval_minutes)
 
-        # Format label as "Mon 10/17" for all time spans
-        label = point_time.strftime('%a %-m/%-d')  # e.g., "Mon 10/17"
+        # Format based on timespan
+        if total_hours <= 24:
+            # Short timespan: show date and time with AM/PM
+            # Format: "1/21 10:00 AM PST"
+            label = point_time.strftime(f'%-m/%-d %-I:%M %p {tz_name}')
+        elif total_hours <= 168:  # 1 week
+            # Medium timespan: show date and hour
+            # Format: "1/21 10AM PST"
+            label = point_time.strftime(f'%-m/%-d %-I%p {tz_name}')
+        else:
+            # Long timespan: show date only
+            # Format: "Mon 1/21"
+            label = point_time.strftime('%-m/%-d')
 
         labels.append(label)
 
     # Always include the last point, but check for duplicate labels
     if positions[-1] != num_points - 1:
         end_time = datetime.fromtimestamp(current_timestamp)
-        last_label = end_time.strftime('%a %-m/%-d')  # e.g., "Mon 10/17"
+        if total_hours <= 24:
+            last_label = end_time.strftime(f'%-m/%-d %-I:%M %p {tz_name}')
+        elif total_hours <= 168:
+            last_label = end_time.strftime(f'%-m/%-d %-I%p {tz_name}')
+        else:
+            last_label = end_time.strftime('%-m/%-d')
 
         # Only add if it's not a duplicate of the previous label
         if last_label != labels[-1]:
@@ -290,13 +318,6 @@ def plot_volume_trend_chart(
     ax.plot(x_values, filtered_volume, color='#1565C0', linewidth=1.5, label='Rolling 24h Volume (snapshots)', zorder=3)
     ax.fill_between(x_values, 0, filtered_volume, alpha=0.2, color='#1565C0', zorder=2)
 
-    # Calculate and plot moving average of volume
-    if len(filtered_volume) >= 20:
-        volume_ma = calculate_moving_average(filtered_volume, 20)
-        volume_ma_clean = [val if val is not None else np.nan for val in volume_ma]
-        ax.plot(x_values, volume_ma_clean, color='#D32F2F', linewidth=2,
-                linestyle='--', label='MA(20)', alpha=0.9, zorder=4)
-
     # Calculate volume statistics
     avg_volume = np.mean(filtered_volume)
     max_volume = max(filtered_volume)
@@ -389,7 +410,7 @@ def _generate_single_timeframe_chart(
     """
     Internal function to generate a single chart for a specific timeframe.
     """
-    # Create figure with subplots
+    # Create figure with subplots (price + optional volume, no RSI)
     fig = plt.figure(figsize=(14, 10))
 
     # Determine number of subplots
@@ -397,14 +418,8 @@ def _generate_single_timeframe_chart(
     if volume_data:
         num_subplots += 1
 
-    has_rsi = len(price_data) >= 15
-    if has_rsi:
-        num_subplots += 1
-
     # Create subplots with height ratios
-    if num_subplots == 3:
-        gs = fig.add_gridspec(3, 1, height_ratios=[3, 1, 1], hspace=0.3)
-    elif num_subplots == 2:
+    if num_subplots == 2:
         gs = fig.add_gridspec(2, 1, height_ratios=[3, 1], hspace=0.3)
     else:
         gs = fig.add_gridspec(1, 1)
@@ -417,27 +432,6 @@ def _generate_single_timeframe_chart(
     # Reduce left/right margins with small padding (half of default)
     padding = len(price_data) * 0.01
     ax1.set_xlim(-padding, len(price_data) - 1 + padding)
-
-    # Calculate and plot moving averages
-    if len(price_data) >= 20:
-        ma20 = calculate_moving_average(price_data, 20)
-        ma20_clean = [val if val is not None else np.nan for val in ma20]
-        ax1.plot(x_values, ma20_clean, label='MA(20)', c='#1565C0', linewidth=2.0, alpha=1.0, linestyle='--')
-
-    if len(price_data) >= 50:
-        ma50 = calculate_moving_average(price_data, 50)
-        ma50_clean = [val if val is not None else np.nan for val in ma50]
-        ax1.plot(x_values, ma50_clean, label='MA(50)', c='#D32F2F', linewidth=2.0, alpha=1.0, linestyle='--')
-
-    # Calculate and plot Bollinger Bands
-    if len(price_data) >= 20:
-        bb_mid, bb_upper, bb_lower = calculate_bollinger_bands(price_data, period=20)
-        # Filter out None values for plotting - matplotlib requires numeric values
-        bb_upper_clean = [val if val is not None else np.nan for val in bb_upper]
-        bb_lower_clean = [val if val is not None else np.nan for val in bb_lower]
-        ax1.plot(x_values, bb_upper_clean, label='BB Upper', c='#607D8B', linewidth=1.8, alpha=0.9, linestyle=':')
-        ax1.plot(x_values, bb_lower_clean, label='BB Lower', c='#607D8B', linewidth=1.8, alpha=0.9, linestyle=':')
-        ax1.fill_between(x_values, bb_upper_clean, bb_lower_clean, alpha=0.15, color='#607D8B')
 
     # Plot analysis levels if available
     if analysis:
@@ -455,10 +449,10 @@ def _generate_single_timeframe_chart(
                        linestyle=':', label=f"Minor Resistance (${analysis['minor_resistance']:.4f})", alpha=0.7)
         if analysis.get('buy_in_price'):
             ax1.axhline(y=analysis['buy_in_price'], color='#17A589', linewidth=1.8,
-                       linestyle='-', label=f"Buy Target (${analysis['buy_in_price']:.4f})", alpha=0.9)
+                       linestyle='-', label='_nolegend_', alpha=0.9)
         if analysis.get('sell_price'):
             ax1.axhline(y=analysis['sell_price'], color='#8E44AD', linewidth=1.8,
-                       linestyle='-', label=f"Sell Target (${analysis['sell_price']:.4f})", alpha=0.9)
+                       linestyle='-', label='_nolegend_', alpha=0.9)
 
     # Configure main chart
     price_range = max_price - min_price
@@ -483,32 +477,9 @@ def _generate_single_timeframe_chart(
         title += f" | Trend: {analysis.get('market_trend', 'N/A')}"
     ax1.set_title(title, fontsize=12, fontweight='bold')
 
-    # RSI subplot
-    subplot_idx = 1
-    if has_rsi:
-        ax2 = fig.add_subplot(gs[subplot_idx])
-        rsi = calculate_rsi(price_data, period=14)
-        # Filter out None values for plotting - matplotlib requires numeric values
-        rsi_clean = [val if val is not None else np.nan for val in rsi]
-        ax2.plot(x_values, rsi_clean, label='RSI(14)', c='#6A1B9A', linewidth=0.8)
-        ax2.axhline(y=70, color='#C62828', linewidth=2.0, linestyle='--', alpha=0.8, label='Overbought (>70)')
-        ax2.axhline(y=30, color='#2E7D32', linewidth=2.0, linestyle='--', alpha=0.8, label='Oversold (<30)')
-        ax2.fill_between(x_values, 70, 100, alpha=0.2, color='#C62828')
-        ax2.fill_between(x_values, 0, 30, alpha=0.2, color='#2E7D32')
-        ax2.set_ylim(0, 100)
-        padding = len(price_data) * 0.01
-        ax2.set_xlim(-padding, len(price_data) - 1 + padding)
-        ax2.set_ylabel('RSI', fontsize=10, fontweight='bold')
-        ax2.grid(True, alpha=0.5, linewidth=0.8)
-        ax2.legend(loc='upper left', fontsize='x-small')
-        # Share x-axis with main chart
-        ax2.set_xticks(positions)
-        ax2.set_xticklabels(labels, rotation=45, ha='right')
-        subplot_idx += 1
-
     # Volume subplot
     if volume_data:
-        ax3 = fig.add_subplot(gs[subplot_idx])
+        ax3 = fig.add_subplot(gs[1])
         # Ensure volume_data contains only numeric values
         volume_data_clean = [float(val) if val is not None else 0.0 for val in volume_data]
 
@@ -531,7 +502,6 @@ def _generate_single_timeframe_chart(
         # Share x-axis with main chart
         ax3.set_xticks(positions)
         ax3.set_xticklabels(labels, rotation=45, ha='right')
-        subplot_idx += 1
 
     # X-axis label on bottom subplot
     if num_subplots > 1:
@@ -625,50 +595,15 @@ def plot_graph(
     range_percentage_from_min = calculate_percentage_from_min(min_price, max_price)
     entry_price = float(entry_price)
 
-    # Create figure with subplots (main chart + RSI only, NO volume due to 24h rolling data issue)
-    fig = plt.figure(figsize=(14, 10))
+    # Create figure with single chart (no indicators)
+    fig = plt.figure(figsize=(14, 8))
 
-    # Determine number of subplots based on available data
-    num_subplots = 1
-
-    # Calculate if we have enough data for RSI
-    has_rsi = len(price_data) >= 15
-    if has_rsi:
-        num_subplots += 1
-
-    # Create subplots with height ratios
-    if num_subplots == 2:
-        gs = fig.add_gridspec(2, 1, height_ratios=[3, 1], hspace=0.3)
-    else:
-        gs = fig.add_gridspec(1, 1)
-
-    # Main price chart
-    ax1 = fig.add_subplot(gs[0])
+    # Single chart - no subplots
+    ax1 = fig.add_subplot(111)
 
     # Plot price line
     x_values = list(range(len(price_data)))
     ax1.plot(x_values, price_data, marker=',', label='Price', c='#000000', linewidth=0.8, zorder=5)
-
-    # Calculate and plot moving averages
-    if len(price_data) >= 20:
-        ma20 = calculate_moving_average(price_data, 20)
-        ma20_clean = [val if val is not None else np.nan for val in ma20]
-        ax1.plot(x_values, ma20_clean, label='MA(20)', c='#1565C0', linewidth=2.0, alpha=1.0, linestyle='--')
-
-    if len(price_data) >= 50:
-        ma50 = calculate_moving_average(price_data, 50)
-        ma50_clean = [val if val is not None else np.nan for val in ma50]
-        ax1.plot(x_values, ma50_clean, label='MA(50)', c='#D32F2F', linewidth=2.0, alpha=1.0, linestyle='--')
-
-    # Calculate and plot Bollinger Bands
-    if len(price_data) >= 20:
-        bb_mid, bb_upper, bb_lower = calculate_bollinger_bands(price_data, period=20)
-        # Filter out None values for plotting - matplotlib requires numeric values
-        bb_upper_clean = [val if val is not None else np.nan for val in bb_upper]
-        bb_lower_clean = [val if val is not None else np.nan for val in bb_lower]
-        ax1.plot(x_values, bb_upper_clean, label='BB Upper', c='#607D8B', linewidth=1.8, alpha=0.9, linestyle=':')
-        ax1.plot(x_values, bb_lower_clean, label='BB Lower', c='#607D8B', linewidth=1.8, alpha=0.9, linestyle=':')
-        ax1.fill_between(x_values, bb_upper_clean, bb_lower_clean, alpha=0.15, color='#607D8B')
 
     # Plot analysis levels if available
     if analysis:
@@ -691,10 +626,10 @@ def plot_graph(
         # Buy/Sell targets
         if analysis.get('buy_in_price'):
             ax1.axhline(y=analysis['buy_in_price'], color='#17A589', linewidth=1.8,
-                       linestyle='-', label=f"Buy Target (${analysis['buy_in_price']:.4f})", alpha=0.9)
+                       linestyle='-', label='_nolegend_', alpha=0.9)
         if analysis.get('sell_price'):
             ax1.axhline(y=analysis['sell_price'], color='#8E44AD', linewidth=1.8,
-                       linestyle='-', label=f"Sell Target (${analysis['sell_price']:.4f})", alpha=0.9)
+                       linestyle='-', label='_nolegend_', alpha=0.9)
 
     # Plot entry price if in position
     if entry_price > 0:
@@ -725,31 +660,8 @@ def plot_graph(
         title = f"{symbol} - Range: {range_percentage_from_min:.2f}% (low to high)"
     ax1.set_title(title, fontsize=14, fontweight='bold', pad=15)
 
-    # RSI subplot
-    if has_rsi:
-        ax2 = fig.add_subplot(gs[1])
-        rsi = calculate_rsi(price_data, period=14)
-        # Filter out None values for plotting - matplotlib requires numeric values
-        rsi_clean = [val if val is not None else np.nan for val in rsi]
-        ax2.plot(x_values, rsi_clean, label='RSI(14)', c='#6A1B9A', linewidth=1.2)
-        ax2.axhline(y=70, color='#C62828', linewidth=2.0, linestyle='--', alpha=0.8, label='Overbought (>70)')
-        ax2.axhline(y=30, color='#2E7D32', linewidth=2.0, linestyle='--', alpha=0.8, label='Oversold (<30)')
-        ax2.fill_between(x_values, 70, 100, alpha=0.2, color='#C62828')
-        ax2.fill_between(x_values, 0, 30, alpha=0.2, color='#2E7D32')
-        ax2.set_ylim(0, 100)
-        padding = len(price_data) * 0.01
-        ax2.set_xlim(-padding, len(price_data) - 1 + padding)
-        ax2.set_ylabel('RSI', fontsize=10, fontweight='bold')
-        ax2.grid(True, alpha=0.5, linewidth=0.8)
-        ax2.legend(loc='upper left', fontsize='x-small')
-        # Share x-axis with main chart
-        ax2.set_xticks(positions)
-        ax2.set_xticklabels(labels, rotation=45, ha='right')
-        ax2.set_xlabel(f"Time", fontsize=10, fontweight='bold')
-
-    # X-axis label on bottom subplot
-    if not has_rsi:
-        ax1.set_xlabel(f"Time", fontsize=10, fontweight='bold')
+    # X-axis label
+    ax1.set_xlabel(f"Time", fontsize=10, fontweight='bold')
 
     # Save figure
     timestamp_str = time.strftime("%Y%m%d%H%M%S", time.localtime(current_timestamp))
@@ -903,12 +815,6 @@ def plot_coinbase_metrics_chart(
     price_clean = [val if val is not None else np.nan for val in price_data]
     ax1.plot(x_values, price_clean, color='#000000', linewidth=1.5, label='Price', zorder=3)
 
-    # Add moving average if enough data
-    if min_length >= 20:
-        ma20 = calculate_moving_average(price_data, 20)
-        ma20_clean = [val if val is not None else np.nan for val in ma20]
-        ax1.plot(x_values, ma20_clean, label='MA(20)', c='#1565C0', linewidth=1.5, alpha=0.8, linestyle='--')
-
     ax1.set_ylabel('Price (USD)', fontsize=10, fontweight='bold')
     ax1.yaxis.set_major_formatter(ticker.FuncFormatter(format_price))
     ax1.grid(True, alpha=0.3, linewidth=0.5)
@@ -924,12 +830,6 @@ def plot_coinbase_metrics_chart(
     volume_clean = [val if val is not None else np.nan for val in volume_24h_data]
     ax2.plot(x_values, volume_clean, color='#1565C0', linewidth=1.5, label='24h Volume', zorder=3)
     ax2.fill_between(x_values, 0, volume_clean, alpha=0.2, color='#1565C0', zorder=2)
-
-    # Add moving average if enough data
-    if min_length >= 20:
-        vol_ma = calculate_moving_average(volume_24h_data, 20)
-        vol_ma_clean = [val if val is not None else np.nan for val in vol_ma]
-        ax2.plot(x_values, vol_ma_clean, label='MA(20)', c='#D32F2F', linewidth=1.5, alpha=0.8, linestyle='--')
 
     ax2.set_ylabel('24h Volume', fontsize=10, fontweight='bold')
     ax2.yaxis.set_major_formatter(ticker.FuncFormatter(format_volume))

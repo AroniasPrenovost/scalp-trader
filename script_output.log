@@ -1,0 +1,78 @@
+Coinbase Trading Bot: 2026-01-16 12:16:10
+
+Loaded last data collection timestamp: 0.09 hours ago
+
+Loaded last screenshot cleanup timestamp: 3.24 hours ago
+
+[1m[96m⏰ Running data collection - APPENDING NEW PRICE DATA (last run: 0.09 hours ago)[0m
+
+✓ Appended 1 new data point for 8 cryptos (next append in 1 min)
+
+
+[1m[96m====================================================================================================
+🔍 MARKET ROTATION: Scanning 8 assets for best opportunity...
+💰 NO ACTIVE POSITIONS - Capital ready to deploy
+====================================================================================================[0m
+
+Rank   Symbol       Score    Signal       Strategy           In Trade   Dist Entry   Pos      Mom 1h     Price Δ      Gross $ ($4500)      [1m[96mNet $ ($4500)     [0m Status              
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  #1   BTC-USD      0.0      NO_SIGNAL    Scalp Wait         NO         -            -        -          -            -                    -                  ⏸️  No Setup         
+  #2   ETH-USD      0.0      NO_SIGNAL    Scalp Wait         NO         -            -        -          -            -                    -                  ⏸️  No Setup         
+  #3   SOL-USD      0.0      NO_SIGNAL    Scalp Wait         NO         -            -        -          -            -                    -                  ⏸️  No Setup         
+  #4   AVAX-USD     0.0      NO_SIGNAL    Scalp Wait         NO         -            -        -          -            -                    -                  ⏸️  No Setup         
+  #5   LINK-USD     0.0      NO_SIGNAL    Scalp Wait         NO         -            -        -          -            -                    -                  ⏸️  No Setup         
+  #6   UNI-USD      0.0      NO_SIGNAL    Scalp Wait         NO         -            -        -          -            -                    -                  ⏸️  No Setup         
+  #7   XRP-USD      0.0      NO_SIGNAL    Scalp Wait         NO         -            -        -          -            -                    -                  ⏸️  No Setup         
+  #8   NEAR-USD     0.0      NO_SIGNAL    Scalp Wait         NO         -            -        -          -            -                    -                  ⏸️  No Setup         
+
+⚠️  NO TRADEABLE OPPORTUNITIES FOUND
+
+
+[1m[96m====================================================================================================
+  📊 ASSET PERFORMANCE SUMMARY - 8 ASSETS
+====================================================================================================[0m
+      1. BTC-USD    | Net: [93m$   +0.00[0m | Gross: [93m$   +0.00[0m | Vol: $       0 | P&L: [93m +0.00%[0m | W/L:   0/0 (  0%) | NO POSITION         
+      2. ETH-USD    | Net: [93m$   +0.00[0m | Gross: [93m$   +0.00[0m | Vol: $       0 | P&L: [93m +0.00%[0m | W/L:   0/0 (  0%) | NO POSITION         
+      3. AVAX-USD   | Net: [93m$   +0.00[0m | Gross: [93m$   +0.00[0m | Vol: $       0 | P&L: [93m +0.00%[0m | W/L:   0/0 (  0%) | NO POSITION         
+      4. LINK-USD   | Net: [93m$   +0.00[0m | Gross: [93m$   +0.00[0m | Vol: $       0 | P&L: [93m +0.00%[0m | W/L:   0/0 (  0%) | NO POSITION         
+      5. UNI-USD    | Net: [93m$   +0.00[0m | Gross: [93m$   +0.00[0m | Vol: $       0 | P&L: [93m +0.00%[0m | W/L:   0/0 (  0%) | NO POSITION         
+      6. XRP-USD    | Net: [93m$   +0.00[0m | Gross: [93m$   +0.00[0m | Vol: $       0 | P&L: [93m +0.00%[0m | W/L:   0/0 (  0%) | NO POSITION         
+      7. NEAR-USD   | Net: [93m$   +0.00[0m | Gross: [93m$   +0.00[0m | Vol: $       0 | P&L: [93m +0.00%[0m | W/L:   0/0 (  0%) | NO POSITION         
+      8. SOL-USD    | Net: [91m$  -33.41[0m | Gross: [91m$  -33.41[0m | Vol: $   4,500 | P&L: [91m -0.74%[0m | W/L:   0/1 (  0%) | NO POSITION         
+[96m----------------------------------------------------------------------------------------------------[0m
+  [1mLIFETIME TOTAL:      | Net: [91m$  -33.41[0m[1m | Gross: [91m$  -33.41[0m[1m[0m
+[96m====================================================================================================[0m
+
+[96m⏭  Skipping data collection - NOT appending (last collection: 0.4 min ago, next in 0.6 min)[0m
+
+
+[1m[96m====================================================================================================
+🔍 MARKET ROTATION: Scanning 8 assets for best opportunity...
+💰 NO ACTIVE POSITIONS - Capital ready to deploy
+====================================================================================================[0m
+
+Rank   Symbol       Score    Signal       Strategy           In Trade   Dist Entry   Pos      Mom 1h     Price Δ      Gross $ ($4500)      [1m[96mNet $ ($4500)     [0m Status              
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  #1   BTC-USD      0.0      NO_SIGNAL    Scalp Wait         NO         -            -        -          -            -                    -                  ⏸️  No Setup         
+  #2   ETH-USD      0.0      NO_SIGNAL    Scalp Wait         NO         -            -        -          -            -                    -                  ⏸️  No Setup         
+  #3   SOL-USD      0.0      NO_SIGNAL    Scalp Wait         NO         -            -        -          -            -                    -                  ⏸️  No Setup         
+  #4   AVAX-USD     0.0      NO_SIGNAL    Scalp Wait         NO         -            -        -          -            -                    -                  ⏸️  No Setup         
+  #5   LINK-USD     0.0      NO_SIGNAL    Scalp Wait         NO         -            -        -          -            -                    -                  ⏸️  No Setup         
+  #6   UNI-USD      0.0      NO_SIGNAL    Scalp Wait         NO         -            -        -          -            -                    -                  ⏸️  No Setup         
+  #7   XRP-USD      0.0      NO_SIGNAL    Scalp Wait         NO         -            -        -          -            -                    -                  ⏸️  No Setup         
+  #8   NEAR-USD     0.0      NO_SIGNAL    Scalp Wait         NO         -            -        -          -            -                    -                  ⏸️  No Setup         
+
+⚠️  NO TRADEABLE OPPORTUNITIES FOUND
+
+
+[1m[96m====================================================================================================
+  📊 ASSET PERFORMANCE SUMMARY - 8 ASSETS
+====================================================================================================[0m
+      1. BTC-USD    | Net: [93m$   +0.00[0m | Gross: [93m$   +0.00[0m | Vol: $       0 | P&L: [93m +0.00%[0m | W/L:   0/0 (  0%) | NO POSITION         
+      2. ETH-USD    | Net: [93m$   +0.00[0m | Gross: [93m$   +0.00[0m | Vol: $       0 | P&L: [93m +0.00%[0m | W/L:   0/0 (  0%) | NO POSITION         
+      3. AVAX-USD   | Net: [93m$   +0.00[0m | Gross: [93m$   +0.00[0m | Vol: $       0 | P&L: [93m +0.00%[0m | W/L:   0/0 (  0%) | NO POSITION         
+      4. LINK-USD   | Net: [93m$   +0.00[0m | Gross: [93m$   +0.00[0m | Vol: $       0 | P&L: [93m +0.00%[0m | W/L:   0/0 (  0%) | NO POSITION         
+      5. UNI-USD    | Net: [93m$   +0.00[0m | Gross: [93m$   +0.00[0m | Vol: $       0 | P&L: [93m +0.00%[0m | W/L:   0/0 (  0%) | NO POSITION         
+      6. XRP-USD    | Net: [93m$   +0.00[0m | Gross: [93m$   +0.00[0m | Vol: $       0 | P&L: [93m +0.00%[0m | W/L:   0/0 (  0%) | NO POSITION         
+      7. NEAR-USD   | Net: [93m$   +0.00[0m | Gross: [93m$   +0.00[0m | Vol: $       0 | P&L: [93m +0.00%[0m | W/L:   0/0 (  0%) | NO POSITION         
+      8. SOL-USD    | Net: [91m$  -33.41[0m | Gross: [91m$  -33.41[0m | Vol: $   4,500 | P&L: [91m -0.74%[0m | W/L:   0/1 (  0%) | NO POSITION         
