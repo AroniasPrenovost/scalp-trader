@@ -264,13 +264,12 @@ def cleanup_old_crypto_data(directory, product_id, max_age_hours, verbose=True):
 
 def cleanup_old_screenshots(screenshots_dir, transactions_dir, config):
     """
-    Cleans up old screenshots based on a tiered retention system:
-    - Analysis screenshots (multi-timeframe, volume, snapshot): Keep for X hours (default 24)
-    - Buy/Sell event screenshots: Keep for Y days (default 30) or until referenced in open positions
+    Cleans up old screenshots based on deletion_at_x_days setting.
+    Screenshots are deleted after X days unless they're referenced in open positions.
 
     :param screenshots_dir: Path to the screenshots directory
     :param transactions_dir: Path to the transactions directory
-    :param config: Config object with screenshot_retention settings
+    :param config: Config object with screenshot settings
     :return: Dictionary with cleanup statistics
     """
     if not os.path.exists(screenshots_dir):
@@ -278,14 +277,12 @@ def cleanup_old_screenshots(screenshots_dir, transactions_dir, config):
         return {"deleted": 0, "kept": 0, "errors": 0}
 
     # Get retention settings from config
-    retention_config = config.get('screenshot_retention', {})
-    analysis_retention_hours = retention_config.get('analysis_hours', 24)
-    event_retention_days = retention_config.get('event_days', 30)
+    screenshot_config = config.get('screenshot', {})
+    deletion_at_x_days = screenshot_config.get('deletion_at_x_days', 3)
 
-    # Calculate cutoff times
+    # Calculate cutoff time
     current_time = time.time()
-    analysis_cutoff = current_time - (analysis_retention_hours * 3600)
-    event_cutoff = current_time - (event_retention_days * 24 * 3600)
+    deletion_cutoff = current_time - (deletion_at_x_days * 24 * 3600)
 
     # Get list of screenshots referenced in active transactions
     protected_screenshots = _get_protected_screenshots(transactions_dir)
@@ -308,19 +305,8 @@ def cleanup_old_screenshots(screenshots_dir, transactions_dir, config):
                 stats["kept"] += 1
                 continue
 
-            # Determine screenshot type and apply appropriate retention policy
-            should_delete = False
-
-            if _is_analysis_screenshot(filename):
-                # Analysis screenshots (multi-timeframe, volume, snapshot)
-                if file_creation_time < analysis_cutoff:
-                    should_delete = True
-            elif _is_event_screenshot(filename):
-                # Buy/sell event screenshots
-                if file_creation_time < event_cutoff:
-                    should_delete = True
-
-            if should_delete:
+            # Delete screenshot if older than deletion_at_x_days
+            if file_creation_time < deletion_cutoff:
                 os.remove(file_path)
                 stats["deleted"] += 1
                 stats["size_freed_mb"] += file_size / (1024 * 1024)

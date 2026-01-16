@@ -572,7 +572,9 @@ def plot_graph(
     entry_price,
     volume_data=None,
     analysis=None,
-    buy_event=False
+    event_type=None,
+    screenshot_type=None,
+    timeframe_label=None
 ):
     """
     Enhanced plot with technical indicators and AI analysis
@@ -589,6 +591,9 @@ def plot_graph(
         entry_price: entry price if in position
         volume_data: DEPRECATED - ignored (use plot_multi_timeframe_charts for 24h volume)
         analysis: optional AI analysis dictionary with support/resistance/buy/sell levels
+        event_type: optional event type ('buy', 'sell') to include in filename
+        screenshot_type: optional screenshot type ('iteration') for special formatting
+        timeframe_label: optional timeframe label for iteration screenshots
     """
 
     # Ensure all data is numeric - handle string conversions and filter invalid data
@@ -713,11 +718,12 @@ def plot_graph(
     ax1.minorticks_on()
     ax1.legend(loc='upper left', fontsize='x-small', ncol=2)
 
-    # Title with AI analysis info
-    title = f"{symbol} - Range: {range_percentage_from_min:.2f}% (low to high)"
+    # Title with symbol and info
     if analysis:
-        title += f" | Trend: {analysis.get('market_trend', 'N/A')} | Confidence: {analysis.get('confidence_level', 'N/A')}"
-    ax1.set_title(title, fontsize=12, fontweight='bold')
+        title = f"{symbol} - Range: {range_percentage_from_min:.2f}% | Trend: {analysis.get('market_trend', 'N/A')} | Confidence: {analysis.get('confidence_level', 'N/A')}"
+    else:
+        title = f"{symbol} - Range: {range_percentage_from_min:.2f}% (low to high)"
+    ax1.set_title(title, fontsize=14, fontweight='bold', pad=15)
 
     # RSI subplot
     if has_rsi:
@@ -746,25 +752,44 @@ def plot_graph(
         ax1.set_xlabel(f"Time", fontsize=10, fontweight='bold')
 
     # Save figure
-    event_type = 'sell'
-    if buy_event:
-        event_type = 'buy'
-
-    # Convert interval to candle interval label
-    if interval >= 10080:  # 1 week or more
-        weeks = int(interval / 10080)
-        candle_label = "1w" if weeks == 1 else f"{weeks}w"
-    elif interval >= 1440:  # 1 day or more
-        days = int(interval / 1440)
-        candle_label = "1d" if days == 1 else f"{days}d"
-    elif interval >= 60:  # 1 hour or more
-        hours = int(interval / 60)
-        candle_label = "1h" if hours == 1 else f"{hours}h"
-    else:  # minutes
-        candle_label = f"{int(interval)}m"
-
     timestamp_str = time.strftime("%Y%m%d%H%M%S", time.localtime(current_timestamp))
-    filename = os.path.join("./screenshots", f"{symbol}_{candle_label}-candles_{event_type}_{timestamp_str}.png")
+
+    # Generate filename based on screenshot type
+    if screenshot_type == 'iteration' and timeframe_label:
+        # Iteration screenshot format: {symbol}_{timeframe}_{timestamp}
+        filename = os.path.join("./screenshots", f"{symbol}_{timeframe_label}_{timestamp_str}.png")
+    elif event_type:
+        # Buy/sell event screenshot format: {symbol}_{timeframe}_{event}_{timestamp}
+        # Convert interval to candle interval label
+        if interval >= 10080:  # 1 week or more
+            weeks = int(interval / 10080)
+            candle_label = "1w" if weeks == 1 else f"{weeks}w"
+        elif interval >= 1440:  # 1 day or more
+            days = int(interval / 1440)
+            candle_label = "1d" if days == 1 else f"{days}d"
+        elif interval >= 60:  # 1 hour or more
+            hours = int(interval / 60)
+            candle_label = "1h" if hours == 1 else f"{hours}h"
+        else:  # minutes
+            candle_label = f"{int(interval)}m"
+
+        filename = os.path.join("./screenshots", f"{symbol}_{candle_label}_{event_type}_{timestamp_str}.png")
+    else:
+        # Generic snapshot format (fallback)
+        if interval >= 10080:
+            weeks = int(interval / 10080)
+            candle_label = "1w" if weeks == 1 else f"{weeks}w"
+        elif interval >= 1440:
+            days = int(interval / 1440)
+            candle_label = "1d" if days == 1 else f"{days}d"
+        elif interval >= 60:
+            hours = int(interval / 60)
+            candle_label = "1h" if hours == 1 else f"{hours}h"
+        else:
+            candle_label = f"{int(interval)}m"
+
+        filename = os.path.join("./screenshots", f"{symbol}_{candle_label}_snapshot_{timestamp_str}.png")
+
     print(f"Generating market snapshot: {filename}")
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     plt.close(fig)  # Close the specific figure

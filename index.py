@@ -30,6 +30,9 @@ from utils.profit_calculator import calculate_net_profit_from_price_move
 # Trading context for wallet metrics
 from utils.trade_context import calculate_wallet_metrics
 
+# Matplotlib for charting
+from utils.matplotlib import plot_graph
+
 # Terminal colors for output formatting
 class Colors:
     HEADER = '\033[95m'
@@ -331,9 +334,9 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
         #
         # SCREENSHOT CLEANUP: Run periodically based on config
         #
-        screenshot_retention_config = config.get('screenshot_retention', {})
-        screenshot_cleanup_enabled = screenshot_retention_config.get('enabled', True)
-        screenshot_cleanup_interval_hours = screenshot_retention_config.get('cleanup_interval_hours', 6)
+        screenshot_config = config.get('screenshot', {})
+        screenshot_cleanup_enabled = screenshot_config.get('enabled', True)
+        screenshot_cleanup_interval_hours = 6  # Run cleanup every 6 hours
 
         if screenshot_cleanup_enabled:
             time_since_last_cleanup = current_time - LAST_SCREENSHOT_CLEANUP_TIME
@@ -1058,7 +1061,7 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
                                                 buy_chart_range_pct,
                                                 target_price,  # Use target price as entry price for chart
                                                 analysis=analysis if analysis else None,
-                                                buy_event=True
+                                                event_type='buy'
                                             )
 
                                             print(f"Placing MARKET buy order for {shares_to_buy} shares at ${current_price:.4f}")
@@ -1544,7 +1547,7 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
                                 sell_chart_range_pct,
                                 entry_price,
                                 analysis=analysis,
-                                buy_event=False
+                                event_type='sell'
                             )
 
                             if READY_TO_TRADE:
@@ -1641,7 +1644,7 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
                                 sell_chart_range_pct,
                                 entry_price,
                                 analysis=analysis,
-                                buy_event=False
+                                event_type='sell'
                             )
 
                             if READY_TO_TRADE:
@@ -1744,7 +1747,7 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
                                 sell_chart_range_pct,
                                 entry_price,
                                 analysis=analysis,
-                                buy_event=False
+                                event_type='sell'
                             )
 
                             if READY_TO_TRADE:
@@ -1825,6 +1828,49 @@ def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
                                         print(f"{Colors.YELLOW}⚠️  No tradeable opportunities found - capital will remain idle{Colors.ENDC}\n")
                             else:
                                 print('STATUS: Trading disabled')
+
+                    # ITERATION SCREENSHOTS: Take screenshot if enabled
+                    screenshot_config = config.get('screenshot', {})
+                    if screenshot_config.get('enabled', False):
+                        # Use ALL available data points for iteration screenshots
+                        if coin_prices_LIST and len(coin_prices_LIST) > 0:
+                            iteration_chart_min = min(coin_prices_LIST)
+                            iteration_chart_max = max(coin_prices_LIST)
+                            iteration_chart_range_pct = calculate_percentage_from_min(iteration_chart_min, iteration_chart_max)
+
+                            # Determine entry price for chart (if in position)
+                            chart_entry_price = entry_price if last_order_type in ['placeholder', 'buy'] else 0
+
+                            # Calculate timeframe label based on total data span
+                            total_hours = (len(coin_prices_LIST) * INTERVAL_SAVE_DATA_EVERY_X_MINUTES) / 60
+                            if total_hours >= 8760:  # 1 year or more
+                                timeframe_label = f"{int(total_hours / 8760)}y"
+                            elif total_hours >= 720:  # 1 month or more
+                                timeframe_label = f"{int(total_hours / 720)}mo"
+                            elif total_hours >= 168:  # 1 week or more
+                                timeframe_label = f"{int(total_hours / 168)}w"
+                            elif total_hours >= 24:  # 1 day or more
+                                timeframe_label = f"{int(total_hours / 24)}d"
+                            else:
+                                timeframe_label = f"{int(total_hours)}h"
+
+                            iteration_screenshot_path = plot_graph(
+                                time.time(),
+                                INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                                symbol,
+                                coin_prices_LIST,
+                                iteration_chart_min,
+                                iteration_chart_max,
+                                iteration_chart_range_pct,
+                                chart_entry_price,
+                                analysis=None,  # Don't include analysis on iteration screenshots
+                                event_type=None,
+                                screenshot_type='iteration',
+                                timeframe_label=timeframe_label
+                            )
+
+                            if iteration_screenshot_path and show_detailed_logs:
+                                print(f"📸 Iteration screenshot saved: {iteration_screenshot_path}")
 
                     print('\n')
 
