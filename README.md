@@ -1,5 +1,3 @@
-o
-
 # Scalp-Scripts: AI-Powered Cryptocurrency Trading Bot
 
 An advanced cryptocurrency scalp trading bot that leverages GPT-4o Vision for intelligent market analysis, self-learning from historical trades, and automated execution on the Coinbase exchange. The bot combines multi-timeframe technical analysis with AI-driven decision-making to identify and execute profitable short-term trades while managing risk, taxes, and fees.
