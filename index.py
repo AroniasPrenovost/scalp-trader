@@ -110,33 +110,33 @@ LAST_EXCEPTION_ERROR = None
 LAST_EXCEPTION_ERROR_COUNT = 0
 MAX_LAST_EXCEPTION_ERROR_COUNT = 5
 
-# Track when hourly operations were last run (will be loaded from file below)
-LAST_HOURLY_OPERATION_TIME = 0
+# Track when data collection operations were last run (will be loaded from file below)
+LAST_DATA_COLLECTION_TIME = 0
 
 #
-# Hourly operation timestamp persistence
+# Data collection timestamp persistence
 #
-HOURLY_TIMESTAMP_FILE = 'local-state/last_hourly_operation.json'
+DATA_COLLECTION_TIMESTAMP_FILE = 'local-state/last_data_collection.json'
 
-def save_last_hourly_operation_time(timestamp):
-    """Save the last hourly operation timestamp to a file"""
+def save_last_data_collection_time(timestamp):
+    """Save the last data collection timestamp to a file"""
     try:
-        with open(HOURLY_TIMESTAMP_FILE, 'w') as file:
-            json.dump({'last_hourly_operation': timestamp}, file, indent=4)
+        with open(DATA_COLLECTION_TIMESTAMP_FILE, 'w') as file:
+            json.dump({'last_data_collection': timestamp}, file, indent=4)
     except Exception as e:
-        print(f"Warning: Failed to save hourly operation timestamp: {e}")
+        print(f"Warning: Failed to save data collection timestamp: {e}")
 
-def load_last_hourly_operation_time():
-    """Load the last hourly operation timestamp from file, return 0 if file doesn't exist"""
+def load_last_data_collection_time():
+    """Load the last data collection timestamp from file, return 0 if file doesn't exist"""
     try:
-        if os.path.exists(HOURLY_TIMESTAMP_FILE):
-            with open(HOURLY_TIMESTAMP_FILE, 'r') as file:
+        if os.path.exists(DATA_COLLECTION_TIMESTAMP_FILE):
+            with open(DATA_COLLECTION_TIMESTAMP_FILE, 'r') as file:
                 data = json.load(file)
-                return data.get('last_hourly_operation', 0)
+                return data.get('last_data_collection', 0)
         else:
             return 0
     except Exception as e:
-        print(f"Warning: Failed to load hourly operation timestamp: {e}")
+        print(f"Warning: Failed to load data collection timestamp: {e}")
         return 0
 
 #
@@ -215,11 +215,11 @@ def get_hours_since_last_sell(symbol):
 
 print_local_time()
 
-# Load last hourly operation time from file (for crash recovery)
-LAST_HOURLY_OPERATION_TIME = load_last_hourly_operation_time()
-if LAST_HOURLY_OPERATION_TIME > 0:
-    hours_since = (time.time() - LAST_HOURLY_OPERATION_TIME) / 3600
-    print(f"Loaded last hourly operation timestamp: {hours_since:.2f} hours ago\n")
+# Load last data collection time from file (for crash recovery)
+LAST_DATA_COLLECTION_TIME = load_last_data_collection_time()
+if LAST_DATA_COLLECTION_TIME > 0:
+    hours_since = (time.time() - LAST_DATA_COLLECTION_TIME) / 3600
+    print(f"Loaded last data collection timestamp: {hours_since:.2f} hours ago\n")
 
 # Load last screenshot cleanup time from file (for crash recovery)
 LAST_SCREENSHOT_CLEANUP_TIME = load_last_screenshot_cleanup_time()
@@ -227,7 +227,7 @@ if LAST_SCREENSHOT_CLEANUP_TIME > 0:
     hours_since = (time.time() - LAST_SCREENSHOT_CLEANUP_TIME) / 3600
     print(f"Loaded last screenshot cleanup timestamp: {hours_since:.2f} hours ago\n")
 
-def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
+def iterate_wallets(check_interval_seconds, data_collection_interval_seconds):
     while True:
 
         # send_email_notification(
@@ -241,16 +241,16 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
         # ERROR TRACKING
         global LAST_EXCEPTION_ERROR
         global LAST_EXCEPTION_ERROR_COUNT
-        global LAST_HOURLY_OPERATION_TIME
+        global LAST_DATA_COLLECTION_TIME
         global LAST_SCREENSHOT_CLEANUP_TIME
 
-        # Check if it's time to run hourly operations (data collection, CoinGecko, etc.)
+        # Check if it's time to run data collection operations
         current_time = time.time()
-        time_since_last_hourly = current_time - LAST_HOURLY_OPERATION_TIME
-        should_run_hourly_operations = time_since_last_hourly >= hourly_interval_seconds
+        time_since_last_collection = current_time - LAST_DATA_COLLECTION_TIME
+        should_run_data_collection = time_since_last_collection >= data_collection_interval_seconds
 
-        if should_run_hourly_operations:
-            print(f"{Colors.BOLD}{Colors.CYAN}⏰ Running hourly operations - APPENDING NEW PRICE DATA (last run: {time_since_last_hourly/3600:.2f} hours ago){Colors.ENDC}\n")
+        if should_run_data_collection:
+            print(f"{Colors.BOLD}{Colors.CYAN}⏰ Running data collection - APPENDING NEW PRICE DATA (last run: {time_since_last_collection/3600:.2f} hours ago){Colors.ENDC}\n")
 
         # Get taxes and Coinbase fees
         federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
@@ -292,9 +292,9 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
 
         #
         #
-        # HOURLY OPERATIONS: Store price/volume data and collect CoinGecko data
-        # This runs every hour to build historical dataset
-        if should_run_hourly_operations:
+        # DATA COLLECTION OPERATIONS: Store price/volume data
+        # This runs at the configured interval (see config.json interval_seconds)
+        if should_run_data_collection:
             enable_all_coin_scanning = True
             if enable_all_coin_scanning:
                 coinbase_data_directory = 'coinbase-data'
@@ -321,13 +321,12 @@ def iterate_wallets(check_interval_seconds, hourly_interval_seconds):
                     append_crypto_data_to_file(coinbase_data_directory, product_id, data_entry)
                 print(f"✓ Appended 1 new data point for {len(coinbase_data_dictionary)} cryptos (next append in {INTERVAL_SAVE_DATA_EVERY_X_MINUTES:.0f} min)\n")
 
-            # Update the last hourly operation timestamp and save to file
-            LAST_HOURLY_OPERATION_TIME = time.time()
-            save_last_hourly_operation_time(LAST_HOURLY_OPERATION_TIME)
-            print(f"{Colors.BOLD}{Colors.GREEN}✓ Hourly operations completed{Colors.ENDC}\n")
+            # Update the last data collection timestamp and save to file
+            LAST_DATA_COLLECTION_TIME = time.time()
+            save_last_data_collection_time(LAST_DATA_COLLECTION_TIME)
         else:
-            time_until_next_hourly = hourly_interval_seconds - time_since_last_hourly
-            print(f"{Colors.CYAN}⏭  Skipping data collection - NOT appending (last collection: {time_since_last_hourly/60:.1f} min ago, next in {time_until_next_hourly/60:.1f} min){Colors.ENDC}\n")
+            time_until_next_collection = data_collection_interval_seconds - time_since_last_collection
+            print(f"{Colors.CYAN}⏭  Skipping data collection - NOT appending (last collection: {time_since_last_collection/60:.1f} min ago, next in {time_until_next_collection/60:.1f} min){Colors.ENDC}\n")
 
         #
         # SCREENSHOT CLEANUP: Run periodically based on config
