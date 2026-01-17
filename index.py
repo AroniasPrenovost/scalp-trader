@@ -34,6 +34,7 @@ class Colors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
+    DIM = '\033[2m'
 
 def format_wallet_metrics(symbol, metrics):
     """Format wallet metrics dictionary in a human-readable way with colors"""
@@ -219,6 +220,8 @@ def iterate_wallets(data_collection_interval_seconds):
     os.makedirs('screenshots', exist_ok=True)
 
     while True:
+        # Track iteration start time for precise interval timing
+        iteration_start_time = time.time()
 
         # send_email_notification(
         #     subject="ello moto",
@@ -2132,7 +2135,16 @@ def iterate_wallets(data_collection_interval_seconds):
         #
         #
         # End of iteration function
-        time.sleep(data_collection_interval_seconds)
+        # Calculate elapsed time and adjust sleep to maintain exact interval
+        elapsed_time = time.time() - iteration_start_time
+        sleep_time = max(0, data_collection_interval_seconds - elapsed_time)
+
+        if elapsed_time < data_collection_interval_seconds:
+            print(f"{Colors.DIM}⏱  Iteration took {elapsed_time:.2f}s, sleeping {sleep_time:.2f}s to maintain {data_collection_interval_seconds}s interval{Colors.ENDC}\n")
+        else:
+            print(f"{Colors.YELLOW}⚠️  Warning: Iteration took {elapsed_time:.2f}s (longer than {data_collection_interval_seconds}s interval){Colors.ENDC}\n")
+
+        time.sleep(sleep_time)
 
 if __name__ == "__main__":
     while True:
