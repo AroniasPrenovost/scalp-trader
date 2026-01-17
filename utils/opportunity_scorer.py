@@ -28,7 +28,7 @@ import time
 import statistics
 from utils.file_helpers import get_property_values_from_crypto_file
 from utils.coinbase import get_asset_price, get_last_order_from_local_json_ledger, detect_stored_coinbase_order_type
-from utils.momentum_scalping_strategy import check_scalp_entry_signal
+from utils.momentum_divergence_strategy import check_divergence_signal
 from utils.price_helpers import calculate_rsi
 
 
@@ -142,14 +142,16 @@ def score_volatility_component(prices):
 
 
 def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current_price, range_percentage_from_min,
-                     entry_fee_pct=0.6, exit_fee_pct=0.6, tax_rate_pct=37.0):
+                     entry_fee_pct=0.6, exit_fee_pct=0.6, tax_rate_pct=37.0, all_asset_data=None):
     """
-    Score a single asset's trade opportunity quality using Momentum Scalping Strategy.
+    Score a single asset's trade opportunity quality using Momentum Divergence Strategy.
 
     Strategy Flow:
-    1. Check for scalping patterns (support bounce, breakout, consolidation break)
-    2. Validate volatility is in sweet spot (3-15%)
-    3. Calculate score based on pattern type and quality
+    1. Calculate composite market return (average across all assets)
+    2. Calculate divergence between market and this asset
+    3. Calculate correlation between market and this asset
+    4. Generate LONG signal if asset is lagging a strong market move
+    5. Score based on divergence strength and correlation
 
     Args:
         symbol: Asset symbol (e.g. 'BTC-USD')
@@ -161,23 +163,24 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
         entry_fee_pct: Entry fee percentage (default: 0.6%)
         exit_fee_pct: Exit fee percentage (default: 0.6%)
         tax_rate_pct: Tax rate percentage (default: 37%)
+        all_asset_data: Dict of {symbol: [prices]} for all enabled assets (required for divergence calculation)
 
     Returns:
         Dictionary with:
         {
             'symbol': 'BTC-USD',
             'score': 85.5,  # 0-100, higher = better opportunity
-            'strategy': 'momentum_scalping',
-            'strategy_type': 'support_bounce',  # or 'breakout', 'consolidation_break'
+            'strategy': 'momentum_divergence',
+            'strategy_type': 'momentum_divergence_long',
             'signal': 'buy' or 'no_signal',
-            'confidence': 'high' or 'medium',
-            'reasoning': 'SUPPORT BOUNCE: Price at 25% of range...',
+            'confidence': 'high' or 'medium' or 'low',
+            'reasoning': 'MOMENTUM DIVERGENCE (LONG): Market moved +2.5%...',
             'entry_price': 50000.0,
-            'stop_loss': 49800.0,  # 0.4% stop
-            'profit_target': 50400.0,  # 0.6-0.8% target
-            'risk_reward_ratio': 2.0,
+            'stop_loss': 49500.0,  # -1% stop
+            'profit_target': 51250.0,  # +2.5% target
+            'risk_reward_ratio': 2.5,
             'can_trade': True,  # False if position already open
-            'scalp_metrics': {...}  # Position, momentum, volatility metrics
+            'scalp_metrics': {...}  # Divergence metrics
         }
     """
 
@@ -185,8 +188,8 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
     result = {
         'symbol': symbol,
         'score': 0,
-        'strategy': 'momentum_scalping',  # Pattern-based scalping
-        'strategy_type': None,  # Will be: 'support_bounce', 'breakout', 'consolidation_break'
+        'strategy': 'momentum_divergence',
+        'strategy_type': None,  # Will be: 'momentum_divergence_long'
         'signal': 'no_signal',
         'confidence': 'low',
         'reasoning': '',
@@ -195,7 +198,7 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
         'profit_target': None,
         'risk_reward_ratio': None,
         'can_trade': True,
-        'scalp_metrics': None,  # Momentum, position, volatility metrics
+        'scalp_metrics': None,  # Divergence metrics (market_return, asset_return, divergence, correlation)
         'analysis_price': current_price  # Current price for delta tracking
     }
 
@@ -255,43 +258,57 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
 
         # Don't return early - we still want to score it to see if it would be a good opportunity
 
-    # Insufficient data check
-    if not coin_prices_list or len(coin_prices_list) < 48:
-        result['reasoning'] = f"Insufficient price data ({len(coin_prices_list) if coin_prices_list else 0} points)"
+    # Insufficient data check (need at least lookback window + 1)
+    momentum_divergence_config = config.get('momentum_divergence', {})
+    lookback_window = momentum_divergence_config.get('lookback_window', 6)
+
+    if not coin_prices_list or len(coin_prices_list) < lookback_window + 1:
+        result['reasoning'] = f"Insufficient price data ({len(coin_prices_list) if coin_prices_list else 0} points, need {lookback_window + 1}+)"
+        return result
+
+    # Validate all_asset_data is provided
+    if not all_asset_data:
+        result['reasoning'] = "Missing all_asset_data for divergence calculation"
         return result
 
     # ========================================
-    # MOMENTUM SCALPING PATTERN DETECTION
+    # MOMENTUM DIVERGENCE DETECTION
     # ========================================
-    # Check for scalping entry signals (support bounce, breakout, consolidation break)
-    # Pass symbol for intra-hour momentum acceleration tracking
-    # Pass fees and tax rate for realistic profit target calculations
-    scalp_signal = check_scalp_entry_signal(
-        coin_prices_list,
-        current_price,
+    # Check for momentum divergence signals (laggard on market moves)
+    # Requires data from ALL assets to calculate composite market return
+    divergence_signal = check_divergence_signal(
         symbol=symbol,
+        asset_prices=coin_prices_list,
+        all_asset_data=all_asset_data,
+        current_price=current_price,
+        lookback_window=lookback_window,
+        entry_threshold=momentum_divergence_config.get('entry_threshold', 0.02),
+        divergence_threshold=momentum_divergence_config.get('divergence_threshold', 0.01),
+        correlation_min=momentum_divergence_config.get('correlation_min', 0.6),
+        stop_loss_pct=momentum_divergence_config.get('stop_loss', -0.01),
+        take_profit_pct=momentum_divergence_config.get('take_profit', 0.025),
         entry_fee_pct=entry_fee_pct,
         exit_fee_pct=exit_fee_pct,
         tax_rate_pct=tax_rate_pct
     )
 
-    if not scalp_signal:
-        result['reasoning'] = "Failed to analyze scalping patterns"
+    if not divergence_signal:
+        result['reasoning'] = "Failed to analyze momentum divergence"
         return result
 
-    # Store scalping metrics for display
-    result['scalp_metrics'] = scalp_signal.get('metrics', {})
-    result['reasoning'] = scalp_signal.get('reason', scalp_signal.get('reasoning', ''))
+    # Store divergence metrics for display
+    result['scalp_metrics'] = divergence_signal.get('metrics', {})
+    result['reasoning'] = divergence_signal.get('reason', divergence_signal.get('reasoning', ''))
 
     # Check if we have a BUY signal
-    if scalp_signal['signal'] == 'buy':
-        # Valid scalp setup found!
+    if divergence_signal['signal'] == 'buy':
+        # Valid divergence setup found!
         result['signal'] = 'buy'
-        result['strategy_type'] = scalp_signal.get('strategy', 'unknown')
-        result['confidence'] = scalp_signal.get('confidence', 'medium')
-        result['entry_price'] = scalp_signal.get('entry_price')
-        result['stop_loss'] = scalp_signal.get('stop_loss')
-        result['profit_target'] = scalp_signal.get('profit_target')
+        result['strategy_type'] = divergence_signal.get('strategy', 'momentum_divergence_long')
+        result['confidence'] = divergence_signal.get('confidence', 'medium')
+        result['entry_price'] = divergence_signal.get('entry_price')
+        result['stop_loss'] = divergence_signal.get('stop_loss')
+        result['profit_target'] = divergence_signal.get('profit_target')
 
         # Calculate risk/reward ratio
         if result['entry_price'] and result['stop_loss'] and result['profit_target']:
@@ -300,32 +317,38 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
             if risk > 0:
                 result['risk_reward_ratio'] = reward / risk
 
-        # Calculate score based on pattern quality
-        # Base score by strategy type (based on historical success rates)
-        if result['strategy_type'] == 'support_bounce':
-            base_score = 75  # 39% frequency - most common
-        elif result['strategy_type'] == 'breakout':
-            base_score = 70  # 30% frequency
-        elif result['strategy_type'] == 'consolidation_break':
-            base_score = 65  # 25% frequency, lower target (0.6%)
-        else:
-            base_score = 60
+        # Calculate score based on divergence quality
+        # Base score starts at 60
+        base_score = 60
 
-        # Bonus for high confidence
+        # Bonus for confidence level
         if result['confidence'] == 'high':
-            base_score += 15
+            base_score += 25  # High correlation + strong divergence
         elif result['confidence'] == 'medium':
-            base_score += 5
+            base_score += 15  # Good correlation or moderate divergence
+        elif result['confidence'] == 'low':
+            base_score += 5  # Minimum requirements met
 
-        # Bonus for good volatility (from metrics)
+        # Bonus for strong correlation (from metrics)
         if result['scalp_metrics']:
-            volatility = result['scalp_metrics'].get('volatility_24h', 0)
-            if 3 <= volatility <= 15:  # Sweet spot
-                base_score += 10
+            correlation = result['scalp_metrics'].get('correlation', 0)
+            if correlation >= 0.8:
+                base_score += 10  # Very strong follower
+            elif correlation >= 0.7:
+                base_score += 5  # Strong follower
+
+        # Bonus for large divergence (from metrics)
+        if result['scalp_metrics']:
+            divergence = abs(result['scalp_metrics'].get('divergence', 0))
+            divergence_threshold = momentum_divergence_config.get('divergence_threshold', 0.01) * 100
+            if divergence >= divergence_threshold * 2:  # 2x the threshold
+                base_score += 10  # Significant lag
+            elif divergence >= divergence_threshold * 1.5:  # 1.5x the threshold
+                base_score += 5  # Moderate lag
 
         result['score'] = min(100, base_score)
     else:
-        # No signal - waiting for setup
+        # No signal - waiting for divergence setup
         result['signal'] = 'no_signal'
         result['score'] = 0
 
@@ -354,6 +377,21 @@ def find_best_opportunity(config, coinbase_client, enabled_symbols, interval_sec
         If return_multiple=False: Dictionary with best opportunity, or None if no opportunities found
         If return_multiple=True: List of top opportunities (up to max_opportunities), or empty list if none found
     """
+
+    # First, collect price data for ALL enabled assets (needed for momentum divergence strategy)
+    all_asset_data = {}
+    for symbol in enabled_symbols:
+        try:
+            coin_prices_list = get_property_values_from_crypto_file(
+                'coinbase-data',
+                symbol,
+                'price',
+                max_age_hours=data_retention_hours
+            )
+            if coin_prices_list and len(coin_prices_list) > 0:
+                all_asset_data[symbol] = coin_prices_list
+        except Exception as e:
+            print(f"  ⚠️  Error loading price data for {symbol}: {e}")
 
     opportunities = []
 
@@ -393,7 +431,8 @@ def find_best_opportunity(config, coinbase_client, enabled_symbols, interval_sec
                 range_percentage_from_min=range_percentage_from_min,
                 entry_fee_pct=entry_fee_pct,
                 exit_fee_pct=exit_fee_pct,
-                tax_rate_pct=tax_rate_pct
+                tax_rate_pct=tax_rate_pct,
+                all_asset_data=all_asset_data
             )
 
             opportunities.append(opportunity)

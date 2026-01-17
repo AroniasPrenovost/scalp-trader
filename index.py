@@ -252,10 +252,10 @@ def iterate_wallets(data_collection_interval_seconds):
             federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
             fee_rates = get_current_fee_rates(coinbase_client)
             # NOTE: Using TAKER fees because we place MARKET orders (not limit orders)
-            # Maker = adds liquidity to order book (lower fee, e.g., 0.4%) - used for limit orders
-            # Taker = takes liquidity from order book (higher fee, e.g., 1.2%) - used for market orders
-            coinbase_spot_taker_fee = fee_rates['taker_fee'] if fee_rates else 1.2 # Tier: 'Intro 1' taker fee
-            coinbase_spot_maker_fee = fee_rates['maker_fee'] if fee_rates else 0.6 # Tier: 'Intro 1' maker fee (not used)
+            # Maker = adds liquidity to order book (lower fee: 0.125%) - used for limit orders
+            # Taker = takes liquidity from order book (higher fee: 0.250%) - used for market orders
+            coinbase_spot_taker_fee = fee_rates['taker_fee'] if fee_rates else 0.250  # Fallback: 0.250% taker fee
+            coinbase_spot_maker_fee = fee_rates['maker_fee'] if fee_rates else 0.125  # Fallback: 0.125% maker fee (not used)
 
             # Extract wallet and trading settings from config
             enabled_wallets = [wallet['symbol'] for wallet in config['wallets'] if wallet['enabled']]
@@ -951,7 +951,14 @@ def iterate_wallets(data_collection_interval_seconds):
                                                     print(f"  Stop loss: ${original_stop_loss:.2f} → ${adjusted_stop_loss:.2f}")
                                                     print(f"  Sell price: ${original_sell_price:.2f} → ${adjusted_sell_price:.2f}")
                                                     print('✓ Applied percentage-based adjustment (maintained R/R ratio)')
-    
+
+                                    # Initialize trailing stop and time-based exit fields
+                                    full_order_dict['trailing_stop_price'] = None  # Not activated yet
+                                    full_order_dict['trailing_stop_activated'] = False
+                                    full_order_dict['highest_profit_pct_seen'] = 0.0
+                                    full_order_dict['position_entry_timestamp'] = full_order_dict.get('created_time', time.time())
+                                    print('✓ Initialized trailing stop and time-based exit tracking')
+
                                     # Now replace the entire ledger with the filled order (including preserved data)
                                     # This prevents the ledger from accumulating multiple entries
                                     import json
@@ -1362,7 +1369,177 @@ def iterate_wallets(data_collection_interval_seconds):
                             print(f"Current price: ${current_price:.2f}")
                             print(f"Current profit: ${net_profit_after_all_costs_usd:.2f} ({net_profit_percentage:.4f}%)")
                             print(f"Stop loss: ${STOP_LOSS_PRICE:.2f} | Profit target: {effective_profit_target:.2f}%")
-    
+
+                            # ============================================================
+                            # TIME-BASED EXIT CHECK
+                            # ============================================================
+                            time_based_exit_config = config.get('time_based_exit', {})
+                            time_based_exit_enabled = time_based_exit_config.get('enabled', False)
+                            max_hold_minutes = time_based_exit_config.get('max_hold_minutes', 60)
+
+                            if time_based_exit_enabled:
+                                position_entry_timestamp = order_data.get('position_entry_timestamp')
+                                if position_entry_timestamp:
+                                    current_time = time.time()
+                                    time_held_seconds = current_time - float(position_entry_timestamp)
+                                    time_held_minutes = time_held_seconds / 60
+
+                                    print(f"\n{Colors.CYAN}⏱️  TIME-BASED EXIT: Held for {time_held_minutes:.1f} minutes (max: {max_hold_minutes} minutes){Colors.ENDC}")
+
+                                    if time_held_minutes >= max_hold_minutes:
+                                        print(f"{Colors.YELLOW}⚠️  MAX HOLD TIME REACHED - Exiting position{Colors.ENDC}")
+                                        if coin.get('ready_to_trade', False):
+                                            print('~ TIME-BASED EXIT - Selling after max hold time ~')
+
+                                            # Generate sell chart
+                                            sell_chart_hours = 2160  # 90 days
+                                            sell_chart_data_points = int((sell_chart_hours * 60) / INTERVAL_SAVE_DATA_EVERY_X_MINUTES)
+                                            sell_chart_prices = coin_prices_LIST[-sell_chart_data_points:] if len(coin_prices_LIST) > sell_chart_data_points else coin_prices_LIST
+                                            sell_chart_min = min(sell_chart_prices)
+                                            sell_chart_max = max(sell_chart_prices)
+                                            sell_chart_range_pct = calculate_percentage_from_min(sell_chart_min, sell_chart_max)
+
+                                            plot_graph(
+                                                time.time(),
+                                                INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                                                symbol,
+                                                sell_chart_prices,
+                                                sell_chart_min,
+                                                sell_chart_max,
+                                                sell_chart_range_pct,
+                                                entry_price,
+                                                analysis=analysis,
+                                                event_type='sell'
+                                            )
+
+                                            # Execute sell
+                                            place_market_sell_order(coinbase_client, symbol, number_of_shares, net_profit_after_all_costs_usd, net_profit_percentage)
+
+                                            # Record transaction
+                                            save_transaction_record(
+                                                symbol=symbol,
+                                                buy_price=entry_price,
+                                                sell_price=current_price,
+                                                gross_profit=gross_profit_before_exit_costs,
+                                                exchange_fees=entry_exchange_fee_usd + exit_exchange_fee_usd,
+                                                taxes=capital_gains_tax_usd,
+                                                total_profit=net_profit_after_all_costs_usd,
+                                                last_order=order_data,
+                                                time_held_minutes=time_held_minutes,
+                                                exit_reason='time_based_exit'
+                                            )
+
+                                            # Clear ledger
+                                            clear_order_ledger(symbol)
+                                            print(f"{Colors.GREEN}✓ Time-based exit completed{Colors.ENDC}\n")
+                                            continue  # Skip rest of sell logic
+                                        else:
+                                            print('STATUS: Trading disabled')
+
+                            # ============================================================
+                            # TRAILING STOP LOGIC
+                            # ============================================================
+                            trailing_stop_config = config.get('trailing_stop', {})
+                            trailing_stop_enabled = trailing_stop_config.get('enabled', False)
+
+                            if trailing_stop_enabled:
+                                activation_profit_pct = trailing_stop_config.get('activation_profit_pct', 0.015)  # 1.5%
+                                trailing_distance_pct = trailing_stop_config.get('trailing_distance_pct', 0.005)  # 0.5%
+
+                                # Get current trailing stop state from order ledger
+                                trailing_stop_price = order_data.get('trailing_stop_price')
+                                trailing_stop_activated = order_data.get('trailing_stop_activated', False)
+                                highest_profit_pct_seen = order_data.get('highest_profit_pct_seen', 0.0)
+
+                                # Update highest profit seen
+                                if net_profit_percentage > highest_profit_pct_seen:
+                                    highest_profit_pct_seen = net_profit_percentage
+                                    order_data['highest_profit_pct_seen'] = highest_profit_pct_seen
+
+                                # Check if we should activate trailing stop
+                                if not trailing_stop_activated and net_profit_percentage >= (activation_profit_pct * 100):
+                                    trailing_stop_activated = True
+                                    trailing_stop_price = current_price * (1 - trailing_distance_pct)
+                                    order_data['trailing_stop_activated'] = True
+                                    order_data['trailing_stop_price'] = trailing_stop_price
+                                    print(f"{Colors.GREEN}✓ TRAILING STOP ACTIVATED at +{net_profit_percentage:.2f}% profit{Colors.ENDC}")
+                                    print(f"  Trailing stop price: ${trailing_stop_price:.4f} ({trailing_distance_pct * 100:.1f}% below current)")
+
+                                    # Save updated order data
+                                    import json
+                                    file_name = f"coinbase-orders/{symbol}_orders.json"
+                                    with open(file_name, 'w') as file:
+                                        json.dump([order_data], file, indent=4)
+
+                                # If trailing stop is activated, update it as price moves up
+                                elif trailing_stop_activated:
+                                    new_trailing_stop_price = current_price * (1 - trailing_distance_pct)
+
+                                    # Only update if new price is higher (don't lower the stop)
+                                    if new_trailing_stop_price > trailing_stop_price:
+                                        trailing_stop_price = new_trailing_stop_price
+                                        order_data['trailing_stop_price'] = trailing_stop_price
+                                        print(f"{Colors.CYAN}📈 TRAILING STOP UPDATED: ${trailing_stop_price:.4f} ({trailing_distance_pct * 100:.1f}% below current){Colors.ENDC}")
+
+                                        # Save updated order data
+                                        import json
+                                        file_name = f"coinbase-orders/{symbol}_orders.json"
+                                        with open(file_name, 'w') as file:
+                                            json.dump([order_data], file, indent=4)
+
+                                    # Check if trailing stop is hit
+                                    if current_price <= trailing_stop_price:
+                                        print(f"{Colors.YELLOW}🛑 TRAILING STOP HIT - Price: ${current_price:.4f} <= Stop: ${trailing_stop_price:.4f}{Colors.ENDC}")
+
+                                        if coin.get('ready_to_trade', False):
+                                            print('~ TRAILING STOP TRIGGERED - Taking profits ~')
+
+                                            # Generate sell chart
+                                            sell_chart_hours = 2160  # 90 days
+                                            sell_chart_data_points = int((sell_chart_hours * 60) / INTERVAL_SAVE_DATA_EVERY_X_MINUTES)
+                                            sell_chart_prices = coin_prices_LIST[-sell_chart_data_points:] if len(coin_prices_LIST) > sell_chart_data_points else coin_prices_LIST
+                                            sell_chart_min = min(sell_chart_prices)
+                                            sell_chart_max = max(sell_chart_prices)
+                                            sell_chart_range_pct = calculate_percentage_from_min(sell_chart_min, sell_chart_max)
+
+                                            plot_graph(
+                                                time.time(),
+                                                INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                                                symbol,
+                                                sell_chart_prices,
+                                                sell_chart_min,
+                                                sell_chart_max,
+                                                sell_chart_range_pct,
+                                                entry_price,
+                                                analysis=analysis,
+                                                event_type='sell'
+                                            )
+
+                                            # Execute sell
+                                            place_market_sell_order(coinbase_client, symbol, number_of_shares, net_profit_after_all_costs_usd, net_profit_percentage)
+
+                                            # Record transaction
+                                            save_transaction_record(
+                                                symbol=symbol,
+                                                buy_price=entry_price,
+                                                sell_price=current_price,
+                                                gross_profit=gross_profit_before_exit_costs,
+                                                exchange_fees=entry_exchange_fee_usd + exit_exchange_fee_usd,
+                                                taxes=capital_gains_tax_usd,
+                                                total_profit=net_profit_after_all_costs_usd,
+                                                last_order=order_data,
+                                                exit_reason='trailing_stop'
+                                            )
+
+                                            # Clear ledger
+                                            clear_order_ledger(symbol)
+                                            print(f"{Colors.GREEN}✓ Trailing stop exit completed{Colors.ENDC}\n")
+                                            continue  # Skip rest of sell logic
+                                        else:
+                                            print('STATUS: Trading disabled')
+                                    else:
+                                        print(f"{Colors.CYAN}🔒 TRAILING STOP: ${trailing_stop_price:.4f} (current: ${current_price:.4f}, buffer: ${current_price - trailing_stop_price:.4f}){Colors.ENDC}")
+
                             # INTELLIGENT ROTATION: Check if we should exit a profitable position for a better opportunity
                             should_rotate_position = False
                             rotation_reason = None
