@@ -2135,16 +2135,11 @@ def iterate_wallets(data_collection_interval_seconds):
         #
         #
         # End of iteration function
-        # Calculate elapsed time and adjust sleep to maintain exact interval
+        # Sleep 1 second between iterations to avoid busy-waiting
+        # Data collection timing is controlled by the time-based gate (should_run_data_collection)
         elapsed_time = time.time() - iteration_start_time
-        sleep_time = max(0, data_collection_interval_seconds - elapsed_time)
-
-        if elapsed_time < data_collection_interval_seconds:
-            print(f"{Colors.DIM}⏱  Iteration took {elapsed_time:.2f}s, sleeping {sleep_time:.2f}s to maintain {data_collection_interval_seconds}s interval{Colors.ENDC}\n")
-        else:
-            print(f"{Colors.YELLOW}⚠️  Warning: Iteration took {elapsed_time:.2f}s (longer than {data_collection_interval_seconds}s interval){Colors.ENDC}\n")
-
-        time.sleep(sleep_time)
+        print(f"{Colors.DIM}⏱  Iteration took {elapsed_time:.2f}s, sleeping 1s before next check{Colors.ENDC}\n")
+        time.sleep(1)
 
 if __name__ == "__main__":
     while True:
