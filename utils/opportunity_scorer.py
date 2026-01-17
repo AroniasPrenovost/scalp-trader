@@ -419,7 +419,7 @@ def find_best_opportunity(config, coinbase_client, enabled_symbols, interval_sec
         return tradeable[0]
 
 
-def print_opportunity_report(opportunities_list, best_opportunity=None, racing_opportunities=None, current_prices=None, exchange_fee_percentage=1.2, tax_rate_percentage=37, trading_capital_usd=100):
+def print_opportunity_report(opportunities_list, best_opportunity=None, racing_opportunities=None, current_prices=None, exchange_fee_percentage=1.2, tax_rate_percentage=37, trading_capital_usd=100, config=None):
     """
     Print a formatted report of all opportunities and highlight the best one.
 
@@ -431,7 +431,12 @@ def print_opportunity_report(opportunities_list, best_opportunity=None, racing_o
         exchange_fee_percentage: Exchange fee percentage (default 1.2%)
         tax_rate_percentage: Tax rate percentage (default 37%)
         trading_capital_usd: Trading capital in USD (default 100)
+        config: Configuration dictionary (optional)
     """
+    # Check if rotation display table logging is enabled
+    if config and not config.get('logging', {}).get('rotation_display_table', False):
+        return
+
     if racing_opportunities is None:
         racing_opportunities = []
     if current_prices is None:

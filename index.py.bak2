@@ -2084,48 +2084,48 @@ def iterate_wallets(data_collection_interval_seconds):
                                 'total_volume_usd': total_volume_usd
                             })
     
-                        # Sort by P&L percentage (highest to lowest), then by total profit USD as tie-breaker
-                        asset_performance.sort(key=lambda x: (x['pnl_pct'], x['total_profit_usd']), reverse=True)
+                    # Sort by P&L percentage (highest to lowest), then by total profit USD as tie-breaker
+                    asset_performance.sort(key=lambda x: (x['pnl_pct'], x['total_profit_usd']), reverse=True)
     
-                        # Display header with actual count
-                        print(f"\n{Colors.BOLD}{Colors.CYAN}{'='*100}")
-                        print(f"  📊 ASSET PERFORMANCE SUMMARY - {len(asset_performance)} ASSETS")
-                        print(f"{'='*100}{Colors.ENDC}")
+                    # Display header with actual count
+                    print(f"\n{Colors.BOLD}{Colors.CYAN}{'='*100}")
+                    print(f"  📊 ASSET PERFORMANCE SUMMARY - {len(asset_performance)} ASSETS")
+                    print(f"{'='*100}{Colors.ENDC}")
     
-                        # Display ranked summary (one line per asset)
-                        for idx, asset in enumerate(asset_performance, 1):
-                                pnl_color = Colors.GREEN if asset['pnl_pct'] > 0 else (Colors.RED if asset['pnl_pct'] < 0 else Colors.YELLOW)
-                                position_indicator = "🔥" if asset['has_position'] else "  "
+                    # Display ranked summary (one line per asset)
+                    for idx, asset in enumerate(asset_performance, 1):
+                            pnl_color = Colors.GREEN if asset['pnl_pct'] > 0 else (Colors.RED if asset['pnl_pct'] < 0 else Colors.YELLOW)
+                            position_indicator = "🔥" if asset['has_position'] else "  "
     
-                                # Calculate win rate
-                                if asset['total_trades'] > 0:
-                                    win_pct = (asset['wins'] / asset['total_trades']) * 100
-                                    win_rate_str = f"{asset['wins']}/{asset['total_trades']} ({win_pct:>3.0f}%)"
-                                else:
-                                    win_rate_str = f"0/0 (  0%)"
+                            # Calculate win rate
+                            if asset['total_trades'] > 0:
+                                win_pct = (asset['wins'] / asset['total_trades']) * 100
+                                win_rate_str = f"{asset['wins']}/{asset['total_trades']} ({win_pct:>3.0f}%)"
+                            else:
+                                win_rate_str = f"0/0 (  0%)"
     
-                                profit_color = Colors.GREEN if asset['total_profit_usd'] > 0 else (Colors.RED if asset['total_profit_usd'] < 0 else Colors.YELLOW)
-                                gross_profit_color = Colors.GREEN if asset['gross_profit_usd'] > 0 else (Colors.RED if asset['gross_profit_usd'] < 0 else Colors.YELLOW)
+                            profit_color = Colors.GREEN if asset['total_profit_usd'] > 0 else (Colors.RED if asset['total_profit_usd'] < 0 else Colors.YELLOW)
+                            gross_profit_color = Colors.GREEN if asset['gross_profit_usd'] > 0 else (Colors.RED if asset['gross_profit_usd'] < 0 else Colors.YELLOW)
     
-                                # Format columns with consistent width
-                                symbol_col = f"{asset['symbol']:<10s}"
-                                profit_col = f"{profit_color}${asset['total_profit_usd']:>+8.2f}{Colors.ENDC}"
-                                gross_profit_col = f"{gross_profit_color}${asset['gross_profit_usd']:>+8.2f}{Colors.ENDC}"
-                                volume_col = f"${asset['total_volume_usd']:>8,.0f}"
-                                pnl_col = f"{pnl_color}{asset['pnl_pct']:>+6.2f}%{Colors.ENDC}"
-                                win_col = f"{win_rate_str:>12s}"
-                                status_col = f"{asset['status']:<20s}"
+                            # Format columns with consistent width
+                            symbol_col = f"{asset['symbol']:<10s}"
+                            profit_col = f"{profit_color}${asset['total_profit_usd']:>+8.2f}{Colors.ENDC}"
+                            gross_profit_col = f"{gross_profit_color}${asset['gross_profit_usd']:>+8.2f}{Colors.ENDC}"
+                            volume_col = f"${asset['total_volume_usd']:>8,.0f}"
+                            pnl_col = f"{pnl_color}{asset['pnl_pct']:>+6.2f}%{Colors.ENDC}"
+                            win_col = f"{win_rate_str:>12s}"
+                            status_col = f"{asset['status']:<20s}"
     
-                                print(f"  {position_indicator} {idx:2d}. {symbol_col} | Net: {profit_col} | Gross: {gross_profit_col} | Vol: {volume_col} | P&L: {pnl_col} | W/L: {win_col} | {status_col}")
+                            print(f"  {position_indicator} {idx:2d}. {symbol_col} | Net: {profit_col} | Gross: {gross_profit_col} | Vol: {volume_col} | P&L: {pnl_col} | W/L: {win_col} | {status_col}")
     
-                        # Calculate and display lifetime total
-                        total_lifetime_profit = sum(asset['total_profit_usd'] for asset in asset_performance)
-                        total_lifetime_gross_profit = sum(asset['gross_profit_usd'] for asset in asset_performance)
-                        lifetime_color = Colors.GREEN if total_lifetime_profit > 0 else (Colors.RED if total_lifetime_profit < 0 else Colors.YELLOW)
-                        lifetime_gross_color = Colors.GREEN if total_lifetime_gross_profit > 0 else (Colors.RED if total_lifetime_gross_profit < 0 else Colors.YELLOW)
-                        print(f"{Colors.CYAN}{'-'*100}{Colors.ENDC}")
-                        print(f"  {Colors.BOLD}LIFETIME TOTAL:      | Net: {lifetime_color}${total_lifetime_profit:>+8.2f}{Colors.ENDC}{Colors.BOLD} | Gross: {lifetime_gross_color}${total_lifetime_gross_profit:>+8.2f}{Colors.ENDC}{Colors.BOLD}{Colors.ENDC}")
-                        print(f"{Colors.CYAN}{'='*100}{Colors.ENDC}\n")
+                    # Calculate and display lifetime total
+                    total_lifetime_profit = sum(asset['total_profit_usd'] for asset in asset_performance)
+                    total_lifetime_gross_profit = sum(asset['gross_profit_usd'] for asset in asset_performance)
+                    lifetime_color = Colors.GREEN if total_lifetime_profit > 0 else (Colors.RED if total_lifetime_profit < 0 else Colors.YELLOW)
+                    lifetime_gross_color = Colors.GREEN if total_lifetime_gross_profit > 0 else (Colors.RED if total_lifetime_gross_profit < 0 else Colors.YELLOW)
+                    print(f"{Colors.CYAN}{'-'*100}{Colors.ENDC}")
+                    print(f"  {Colors.BOLD}LIFETIME TOTAL:      | Net: {lifetime_color}${total_lifetime_profit:>+8.2f}{Colors.ENDC}{Colors.BOLD} | Gross: {lifetime_gross_color}${total_lifetime_gross_profit:>+8.2f}{Colors.ENDC}{Colors.BOLD}{Colors.ENDC}")
+                    print(f"{Colors.CYAN}{'='*100}{Colors.ENDC}\n")
     
                     #
                     #
