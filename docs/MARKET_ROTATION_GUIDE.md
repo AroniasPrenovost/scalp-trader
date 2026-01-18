@@ -60,7 +60,6 @@ Add top crypto coins to the `wallets` array:
     {
       "title": "BTC",
       "symbol": "BTC-USD",
-      "coingecko_id": "bitcoin",
       "enabled": true,              // Must be true to scan
       "ready_to_trade": false,       // Set to true when you want to trade (start with false)
       "starting_capital_usd": 2500,
@@ -69,7 +68,6 @@ Add top crypto coins to the `wallets` array:
     {
       "title": "ETH",
       "symbol": "ETH-USD",
-      "coingecko_id": "ethereum",
       "enabled": true,
       "ready_to_trade": false,
       "starting_capital_usd": 2500,

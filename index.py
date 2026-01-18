@@ -10,6 +10,7 @@ from utils.email import send_email_notification
 from utils.file_helpers import count_files_in_directory, append_crypto_data_to_file, get_property_values_from_crypto_file, cleanup_old_crypto_data, cleanup_old_screenshots, convert_products_to_dicts
 from utils.price_helpers import calculate_percentage_from_min
 from utils.time_helpers import print_local_time
+from utils.candle_helpers import fetch_latest_5min_candle, candle_to_data_entry, is_candle_duplicate
 
 # Coinbase helpers and define client
 from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order, get_asset_price, calculate_exchange_fee, save_order_data_to_local_json_ledger, get_last_order_from_local_json_ledger, reset_json_ledger_file, detect_stored_coinbase_order_type, save_transaction_record, get_current_fee_rates, cancel_order, clear_order_ledger
@@ -268,44 +269,41 @@ def iterate_wallets(data_collection_interval_seconds):
 
             #
             #
-            # get crypto price data from coinbase
-            coinbase_data = coinbase_client.get_products()['products']
-            coinbase_data_dictionary = convert_products_to_dicts(coinbase_data)
-            # Store the original full dictionary before filtering (needed for new listings alert and spike scanner)
-            coinbase_data_dictionary_all = coinbase_data_dictionary
-            # filter out all crypto records except for those defined in enabled_wallets
-            coinbase_data_dictionary = [coin for coin in coinbase_data_dictionary if coin['product_id'] in enabled_wallets]
-
-
-            #
-            #
-            # DATA COLLECTION OPERATIONS: Store price/volume data
+            # DATA COLLECTION OPERATIONS: Fetch and store 5-minute candle data
             # This runs at the configured interval (see config.json interval_seconds)
             enable_all_coin_scanning = True
             if enable_all_coin_scanning:
                 coinbase_data_directory = 'coinbase-data'
 
-                # NEW STORAGE APPROACH: Append each crypto's data to its own file
-                # Store data for each enabled crypto
-                for coin in coinbase_data_dictionary:
-                    product_id = coin['product_id']
-                    # Create entry with core properties + momentum/volume indicators
-                    data_entry = {
-                        'timestamp': time.time(),
-                        'product_id': product_id,
-                        'price': coin.get('price'),
-                        'volume_24h': coin.get('volume_24h'),
-                        # NEW: Built-in momentum indicators from Coinbase
-                        'price_percentage_change_24h': coin.get('price_percentage_change_24h'),
-                        'volume_percentage_change_24h': coin.get('volume_percentage_change_24h'),
-                        # NEW: Trading status flags (filter out disabled markets)
-                        'trading_disabled': coin.get('trading_disabled', False),
-                        'cancel_only': coin.get('cancel_only', False),
-                        'post_only': coin.get('post_only', False),
-                        'is_disabled': coin.get('is_disabled', False)
-                    }
+                # Fetch and store 5-minute candles for each enabled crypto
+                candles_collected = 0
+                candles_skipped = 0
+
+                for product_id in enabled_wallets:
+                    # Fetch the latest completed 5-minute candle from Coinbase
+                    candle = fetch_latest_5min_candle(coinbase_client, product_id)
+
+                    if not candle:
+                        print(f"  ⚠️  Failed to fetch candle for {product_id}")
+                        continue
+
+                    # Transform candle to data entry format
+                    data_entry = candle_to_data_entry(candle, product_id)
+
+                    if not data_entry:
+                        print(f"  ⚠️  Invalid candle data for {product_id}")
+                        continue
+
+                    # Check for duplicates before appending
+                    if is_candle_duplicate(coinbase_data_directory, product_id, data_entry['timestamp']):
+                        candles_skipped += 1
+                        continue
+
+                    # Append to file
                     append_crypto_data_to_file(coinbase_data_directory, product_id, data_entry)
-                print(f"✓ Appended 1 new data point for {len(coinbase_data_dictionary)} cryptos (next append in {INTERVAL_SAVE_DATA_EVERY_X_MINUTES:.0f} min)\n")
+                    candles_collected += 1
+
+                print(f"✓ Collected {candles_collected} new 5-min candles, skipped {candles_skipped} duplicates (next collection in {INTERVAL_SAVE_DATA_EVERY_X_MINUTES:.0f} min)\n")
 
             # Update the last data collection timestamp and save to file
             LAST_DATA_COLLECTION_TIME = time.time()
@@ -475,8 +473,7 @@ def iterate_wallets(data_collection_interval_seconds):
                             if best_opportunity['score'] >= min_score:
                                 if active_position_symbols:
                                     # Get current price for distance calculation
-                                    current_coin = next((c for c in coinbase_data_dictionary if c['product_id'] == best_opportunity_symbol), None)
-                                    current_price = float(current_coin['price']) if current_coin else None
+                                    current_price = get_asset_price(coinbase_client, best_opportunity_symbol)
     
                                     # Calculate distance from entry
                                     distance_str = ""
@@ -498,8 +495,7 @@ def iterate_wallets(data_collection_interval_seconds):
                                         print(f"{Colors.BOLD}{Colors.GREEN}🏁 ORDER RACING: Placing orders on {len(racing_opportunities)} opportunities{Colors.ENDC}")
                                         for i, opp in enumerate(racing_opportunities, 1):
                                             # Get current price for this opportunity
-                                            current_coin = next((c for c in coinbase_data_dictionary if c['product_id'] == opp['symbol']), None)
-                                            current_price = float(current_coin['price']) if current_coin else None
+                                            current_price = get_asset_price(coinbase_client, opp['symbol'])
     
                                             # Calculate distance from entry
                                             distance_str = ""
@@ -513,8 +509,7 @@ def iterate_wallets(data_collection_interval_seconds):
                                         print()
                                     else:
                                         # Get current price for distance calculation
-                                        current_coin = next((c for c in coinbase_data_dictionary if c['product_id'] == best_opportunity_symbol), None)
-                                        current_price = float(current_coin['price']) if current_coin else None
+                                        current_price = get_asset_price(coinbase_client, best_opportunity_symbol)
     
                                         # Calculate distance from entry
                                         distance_str = ""
@@ -548,10 +543,8 @@ def iterate_wallets(data_collection_interval_seconds):
                             racing_opportunities = []  # Clear racing opportunities
                     else:
                         pass
-    
-                    for coin in coinbase_data_dictionary:
-                        # set data from coinbase data
-                        symbol = coin['product_id'] # 'BTC-USD', 'ETH-USD', etc..
+
+                    for symbol in enabled_wallets:
     
                         # set config.json data
                         READY_TO_TRADE = False

@@ -40,7 +40,6 @@
       {
         "title": "BTC",
         "symbol": "BTC-USD",
-        "coingecko_id": "bitcoin",
         "enabled": true,
         "ready_to_trade": false,
         "starting_capital_usd": 4500,
@@ -49,7 +48,6 @@
       {
         "title": "ETH",
         "symbol": "ETH-USD",
-        "coingecko_id": "ethereum",
         "enabled": true,
         "ready_to_trade": false,
         "starting_capital_usd": 4500,
@@ -58,7 +56,6 @@
       {
         "title": "SOL",
         "symbol": "SOL-USD",
-        "coingecko_id": "solana",
         "enabled": true,
         "ready_to_trade": false,
         "starting_capital_usd": 4500,
@@ -67,7 +64,6 @@
       {
         "title": "AVAX",
         "symbol": "AVAX-USD",
-        "coingecko_id": "avalanche-2",
         "enabled": true,
         "ready_to_trade": false,
         "starting_capital_usd": 4500,
@@ -76,7 +72,6 @@
       {
         "title": "LINK",
         "symbol": "LINK-USD",
-        "coingecko_id": "chainlink",
         "enabled": true,
         "ready_to_trade": false,
         "starting_capital_usd": 4500,
@@ -85,7 +80,6 @@
       {
         "title": "UNI",
         "symbol": "UNI-USD",
-        "coingecko_id": "uniswap",
         "enabled": true,
         "ready_to_trade": false,
         "starting_capital_usd": 4500,
@@ -94,7 +88,6 @@
       {
         "title": "XRP",
         "symbol": "XRP-USD",
-        "coingecko_id": "ripple",
         "enabled": true,
         "ready_to_trade": false,
         "starting_capital_usd": 4500,
@@ -103,7 +96,6 @@
       {
         "title": "NEAR",
         "symbol": "NEAR-USD",
-        "coingecko_id": "near",
         "enabled": true,
         "ready_to_trade": false,
         "starting_capital_usd": 4500,

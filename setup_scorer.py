@@ -232,7 +232,7 @@ def score_volatility(prices):
         return 90, f"Very high volatility ({volatility:.1f}%)"
 
 
-def calculate_setup_score(product_id, coinbase_dir='coinbase-data', coingecko_dir='coingecko-global-volume'):
+def calculate_setup_score(product_id, coinbase_dir='coinbase-data'):
     """
     Calculate overall setup score (0-100) for a cryptocurrency.
     """

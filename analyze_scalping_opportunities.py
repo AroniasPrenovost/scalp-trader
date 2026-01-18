@@ -2,6 +2,9 @@
 """
 Analyze Historical Data for Scalping Opportunities
 Find where 0.5-1.0% moves actually happen and what conditions create them
+
+NOTE: This script references the old 'coingecko-global-volume' directory which has been deprecated.
+It is kept for reference only. Use the backtest scripts in /backtest instead.
 """
 
 import json

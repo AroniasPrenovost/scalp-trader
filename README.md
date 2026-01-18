@@ -61,7 +61,7 @@ An advanced cryptocurrency scalp trading bot that leverages GPT-4o Vision for in
   - 24-hour volume
   - Price percentage change (24h)
   - Volume percentage change (24h)
-- **Historical Data Backfilling**: CoinGecko integration for populating historical data before bot deployment
+- **Historical Data Backfilling**: Coinbase Advanced API integration for populating 5-minute candle data
 - **Smart Data Merging**: Avoids duplicates when merging backfilled and real-time data
 
 ### 🔔 Notifications & Monitoring
@@ -84,7 +84,6 @@ An advanced cryptocurrency scalp trading bot that leverages GPT-4o Vision for in
 - **Coinbase Account** with API credentials
 - **OpenAI API Key** (for GPT-4o Vision access)
 - **Mailjet Account** (for email notifications)
-- **CoinGecko API Key** (optional, for historical data backfilling)
 
 ## Installation
 
@@ -174,9 +173,6 @@ MAILJET_TO_NAME=Your Name
 
 # OpenAI API (for GPT-4o Vision)
 OPENAI_API_KEY=sk-your_openai_api_key_here
-
-# CoinGecko API (optional, for historical data backfilling)
-COINGECKO_API_KEY=your_coingecko_api_key
 ```
 
 ### Getting Your API Keys
@@ -184,7 +180,6 @@ COINGECKO_API_KEY=your_coingecko_api_key
 - **Coinbase API**: https://www.coinbase.com/settings/api
 - **OpenAI API**: https://platform.openai.com/api-keys
 - **Mailjet API**: https://app.mailjet.com/account/api_keys
-- **CoinGecko API**: https://www.coingecko.com/en/developers/dashboard
 
 ## Configuration
 
@@ -239,7 +234,6 @@ cp example-config.json config.json
     {
       "title": "BTC: primary, most predictable",
       "symbol": "BTC-USD",
-      "coingecko_id": "bitcoin",
       "enabled": true,
       "ready_to_trade": false,
       "starting_capital_usd": 100,
@@ -253,192 +247,139 @@ Each asset in the `wallets` array supports the following parameters:
 
 - **`title`**: Friendly description for the asset (for reference only)
 - **`symbol`**: The Coinbase trading pair symbol (e.g., `"BTC-USD"`, `"ETH-USD"`, `"SOL-USD"`)
-- **`coingecko_id`**: The CoinGecko ID for this asset (e.g., `"bitcoin"`, `"ethereum"`, `"solana"`) - used for historical data backfilling
 - **`enabled`**: Whether to monitor this asset (`true`) or skip it (`false`)
 - **`ready_to_trade`**: Whether to execute actual trades (`true`) or run in simulation mode (`false`)
   - **IMPORTANT**: Start with `false` to test the bot in simulation mode before risking real money
 - **`starting_capital_usd`**: Initial capital allocated for this asset (used for performance metrics calculation)
 - **`enable_chart_snapshot`**: Whether to generate chart images for this asset (`true`/`false`)
 
-### Finding CoinGecko IDs
-
-Common CoinGecko IDs:
-- Bitcoin (BTC): `bitcoin`
-- Ethereum (ETH): `ethereum`
-- Cardano (ADA): `cardano`
-- Solana (SOL): `solana`
-- Polygon (MATIC): `matic-network`
-
-To find other IDs:
-- Visit https://api.coingecko.com/api/v3/coins/list
-- Or visit the CoinGecko website and check the URL (e.g., `coingecko.com/en/coins/bitcoin` → ID is `"bitcoin"`)
-
 ## Historical Data Backfilling
 
-Before the bot has accumulated enough price history naturally, you can backfill historical data from CoinGecko. This is useful for enabling technical analysis and decision-making from day one.
+Before the bot has accumulated enough price history naturally, you can backfill historical 5-minute candle data from Coinbase Advanced API. This provides high-quality data for technical analysis and strategy backtesting from day one.
 
-### How the Backfilling Function Works
+### How the Backfilling Works
 
-The backfilling script (`backfill_historical_data.py`) performs the following operations:
+The backfilling script (`backfill_coinbase_candles.py`) performs the following operations:
 
 1. **Data Fetching**:
-   - Queries the CoinGecko API for historical market data (prices and volumes)
-   - Uses the `/market_chart/range` endpoint to fetch data within a specific time range
-   - Automatically chunks large requests into 90-day periods to ensure optimal granularity
+   - Fetches 5-minute candles directly from Coinbase Advanced Trade API
+   - Uses the `/candles` endpoint with `FIVE_MINUTE` granularity
+   - Automatically chunks requests into 25-hour periods (max 300 candles per request)
 
-2. **Data Transformation**:
-   - Converts CoinGecko's data format to match Coinbase's data structure
-   - Calculates 24-hour percentage changes for both price and volume
-   - Generates data points with: `timestamp`, `product_id`, `price`, `price_percentage_change_24h`, `volume_24h`, `volume_percentage_change_24h`
+2. **Data Format**:
+   - Each candle contains: `timestamp`, `product_id`, `price` (close), `volume_24h` (base currency)
+   - Matches the exact format used by the live collection in `index.py`
+   - Compatible with all existing strategies and backtests
 
 3. **Smart Merging**:
    - Loads any existing data from `coinbase-data/{SYMBOL}.json`
-   - Merges new historical data with existing data using timestamp-based deduplication
+   - Merges new candles with existing data using timestamp-based deduplication
    - Sorts all data points chronologically by timestamp
-   - Only adds new data points that don't already exist (no overwrites)
+   - Only adds new candles that don't already exist (no overwrites)
 
-4. **Rate Limiting**:
-   - Respects CoinGecko API rate limits (30 calls/min for free tier)
-   - Adds 2-second delays between API requests to prevent throttling
-   - Displays progress for multi-chunk requests
+### Data Granularity
 
-### Data Intervals and Granularity
+**5-minute candles** - Perfect for momentum and scalping strategies:
 
-The data granularity you receive depends on the time period requested, following CoinGecko's automatic interval rules:
+| Time Period | Candles | Storage Size |
+|-------------|---------|--------------|
+| **1 day** | 288 | ~50 KB |
+| **1 week** | 2,016 | ~350 KB |
+| **1 month** | 8,640 | ~1.5 MB |
+| **3 months** | 25,920 | ~4.5 MB |
 
-| Time Period | Data Interval | Data Points |
-|-------------|---------------|-------------|
-| **1 day or less** | 5-minute intervals | ~288 per day |
-| **1-90 days** | Hourly intervals | ~24 per day |
-| **Above 90 days** | Daily intervals | ~1 per day |
-
-**Important**: The backfill script automatically **chunks requests into 90-day periods** to ensure you get **hourly granularity** instead of daily, even for longer time periods. For example:
-- Requesting 180 days (6 months) = 2 API requests of 90 days each
-- Requesting 365 days (1 year) = 5 API requests of ~73 days each
-- Result: ~4,320 hourly data points for 6 months, instead of just ~180 daily points
-
-### How Far Back Can You Backfill?
-
-The backfill time range is controlled by the `data_retention.max_hours` setting in `config.json`:
-
-```json
-{
-  "data_retention": {
-    "max_hours": 4380,        // 4,380 hours = ~6 months (182.5 days)
-    "interval_seconds": 3600  // Not used for backfilling (only for live data collection)
-  }
-}
-```
-
-**Limitations**:
-- **CoinGecko Free Tier**: Maximum 365 days (1 year) of historical data
-- **Bot Default**: 4,380 hours (~6 months / 182.5 days)
-- If you request more than 365 days, the script automatically limits to 365 days
-
-**Examples**:
-- `"max_hours": 720` → 30 days of data (~720 hourly data points)
-- `"max_hours": 2160` → 90 days of data (~2,160 hourly data points)
-- `"max_hours": 4380` → 182.5 days of data (~4,380 hourly data points)
-- `"max_hours": 8760` → Requested 365 days, limited to 365 days (~8,760 hourly data points)
-
-### Data Structure
-
-Each backfilled data point matches the Coinbase format and includes:
-
-```json
-{
-  "timestamp": 1697385600.0,           // Unix timestamp (seconds)
-  "product_id": "BTC-USD",             // Trading pair symbol
-  "price": "28453.21",                 // Current price in USD
-  "price_percentage_change_24h": "2.34",  // Percentage change from 24h ago
-  "volume_24h": "15234567890.12",      // 24-hour trading volume in USD
-  "volume_percentage_change_24h": "-1.23" // Percentage change in volume from 24h ago
-}
-```
-
-**Percentage Change Calculations**:
-- **24-hour lookback**: Compares current value with value from 96 data points ago (96 × 15-min intervals = 24 hours)
-- First 24 hours of data will have `"0"` for percentage changes (insufficient historical data)
-- Calculated for both price and volume metrics
-
-### Setup
-
-1. Get a CoinGecko API key from https://www.coingecko.com/en/developers/dashboard
-
-2. Add your API key to the `.env` file:
-   ```bash
-   COINGECKO_API_KEY=your_api_key_here
-   ```
-
-3. Ensure each asset has a `coingecko_id` in the config:
-   ```json
-   {
-     "wallets": [
-       {
-         "symbol": "BTC-USD",
-         "coingecko_id": "bitcoin",
-         "enabled": true
-       }
-     ]
-   }
-   ```
+**Benefits over hourly data:**
+- 12x more granular (5-min vs 60-min)
+- See intra-hour price swings and momentum shifts
+- More accurate entry/exit timing
+- Better correlation calculations for divergence strategies
 
 ### Running the Backfill
 
-Run the backfill script to fetch historical data:
-
+**Backfill all enabled assets (90 days recommended):**
 ```bash
-python3 backfill_historical_data.py
+python3 backfill_coinbase_candles.py --days 90
 ```
 
-The script will display progress information:
+**Backfill specific asset:**
+```bash
+python3 backfill_coinbase_candles.py BTC-USD --days 30
 ```
-============================================================
-CoinGecko Historical Data Backfill
-============================================================
 
-✓ Backfilling is ENABLED
+**Custom time period:**
+```bash
+python3 backfill_coinbase_candles.py --days 7   # 1 week
+python3 backfill_coinbase_candles.py --days 180 # 6 months
+```
 
-Found 2 enabled asset(s) to backfill:
+### Example Output
+
+```
+======================================================================
+Coinbase Advanced API - Historical 5-Minute Candle Backfill
+======================================================================
+✓ Coinbase client initialized
+
+📅 Backfill period: 90 days
+📊 Granularity: 5-minute candles
+📈 Expected candles per asset: ~25920
+
+Found 8 enabled wallet(s) to backfill:
   - BTC-USD
   - ETH-USD
-
-=== Backfilling data for BTC-USD ===
-  Requesting data from 2025-04-01 to 2025-10-16
-  Total period: 182 days
-  Splitting into 90-day chunks to get hourly granularity (instead of daily)
-  Will make 3 API requests
-  Chunk 1: 2025-04-01 to 2025-06-30 (90 days)
-  Fetching data from 2025-04-01 00:00:00+00:00 to 2025-06-30 23:59:59+00:00...
-  ✓ Fetched 2160 data points
+  - SOL-USD
   ...
-  ✓ Added 4368 new data points, total: 4368
-✓ Saved 4368 data points to coinbase-data/BTC-USD.json
+
+=== Backfilling 5-minute candles for BTC-USD ===
+  Requesting 90 days of data
+  From: 2025-10-19 to 2026-01-17
+
+  Chunk 1: 2025-10-19 23:38 to 2025-10-21 00:38 (25.0 hours)
+  Fetching candles from 2025-10-19 23:38:12+00:00 to 2025-10-21 00:38:12+00:00...
+  ✓ Fetched 300 candles
+  ✓ Transformed 300 candles
+  ...
+
+  Total candles fetched: 25848
+  Found 0 existing data points
+  ✓ Added 25848 new data points, total: 25848
+✓ Saved 25848 data points to coinbase-data/BTC-USD.json
+
   ✓ Backfill complete for BTC-USD
+  📊 Data coverage: 25848/25920 candles (99.7%)
+```
+
+### Data Structure
+
+Each candle is stored in the same format as live collection:
+
+```json
+{
+  "timestamp": 1768690800.0,
+  "product_id": "BTC-USD",
+  "price": "95095.97",
+  "volume_24h": "10.84506839"
+}
 ```
 
 ### Best Practices
 
-- **Run backfill before starting the bot** for the first time to populate historical data immediately
-- **Re-run periodically** if you've had the bot stopped for extended periods to fill gaps
-- **Don't worry about duplicates** - the merge function automatically deduplicates by timestamp
-- **Start with smaller time periods** (e.g., 30-90 days) when testing to reduce API calls
-- **Monitor API rate limits** - the script includes delays, but be mindful of CoinGecko's 30 calls/min limit on free tier
+- **Start with 7-30 days** when first testing to verify everything works
+- **Use 90 days for production** - provides 3 months of market history for robust strategy testing
+- **Re-run if needed** - the script automatically deduplicates, safe to run multiple times
+- **Run before going live** - populate historical data before enabling `ready_to_trade`
 
-### Troubleshooting
+### Integration with index.py
 
-**CoinGecko API key errors:**
-- Verify your API key is correctly added to `.env`
-- Check that your API key is active at https://www.coingecko.com/en/developers/dashboard
+Once backfilled, `index.py` seamlessly continues appending new 5-minute candles:
 
-**Rate limit errors:**
-- The script includes 2-second delays between requests
-- If you still hit limits, the free tier allows 30 calls/min
-- Consider upgrading to a paid CoinGecko plan for higher limits
+```python
+# index.py runs every 5 minutes (config.json: interval_seconds=300)
+# Fetches latest candle and appends to same coinbase-data/*.json files
+# Auto-deduplicates to prevent overlaps
+```
 
-**Missing coingecko_id:**
-- Each enabled asset needs a `coingecko_id` field in `config.json`
-- Find IDs at https://api.coingecko.com/api/v3/coins/list or on CoinGecko.com URLs
+**Result:** Continuous data collection from historical backfill through live trading
 
 ## How It Works
 
@@ -521,7 +462,7 @@ The bot uses a **Technical Analysis + Strategy-Based Decision-Making** approach:
 ```
 /scalp-scripts/
 ├── index.py                              # Main entry point - core trading loop
-├── backfill_historical_data.py           # CoinGecko historical data importer
+├── backfill_coinbase_candles.py          # Coinbase 5-minute candle backfill script
 ├── config.json                           # Active configuration (user-specific)
 ├── example-config.json                   # Template configuration
 ├── requirements.txt                      # Python dependencies
@@ -649,9 +590,8 @@ Current market analysis is cached in `analysis/{SYMBOL}_analysis.json` files, sh
 - Verify email addresses are correct
 
 **Missing historical data:**
-- Run `python3 backfill_historical_data.py` first
-- Verify `COINGECKO_API_KEY` in `.env`
-- Ensure each wallet has a valid `coingecko_id`
+- Run `python3 backfill_coinbase_candles.py --days 90` first to populate 5-minute candle data
+- Verify your Coinbase API credentials are set in `.env`
 
 ## Advanced Features
 
@@ -703,7 +643,7 @@ Configure different wait times based on analysis outcomes:
 | `python-dotenv` | Environment variable loading |
 | `coinbase-advanced-py` | Coinbase API client |
 | `openai` | GPT-4o Vision API access |
-| `requests` | HTTP requests (CoinGecko API) |
+| `requests` | HTTP requests |
 | `numpy` | Numerical calculations (technical indicators) |
 | `matplotlib` | Chart generation and visualization |
 | `mailjet-rest` | Email notification service |
@@ -742,5 +682,5 @@ For issues, questions, or feature requests, please open an issue on the GitHub r
 
 - Built with [Coinbase Advanced Trade API](https://docs.cloud.coinbase.com/advanced-trade-api/docs)
 - Market analysis powered by [OpenAI GPT-4o Vision](https://openai.com/index/gpt-4o-vision/)
-- Historical data from [CoinGecko API](https://www.coingecko.com/en/api)
+- Historical 5-minute candle data from [Coinbase Advanced Trade API](https://docs.cloud.coinbase.com/advanced-trade-api/docs/welcome)
 - Email notifications via [Mailjet](https://www.mailjet.com/)

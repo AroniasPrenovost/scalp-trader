@@ -254,7 +254,7 @@ def backtest_strategy(symbols, start_date, end_date, starting_capital=4609,
                     price_vs_ma_pct = ((current_price - ma_24h) / ma_24h) * 100
 
                 # Score this setup
-                score_result = calculate_setup_score(symbol, 'coinbase-data', 'coingecko-global-volume')
+                score_result = calculate_setup_score(symbol, 'coinbase-data')
 
                 if score_result['score'] == 0:
                     continue

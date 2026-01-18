@@ -2,6 +2,9 @@
 """
 Historical Move Analyzer
 Identifies all 1.5%+ price increases in historical data and tags conditions that preceded them.
+
+NOTE: This script references the old 'coingecko-global-volume' directory which has been deprecated.
+It is kept for reference only. Use the backtest scripts in /backtest instead.
 """
 
 import json
