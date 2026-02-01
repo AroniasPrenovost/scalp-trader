@@ -370,7 +370,7 @@ def iterate_wallets(data_collection_interval_seconds):
                                 pending_order_symbols.append(symbol)
     
                     if market_rotation_enabled:
-                        from utils.opportunity_scorer import find_best_opportunity, print_opportunity_report, score_opportunity
+                        from utils.mtf_opportunity_scorer import find_best_opportunity, find_best_opportunities, print_opportunity_report, score_opportunity
     
                         rotation_mode = market_rotation_config.get('mode', 'single_best_opportunity')
                         max_concurrent_orders = market_rotation_config.get('max_concurrent_orders', 5)
