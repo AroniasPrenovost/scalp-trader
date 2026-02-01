@@ -1,41 +1,37 @@
-# Scalp-Scripts: AI-Powered Cryptocurrency Trading Bot
+# Scalp-Scripts: MTF Momentum Breakout Trading Bot
 
-An advanced cryptocurrency scalp trading bot that leverages GPT-4o Vision for intelligent market analysis and automated execution on the Coinbase exchange. The bot combines multi-timeframe technical analysis with AI-driven decision-making to identify and execute profitable short-term trades while managing risk, taxes, and fees.
+An automated cryptocurrency trading bot that uses Multi-Timeframe (MTF) technical analysis to identify and execute momentum breakout trades on Coinbase. The bot scans multiple assets, ranks opportunities using a proprietary scoring system, and manages positions with ATR-based stops and profit targets.
 
 ## Overview
 
 **Scalp-Scripts** automates the entire trading lifecycle:
-- Continuously monitors cryptocurrency prices on Coinbase
-- Analyzes market conditions using GPT-4o Vision across multiple timeframes
-- Executes buy/sell orders automatically when conditions are favorable
-- Manages risk with stop-loss triggers and profit targets
+- Continuously collects 5-minute candle data for 8 cryptocurrencies
+- Analyzes market conditions using Multi-Timeframe Momentum Breakout Strategy
+- Scores opportunities across all assets and selects the best 1-2 trades
+- Executes buy/sell orders automatically when high-quality signals appear
+- Manages positions with ATR-based stop-loss and profit targets
 - Tracks all costs: exchange fees, taxes, net profits
 - Sends email notifications for all trading activity
 
 ## Key Features
 
-### 🤖 AI-Powered Market Analysis (GPT-4o Vision)
-- **Multi-Timeframe Chart Analysis**: Generates and analyzes charts across five timeframes
-  - **72-hour view**: High-detail analysis for precise entry/exit timing with recent context
-  - **7-day view**: Confirms short-term trend momentum and direction
-  - **30-day view**: Recent trend analysis and medium-term momentum
-  - **90-day view**: Extended trend analysis and quarterly patterns
-  - **6-month view**: Provides macro trend context and long-term support/resistance
-- **Visual + Numerical Analysis**: Combines chart images with price data for holistic market understanding
-- **Technical Indicators**: Calculates and analyzes RSI, Bollinger Bands, Moving Averages, Support/Resistance levels
-- **Confidence Scoring**: Provides high/medium/low confidence levels for each trade recommendation
-- **Trend Classification**: Identifies bullish, bearish, or sideways market conditions
+### 📊 Multi-Timeframe Momentum Breakout Strategy
+- **200-Day MA Filter**: Only considers trades when price is above long-term trend (bullish bias)
+- **4-Hour Bollinger Band Squeeze**: Identifies compression periods that precede explosive moves
+- **Volume Confirmation**: Requires 2x average volume to confirm breakout validity
+- **Multi-Indicator Confluence**: RSI (50-70), MACD positive & increasing, ATR expansion
+- **Market Rotation**: Scans 8 cryptocurrencies every 5 minutes, ranks by opportunity score
+- **Selective Entry**: Only trades signals scoring ≥75 (high confidence, favorable risk/reward)
+- **5-Minute Candles**: High-granularity data for precise entry/exit timing
 
 ### 💰 Professional Risk Management
-- **Stop Loss Protection**: Automated exit if price drops below calculated stop loss
-- **Profit Target Tracking**: Sells automatically when profit percentage reaches target
+- **ATR-Based Stops**: Dynamic stop-loss calculated at 2× ATR below entry price (adapts to volatility)
+- **Trailing Stops**: Locks in profits as position moves favorably (moves up, never down)
+- **Profit Targets**: 7.5% gross target (~5% net after fees/taxes)
+- **Position Sizing**: Fixed $2,250 per position (50% of $4,500 capital)
+- **Max Concurrent Positions**: Limited to 2 simultaneous trades (prevents overexposure)
 - **Tax Calculation**: Factors in federal tax rates on realized capital gains
 - **Exchange Fee Accounting**: Calculates Coinbase taker fees on both buy and sell sides
-- **Dynamic Position Sizing**: Strategy-driven USD allocation per trade based on:
-  - Confidence level of the analysis
-  - Current wallet metrics
-  - Trade quality assessment
-  - Risk discipline (never commits >75% of available capital)
 - **Wallet Metrics Dashboard**: Tracks starting capital, current value, percentage gain/loss, gross vs. net profit
 
 ### 📊 Comprehensive Order Management
@@ -54,36 +50,27 @@ An advanced cryptocurrency scalp trading bot that leverages GPT-4o Vision for in
   - Buy event screenshot paths
 
 ### 📈 Data Collection & Analysis
-- **Continuous Price Data Collection**: Appends price data to per-crypto JSON files at configurable intervals (default: 1-hour intervals)
-- **Data Retention Policies**: Automatically cleans up old data beyond configured retention window (default: 4,380 hours / ~6 months)
-- **Multi-Property Tracking**:
-  - Current price
-  - 24-hour volume
-  - Price percentage change (24h)
-  - Volume percentage change (24h)
-- **Historical Data Backfilling**: Coinbase Advanced API integration for populating 5-minute candle data
-- **Smart Data Merging**: Avoids duplicates when merging backfilled and real-time data
+- **5-Minute Candle Collection**: Appends latest candle to per-crypto JSON files every 5 minutes
+- **Data Retention**: Automatically maintains 210 days of historical data (5,040 hours)
+- **Candle Properties**: timestamp, product_id, close price, 24h volume
+- **Historical Data Backfilling**: Coinbase Advanced API integration for populating up to 210 days of 5-minute candles
+- **Smart Data Merging**: Timestamp-based deduplication prevents duplicates when merging backfilled and real-time data
+- **Automated Cleanup**: Removes data older than retention window to maintain consistent dataset size
 
 ### 🔔 Notifications & Monitoring
 - **Email Notifications** (via Mailjet):
-  - Buy order placement alerts
-  - Sell order execution alerts with profit percentage
+  - Buy order placement alerts with entry price and opportunity score
+  - Sell order execution alerts with profit percentage and hold time
   - Error/crash notifications
   - Graceful degradation (continues after repeated errors)
-- **Console Logging**: Real-time status updates including current analysis stage, prices, confidence levels, market trends
-- **Data Visualization**: Generates chart snapshots for current price action and multi-timeframe context
-
-### 🆕 New Listing Detection (Optional)
-- Monitors Coinbase for newly listed trading pairs
-- Sends email alerts when new cryptocurrencies are listed
-- Tracks listing history for future reference
+- **Console Logging**: Real-time status updates including opportunity scores, signals, entry/exit prices
+- **Opportunity Reports**: Every scan cycle shows ranked list of all 8 coins with scores and signal details
 
 ## Prerequisites
 
 - **Python 3.7+**
-- **Coinbase Account** with API credentials
-- **OpenAI API Key** (for GPT-4o Vision access)
-- **Mailjet Account** (for email notifications)
+- **Coinbase Account** with API credentials (trading permissions enabled)
+- **Mailjet Account** (optional, for email notifications)
 
 ## Installation
 
@@ -163,23 +150,19 @@ COINBASE_API_SECRET=your_api_secret_here
 # Tax Configuration
 FEDERAL_TAX_RATE=15                # Your federal tax rate on capital gains (e.g., 15 for 15%)
 
-# Email Notifications (Mailjet)
+# Email Notifications (Mailjet) - Optional
 MAILJET_API_KEY=your_mailjet_api_key
 MAILJET_SECRET_KEY=your_mailjet_secret_key
 MAILJET_FROM_EMAIL=bot@example.com
 MAILJET_FROM_NAME=Trading Bot
 MAILJET_TO_EMAIL=your@email.com
 MAILJET_TO_NAME=Your Name
-
-# OpenAI API (for GPT-4o Vision)
-OPENAI_API_KEY=sk-your_openai_api_key_here
 ```
 
 ### Getting Your API Keys
 
-- **Coinbase API**: https://www.coinbase.com/settings/api
-- **OpenAI API**: https://platform.openai.com/api-keys
-- **Mailjet API**: https://app.mailjet.com/account/api_keys
+- **Coinbase API**: https://www.coinbase.com/settings/api (enable trading permissions)
+- **Mailjet API**: https://app.mailjet.com/account/api_keys (optional)
 
 ## Configuration
 
@@ -193,38 +176,53 @@ cp example-config.json config.json
 
 ### Configuration Parameters
 
-#### Global Settings
+#### MTF Strategy Settings
 
 ```json
 {
-  "min_profit_target_percentage": 3.8,
-  "no_trade_refresh_hours": 5,
-  "cooldown_hours_after_sell": 6,
-  "low_confidence_wait_hours": 3,
-  "medium_confidence_wait_hours": 2,
-  ...
+  "mtf_strategy": {
+    "target_profit_pct": 7.5,
+    "atr_stop_multiplier": 2.0,
+    "trailing_stop_activation_pct": 3.0,
+    "trailing_stop_distance_pct": 1.5,
+    "max_concurrent_positions": 2
+  },
+  "market_rotation": {
+    "enabled": true,
+    "min_score_for_entry": 75,
+    "max_concurrent_orders": 2,
+    "capital_per_position": 2250,
+    "total_trading_capital_usd": 4500
+  }
 }
 ```
 
-- **`min_profit_target_percentage`**: Minimum net profit percentage threshold to trigger a sell signal (after fees and taxes). Default: `3.8`
-- **`no_trade_refresh_hours`**: Hours to wait before re-analyzing an asset after analysis determines no trade should be made. Default: `5`
-- **`cooldown_hours_after_sell`**: Hours to pause trading after selling a position, allowing the market to settle. Default: `6`
-- **`low_confidence_wait_hours`**: Hours to wait before re-analyzing after a low-confidence recommendation. Default: `3`
-- **`medium_confidence_wait_hours`**: Hours to wait before re-analyzing after a medium-confidence recommendation. Default: `2`
+**MTF Strategy:**
+- **`target_profit_pct`**: Target gross profit percentage (7.5% = ~5% net after fees/taxes)
+- **`atr_stop_multiplier`**: Stop-loss distance in ATR units below entry (2.0 = 2× ATR)
+- **`trailing_stop_activation_pct`**: Profit level to activate trailing stop (3.0%)
+- **`trailing_stop_distance_pct`**: Distance trailing stop trails below peak (1.5%)
+- **`max_concurrent_positions`**: Maximum simultaneous open positions (2)
+
+**Market Rotation:**
+- **`min_score_for_entry`**: Minimum opportunity score required to enter trade (75)
+- **`max_concurrent_orders`**: Maximum positions to hold at once (2)
+- **`capital_per_position`**: USD allocated per trade ($2,250)
+- **`total_trading_capital_usd`**: Total capital available for trading ($4,500)
 
 #### Data Management Settings
 
 ```json
 {
   "data_retention": {
-    "max_hours": 4380,
-    "interval_seconds": 3600
+    "max_hours": 5040,
+    "interval_seconds": 300
   }
 }
 ```
 
-- **`max_hours`**: Maximum hours of price data to retain (4,380 hours = ~6 months). Default: `4380`
-- **`interval_seconds`**: How often to save price snapshots in seconds (3,600 seconds = 1 hour). Default: `3600`
+- **`max_hours`**: Maximum hours of candle data to retain (5,040 hours = 210 days). Required for 200-day MA calculation. Default: `5040`
+- **`interval_seconds`**: How often to collect new 5-minute candles in seconds (300 seconds = 5 minutes). Default: `300`
 
 #### Wallet/Asset Configuration
 
@@ -232,12 +230,18 @@ cp example-config.json config.json
 {
   "wallets": [
     {
-      "title": "BTC: primary, most predictable",
+      "title": "BTC: Large cap, high liquidity",
       "symbol": "BTC-USD",
       "enabled": true,
       "ready_to_trade": false,
-      "starting_capital_usd": 100,
-      "enable_chart_snapshot": false
+      "starting_capital_usd": 2250
+    },
+    {
+      "title": "ETH: Second largest, DeFi leader",
+      "symbol": "ETH-USD",
+      "enabled": true,
+      "ready_to_trade": false,
+      "starting_capital_usd": 2250
     }
   ]
 }
@@ -247,15 +251,59 @@ Each asset in the `wallets` array supports the following parameters:
 
 - **`title`**: Friendly description for the asset (for reference only)
 - **`symbol`**: The Coinbase trading pair symbol (e.g., `"BTC-USD"`, `"ETH-USD"`, `"SOL-USD"`)
-- **`enabled`**: Whether to monitor this asset (`true`) or skip it (`false`)
+- **`enabled`**: Whether to scan this asset for opportunities (`true`) or skip it (`false`)
 - **`ready_to_trade`**: Whether to execute actual trades (`true`) or run in simulation mode (`false`)
   - **IMPORTANT**: Start with `false` to test the bot in simulation mode before risking real money
 - **`starting_capital_usd`**: Initial capital allocated for this asset (used for performance metrics calculation)
-- **`enable_chart_snapshot`**: Whether to generate chart images for this asset (`true`/`false`)
 
-## Historical Data Backfilling
+**Note**: With market rotation enabled, the bot scans all enabled assets but only trades the best 1-2 opportunities.
 
-Before the bot has accumulated enough price history naturally, you can backfill historical 5-minute candle data from Coinbase Advanced API. This provides high-quality data for technical analysis and strategy backtesting from day one.
+## Quick Start Guide
+
+### Step 1: Backfill Historical Data (Required - One Time Only)
+
+The MTF strategy **requires at least 200 days** of 5-minute candle data to calculate the 200-day moving average filter.
+
+```bash
+python3 backfill_coinbase_candles.py --days 210
+```
+
+**What this does:**
+- Fetches 210 days of 5-minute candles from Coinbase for all enabled coins
+- Saves to `coinbase-data/{SYMBOL}.json` files
+- Takes ~5-10 minutes (processes in chunks due to API limits)
+- Merges with any existing data (won't duplicate)
+- **Expected**: ~60,480 candles per coin (210 days × 288 candles/day)
+
+### Step 2: Test the Strategy (Optional but Recommended)
+
+Verify the MTF strategy works with your data:
+
+```bash
+python3 test_mtf_scorer.py
+```
+
+**What this does:**
+- Scans all enabled coins in your config
+- Runs MTF strategy check on each one
+- Converts signals to 0-100 opportunity scores
+- Shows ranked list of opportunities
+
+### Step 3: Run the Bot
+
+Start the bot in continuous mode:
+
+```bash
+python3 index.py
+```
+
+**What happens (continuous loop every 5 minutes):**
+1. Collects latest 5-min candle for each enabled coin
+2. Scans all coins and scores opportunities using MTF strategy
+3. Selects best 1-2 opportunities (score ≥75)
+4. Executes trades if `ready_to_trade: true` and criteria met
+5. Manages positions (stop-loss, profit targets, trailing stops)
+6. Repeat indefinitely
 
 ### How the Backfilling Works
 
@@ -279,38 +327,34 @@ The backfilling script (`backfill_coinbase_candles.py`) performs the following o
 
 ### Data Granularity
 
-**5-minute candles** - Perfect for momentum and scalping strategies:
+**5-minute candles** - Perfect for multi-timeframe momentum strategies:
 
 | Time Period | Candles | Storage Size |
 |-------------|---------|--------------|
 | **1 day** | 288 | ~50 KB |
 | **1 week** | 2,016 | ~350 KB |
 | **1 month** | 8,640 | ~1.5 MB |
-| **3 months** | 25,920 | ~4.5 MB |
+| **210 days** | 60,480 | ~10 MB |
 
-**Benefits over hourly data:**
-- 12x more granular (5-min vs 60-min)
-- See intra-hour price swings and momentum shifts
-- More accurate entry/exit timing
-- Better correlation calculations for divergence strategies
+**Benefits:**
+- Aggregates to 4H candles for Bollinger Band analysis
+- Aggregates to daily candles for 200-day MA filter
+- Precise entry/exit timing on 5-min resolution
+- Captures intra-hour volatility expansions
 
 ### Running the Backfill
 
-**Backfill all enabled assets (90 days recommended):**
+**Backfill all enabled assets (210 days required for MTF strategy):**
 ```bash
-python3 backfill_coinbase_candles.py --days 90
+python3 backfill_coinbase_candles.py --days 210
 ```
 
 **Backfill specific asset:**
 ```bash
-python3 backfill_coinbase_candles.py BTC-USD --days 30
+python3 backfill_coinbase_candles.py BTC-USD --days 210
 ```
 
-**Custom time period:**
-```bash
-python3 backfill_coinbase_candles.py --days 7   # 1 week
-python3 backfill_coinbase_candles.py --days 180 # 6 months
-```
+**Note**: The MTF strategy requires at least 200 days for the 200-MA filter. 210 days provides a 10-day buffer.
 
 ### Example Output
 
@@ -320,9 +364,9 @@ Coinbase Advanced API - Historical 5-Minute Candle Backfill
 ======================================================================
 ✓ Coinbase client initialized
 
-📅 Backfill period: 90 days
+📅 Backfill period: 210 days
 📊 Granularity: 5-minute candles
-📈 Expected candles per asset: ~25920
+📈 Expected candles per asset: ~60,480
 
 Found 8 enabled wallet(s) to backfill:
   - BTC-USD
@@ -331,22 +375,20 @@ Found 8 enabled wallet(s) to backfill:
   ...
 
 === Backfilling 5-minute candles for BTC-USD ===
-  Requesting 90 days of data
-  From: 2025-10-19 to 2026-01-17
+  Requesting 210 days of data
+  From: 2025-07-05 to 2026-01-31
 
-  Chunk 1: 2025-10-19 23:38 to 2025-10-21 00:38 (25.0 hours)
-  Fetching candles from 2025-10-19 23:38:12+00:00 to 2025-10-21 00:38:12+00:00...
+  Chunk 1: 2025-07-05 00:00 to 2025-07-06 01:00 (25.0 hours)
   ✓ Fetched 300 candles
-  ✓ Transformed 300 candles
   ...
 
-  Total candles fetched: 25848
+  Total candles fetched: 60,384
   Found 0 existing data points
-  ✓ Added 25848 new data points, total: 25848
-✓ Saved 25848 data points to coinbase-data/BTC-USD.json
+  ✓ Added 60,384 new data points, total: 60,384
+✓ Saved 60,384 data points to coinbase-data/BTC-USD.json
 
   ✓ Backfill complete for BTC-USD
-  📊 Data coverage: 25848/25920 candles (99.7%)
+  📊 Data coverage: 60,384/60,480 candles (99.8%)
 ```
 
 ### Data Structure
@@ -364,98 +406,111 @@ Each candle is stored in the same format as live collection:
 
 ### Best Practices
 
-- **Start with 7-30 days** when first testing to verify everything works
-- **Use 90 days for production** - provides 3 months of market history for robust strategy testing
-- **Re-run if needed** - the script automatically deduplicates, safe to run multiple times
-- **Run before going live** - populate historical data before enabling `ready_to_trade`
+- **Always use 210 days** - Required for the 200-day MA filter in MTF strategy
+- **Re-run if needed** - The script automatically deduplicates, safe to run multiple times
+- **Run before going live** - Populate historical data before enabling `ready_to_trade`
+- **One-time operation** - After backfill, `index.py` automatically maintains the data
 
-### Integration with index.py
+### Continuous Data Collection
 
-Once backfilled, `index.py` seamlessly continues appending new 5-minute candles:
+Once backfilled, `index.py` seamlessly continues the data collection:
+- Fetches latest 5-minute candle every 5 minutes
+- Appends to same `coinbase-data/*.json` files
+- Auto-deduplicates to prevent overlaps
+- Auto-prunes data older than 210 days
 
-```python
-# index.py runs every 5 minutes (config.json: interval_seconds=300)
-# Fetches latest candle and appends to same coinbase-data/*.json files
-# Auto-deduplicates to prevent overlaps
-```
-
-**Result:** Continuous data collection from historical backfill through live trading
+**Result:** Continuous, up-to-date 210-day dataset for strategy analysis
 
 ## How It Works
 
 ### Main Trading Loop
 
-The bot runs continuously in a loop (default: every 15 minutes):
+The bot runs continuously in a loop (every 5 minutes):
 
 1. **Data Collection**
-   - Fetches current prices from Coinbase API
-   - Appends price data to per-symbol JSON files in `coinbase-data/`
-   - Calculates 24-hour volume changes
+   - Fetches latest 5-minute candle from Coinbase API for each enabled coin
+   - Appends candle data to per-symbol JSON files in `coinbase-data/`
+   - Maintains 210-day rolling window (auto-prunes older data)
 
 2. **Order State Management**
-   - Checks the last order status for each symbol (`none`, `buy`, `sell`, or `placeholder`)
+   - Checks last order status for each symbol (`none`, `buy`, `sell`, or `placeholder`)
    - If `placeholder` (pending), polls Coinbase for final order status
+   - Updates position tracking and wallet metrics
 
-3. **Market Analysis** (when needed)
-   - Generates multi-timeframe charts (24-hour, 7-day, 90-day)
-   - Calls GPT-4o Vision API with:
-     - Chart images (high detail for short-term, lower detail for medium/long-term)
-     - Current price/volume data
-     - Cost structure (fees, taxes)
-   - Receives JSON analysis with: buy price, sell price, confidence level, trade recommendation
+3. **Opportunity Scanning** (every cycle)
+   - For each enabled coin:
+     - Loads 210 days of 5-min candles
+     - Aggregates to 4-hour and daily timeframes
+     - Runs MTF Momentum Breakout Strategy checks
+     - Calculates 0-100 opportunity score
+   - Ranks all coins by score
+   - Identifies best 1-2 opportunities (score ≥75)
 
-4. **Trading Logic**
-
-   **If no position (last order = 'none' or 'sell')**:
-   - If analysis recommends `buy` AND confidence is `high` AND market trend is `bullish`:
-     - If current price ≤ buy-in price:
-       - Calculate shares to buy (USD amount ÷ current price, rounded down)
+4. **Entry Logic** (if fewer than 2 open positions)
+   - If top opportunity scores ≥75:
+     - Verify price above 200-day MA
+     - Confirm BB squeeze and breakout
+     - Check volume is 2× average
+     - Validate RSI in 50-70 range
+     - **If all conditions met:**
+       - Calculate position size ($2,250)
+       - Calculate ATR-based stop-loss (2× ATR below entry)
        - Place market buy order on Coinbase
-       - Take screenshot of chart at buy moment
-       - Save order to ledger
+       - Save order to ledger with entry price, stop, target
 
-   **If holding position (last order = 'buy')**:
-   - Calculate current profit including all costs
-   - If current price ≤ stop loss price:
-     - Place market sell order (Stop Loss trigger)
-   - Else if profit percentage ≥ target percentage:
-     - Place market sell order (Take Profit trigger)
+5. **Exit Logic** (if holding positions)
+   - **For each open position:**
+     - Calculate current profit/loss
+     - Update trailing stop if profit ≥ activation threshold
+     - **Exit triggers:**
+       - Price hits ATR stop-loss → Sell (limit losses)
+       - Price hits trailing stop → Sell (lock in profits)
+       - Profit ≥ 7.5% target → Sell (take profits)
+   - **After sell:**
+     - Save transaction record to `transactions/data.json`
+     - Clear position state
+     - Free up capital for next opportunity
 
-   **After sell**:
-   - Save complete transaction record with all metrics to `transactions/data.json`
-   - Delete analysis file to trigger fresh analysis on next cycle
-   - Start cooldown period (no trading for configured hours)
+6. **Data Cleanup**
+   - Remove candle data older than 210 days
+   - Optionally prune old screenshots
 
-5. **Data Cleanup**
-   - Remove price data older than retention window
-   - Optionally prune old transaction records
+### MTF Momentum Breakout Strategy
 
-### Trading Strategy
+The bot uses a **Multi-Timeframe Momentum Breakout** approach:
 
-The bot uses a **Technical Analysis + Strategy-Based Decision-Making** approach:
+#### Entry Requirements (ALL must be true)
+1. **Daily Timeframe**: Price > 200-day MA (bullish trend filter)
+2. **4-Hour Bollinger Bands**: Recent squeeze (bandwidth in lower 20th percentile)
+3. **4-Hour Breakout**: Price broke above upper BB in last 3 candles
+4. **Volume Confirmation**: Current volume ≥ 2× average volume
+5. **RSI**: Between 50-70 (momentum without overbought)
+6. **MACD**: Positive and increasing (trend strength)
+7. **Opportunity Score**: ≥75 (high confidence, favorable R/R ratio)
 
-#### Entry Signals
-- Price reaches or falls below calculated buy price
-- RSI indicates oversold conditions
-- Price touches lower Bollinger Band
-- Market trend is bullish (confirmed across multiple timeframes)
-- Confidence level is HIGH
-- Support level identified by multi-timeframe analysis
+#### Exit Signals
 
-#### Exit Signals (Take Profit)
-- Profit percentage reaches or exceeds target (after fees and taxes)
-- Price reaches calculated sell price
-- Resistance level reached
+**Stop Loss:**
+- Price drops below (entry - 2× ATR)
+- Protects against major drawdowns
+- Adapts to asset volatility
 
-#### Exit Signals (Stop Loss)
-- Price falls below calculated stop loss
-- Immediate exit to prevent further losses
+**Trailing Stop:**
+- Activates when profit ≥ 3%
+- Trails 1.5% below peak profit
+- Moves up only (never down)
+- Locks in gains as position moves favorably
 
-#### Market Filtering
-- No buy signals in bearish markets
-- No trades during low/medium confidence periods
-- Respects cooldown periods after sells
-- Position sizing limited to prevent over-allocation
+**Profit Target:**
+- Triggers when profit ≥ 7.5% gross
+- Approximately 5% net after fees and taxes
+
+#### Market Rotation
+- Scans all 8 enabled coins simultaneously
+- Only trades the highest-scoring opportunities
+- Maximum 2 concurrent positions (prevents overexposure)
+- Each position: $2,250 (50% of $4,500 capital)
+- Dynamically shifts to best opportunities across market
 
 ## File Structure
 
@@ -463,32 +518,34 @@ The bot uses a **Technical Analysis + Strategy-Based Decision-Making** approach:
 /scalp-scripts/
 ├── index.py                              # Main entry point - core trading loop
 ├── backfill_coinbase_candles.py          # Coinbase 5-minute candle backfill script
+├── test_mtf_scorer.py                    # Test/validation script for MTF strategy
 ├── config.json                           # Active configuration (user-specific)
 ├── example-config.json                   # Template configuration
 ├── requirements.txt                      # Python dependencies
 ├── README.md                             # This file
+├── MTF_SETUP_GUIDE.md                    # Detailed MTF strategy setup guide
 ├── .env                                  # Environment variables (create from .env.sample)
 │
 ├── utils/                                # Utility modules
 │   ├── coinbase.py                       # Coinbase API wrapper & order management
-│   ├── openai_analysis.py                # GPT-4o integration & market analysis
-│   ├── wallet_helpers.py                 # Wallet metrics & transaction history helpers
-│   ├── matplotlib.py                     # Chart generation & visualization
-│   ├── price_helpers.py                  # Price calculation utilities
+│   ├── mtf_momentum_breakout_strategy.py # MTF strategy logic
+│   ├── mtf_opportunity_scorer.py         # Opportunity scoring & ranking
+│   ├── technical_indicators.py           # BB, MACD, RSI, ATR calculations
+│   ├── wallet_helpers.py                 # Wallet metrics & transaction history
+│   ├── candle_helpers.py                 # 5-minute candle fetching & formatting
 │   ├── file_helpers.py                   # File I/O & data management
+│   ├── profit_calculator.py              # Profit/loss calculations
+│   ├── price_helpers.py                  # Price calculation utilities
 │   ├── time_helpers.py                   # Time formatting utilities
-│   ├── email.py                          # Email notifications (Mailjet)
-│   └── new_coinbase_listings.py          # New listing detection
+│   └── email.py                          # Email notifications (Mailjet)
 │
 ├── docs/                                 # Documentation files
 │
-├── coinbase-data/                        # Runtime: Price history per symbol
-│   ├── BTC-USD.json                      # Historical price snapshots
-│   └── ETH-USD.json                      # (auto-generated)
-│
-├── analysis/                             # Runtime: Current analysis files
-│   ├── BTC_USD_analysis.json             # Current buy/sell recommendations
-│   └── ETH_USD_analysis.json             # (auto-generated)
+├── coinbase-data/                        # Runtime: 5-minute candle data per symbol
+│   ├── BTC-USD.json                      # 210 days of 5-min candles
+│   ├── ETH-USD.json
+│   ├── SOL-USD.json                      # (auto-generated for all enabled coins)
+│   └── ...
 │
 ├── transactions/                         # Runtime: Trade history
 │   └── data.json                         # All completed trades with metrics
@@ -498,7 +555,7 @@ The bot uses a **Technical Analysis + Strategy-Based Decision-Making** approach:
 │   └── (auto-generated)
 │
 ├── coinbase-orders/                      # Per-symbol order ledgers (auto-generated)
-│   ├── BTC-USD_orders.json
+│   ├── BTC-USD_orders.json               # Position tracking and order history
 │   ├── ETH-USD_orders.json
 │   └── {SYMBOL}_orders.json
 │
@@ -509,50 +566,54 @@ The bot uses a **Technical Analysis + Strategy-Based Decision-Making** approach:
 
 ### Console Output
 The bot provides real-time status updates in the console:
-- Current prices and volume changes
-- Analysis stage (short-term, medium-term, long-term)
-- Confidence levels and trade recommendations
-- Order placement and execution
-- Profit/loss calculations
-- Error messages and warnings
+- Current 5-minute candle data collection
+- Opportunity scanning results (ranked list of all coins with scores)
+- MTF strategy signals (200-MA, BB squeeze, breakout, volume, RSI, MACD)
+- Entry/exit decisions with reasoning
+- Position tracking (profit/loss, trailing stops, ATR stops)
+- Order placement and execution confirmations
 
 ### Email Notifications
 You'll receive email alerts for:
-- Buy order placements (with entry price and confidence level)
-- Sell order executions (with profit percentage and hold time)
+- Buy order placements (with entry price, stop-loss, and opportunity score)
+- Sell order executions (with profit percentage, exit reason, and hold time)
 - Error conditions or crashes
-- New Coinbase listings (if enabled)
 
 ### Transaction History
 All completed trades are logged in `transactions/data.json` with complete details:
 - Entry/exit prices and timestamps
 - Gross profit, taxes, fees, and net profit
 - Time held position
+- Exit reason (profit target, stop-loss, trailing stop)
 - Buy event screenshot path
 - Symbol and trade metadata
 
-### Analysis Files
-Current market analysis is cached in `analysis/{SYMBOL}_analysis.json` files, showing:
-- Buy-in price and sell price recommendations
-- Support and resistance levels
-- Confidence level and market trend
-- Trade reasoning
-- Profit target percentage
+### Opportunity Reports
+Every 5-minute scan cycle displays:
+- Ranked list of all 8 coins with opportunity scores (0-100)
+- Signal details for coins with MTF breakout patterns
+- Current positions and their profit/loss status
+- Available capital for new entries
 
 ## Safety & Best Practices
 
 ### Start in Simulation Mode
-1. Set `ready_to_trade: false` for all wallets initially
-2. Monitor the console output and email notifications
-3. Review the analysis files to understand the bot's decision-making
-4. Only set `ready_to_trade: true` when you're confident in the bot's behavior
+1. **Backfill 210 days** of historical data first (`python3 backfill_coinbase_candles.py --days 210`)
+2. **Test the strategy** with `python3 test_mtf_scorer.py` to verify signals appear
+3. Set `ready_to_trade: false` for all wallets initially
+4. Run `index.py` for several days and monitor:
+   - Opportunity scores and rankings
+   - Entry/exit signals and reasoning
+   - Simulated trade performance
+5. Only set `ready_to_trade: true` when confident in the strategy
 
 ### Risk Management
 - **Never invest more than you can afford to lose**
-- Start with small `starting_capital_usd` amounts ($50-100)
-- Set conservative `min_profit_target_percentage` (3-5%)
-- Monitor the bot regularly, especially in the first few days
-- Keep the `cooldown_hours_after_sell` setting to prevent over-trading
+- Start with 1-2 coins enabled, not all 8
+- MTF strategy targets 5-15% swing moves (not scalping)
+- Expect 2-5 trades per week across all coins (selective, not frequent)
+- Monitor positions daily, especially during first 2 weeks
+- ATR-based stops adapt to volatility (typical stop: 3-6%)
 
 ### API Security
 - Never commit your `.env` file to version control
@@ -560,81 +621,88 @@ Current market analysis is cached in `analysis/{SYMBOL}_analysis.json` files, sh
 - Regularly rotate your API keys
 - Monitor your Coinbase account for unauthorized activity
 
-### Backtesting
-- Use the historical data backfilling feature to test strategies
-- Review past transaction records to understand win/loss patterns
-- Adjust configuration based on observed performance
+### Strategy Understanding
+- The 200-day MA filter keeps you out of downtrends
+- BB squeezes are rare (typically 1-3 per month per coin)
+- Not all signals score ≥75 (quality over quantity)
+- Market rotation means capital shifts to best opportunities
+- Trailing stops protect profits during reversals
 
 ## Troubleshooting
 
 ### Common Issues
 
-**Bot not executing trades despite recommendations:**
+**"Insufficient data for 200-MA calculation":**
+- **Cause:** Not enough historical candles (need 210 days)
+- **Fix:** Run `python3 backfill_coinbase_candles.py --days 210`
+
+**"No opportunities found" or "All scores below 75":**
+- **Cause:** No MTF breakout signals currently present
+- **Fix:** This is normal and expected. MTF signals are selective (typically 2-5 per week across all 8 coins)
+- **Note:** The strategy waits for high-quality setups rather than forcing trades
+
+**Bot not executing trades despite signals:**
 - Check that `ready_to_trade: true` for the specific wallet
 - Verify `enabled: true` for the wallet
-- Check that you have sufficient balance in your Coinbase account
-
-**OpenAI API errors:**
-- Verify your `OPENAI_API_KEY` in `.env` is correct
-- Check that you have GPT-4o Vision access on your OpenAI account
-- Monitor your OpenAI API usage limits and billing
+- Ensure fewer than 2 positions currently open (max_concurrent_orders limit)
+- Check that you have sufficient balance in your Coinbase account ($2,250+ per position)
 
 **Coinbase API errors:**
 - Verify your `COINBASE_API_KEY` and `COINBASE_API_SECRET` in `.env`
-- Check that your API key has trading permissions
+- Check that your API key has trading permissions enabled
 - Ensure your Coinbase account has sufficient balance
 
 **Email notifications not working:**
-- Verify all Mailjet credentials in `.env`
+- Verify all Mailjet credentials in `.env` (if using email notifications)
 - Check your Mailjet account status and sending limits
 - Verify email addresses are correct
+- Email is optional - bot will continue to work without it
 
-**Missing historical data:**
-- Run `python3 backfill_coinbase_candles.py --days 90` first to populate 5-minute candle data
-- Verify your Coinbase API credentials are set in `.env`
+**"Error fetching 5-minute candle":**
+- **Cause:** Coinbase API connection issue or rate limiting
+- **Fix:** Bot will retry automatically. Check your internet connection and API credentials
 
-## Advanced Features
+## Strategy Customization
 
-### Multiple Asset Trading
-Configure multiple wallets in `config.json` to trade different cryptocurrencies simultaneously:
+### Adjusting Entry Threshold
+Modify `min_score_for_entry` in `config.json`:
+- **75-80** (default): Conservative, only high-quality setups
+- **65-74**: Moderate, more opportunities but lower win rate
+- **50-64**: Aggressive, many signals but less selective
+
+**Recommendation:** Start with 75 and only lower if you understand the trade-offs.
+
+### Position Sizing
+Current setup: 2 positions × $2,250 = $4,500 total capital
+
+To adjust:
+1. Update `capital_per_position` (e.g., $1,000, $5,000)
+2. Update `max_concurrent_orders` (1-3 positions)
+3. Set `total_trading_capital_usd` = capital_per_position × max_concurrent_orders
+
+**Example (Conservative):**
 ```json
 {
-  "wallets": [
-    {
-      "symbol": "BTC-USD",
-      "enabled": true,
-      "ready_to_trade": true,
-      ...
-    },
-    {
-      "symbol": "ETH-USD",
-      "enabled": true,
-      "ready_to_trade": true,
-      ...
-    }
-  ]
+  "market_rotation": {
+    "capital_per_position": 1000,
+    "max_concurrent_orders": 1,
+    "total_trading_capital_usd": 1000
+  }
 }
 ```
 
-Each asset maintains independent:
-- Order ledger
-- Transaction history
-- Price data
-- Analysis cache
+### Risk/Reward Tuning
+Modify in `mtf_strategy` section:
+- **`atr_stop_multiplier`**: 1.5 (tighter), 2.0 (default), 2.5 (wider)
+- **`target_profit_pct`**: 5.0 (conservative), 7.5 (default), 10.0 (ambitious)
+- **`trailing_stop_activation_pct`**: When to start trailing (default: 3.0%)
+- **`trailing_stop_distance_pct`**: How far to trail below peak (default: 1.5%)
 
-### Custom Profit Targets
-Adjust the global `min_profit_target_percentage` or let the system calculate dynamic targets based on:
-- Market volatility
-- Historical performance
-- Current confidence level
-- Risk assessment
-
-### Cooldown Periods
-Configure different wait times based on analysis outcomes:
-- `cooldown_hours_after_sell`: Pause after selling to let market settle
-- `low_confidence_wait_hours`: Don't waste API calls on low-confidence signals
-- `medium_confidence_wait_hours`: Brief pause before re-analyzing medium confidence
-- `no_trade_refresh_hours`: How long to wait after "no trade" recommendation
+### Multi-Asset Scanning
+The bot scans all `enabled: true` wallets but only trades the best opportunities:
+- Enable 8 coins for maximum rotation
+- Or focus on 2-3 specific coins
+- Market rotation automatically shifts capital to strongest signals
 
 ## Dependencies
 
@@ -642,16 +710,16 @@ Configure different wait times based on analysis outcomes:
 |---------|---------|
 | `python-dotenv` | Environment variable loading |
 | `coinbase-advanced-py` | Coinbase API client |
-| `openai` | GPT-4o Vision API access |
-| `requests` | HTTP requests |
-| `numpy` | Numerical calculations (technical indicators) |
-| `matplotlib` | Chart generation and visualization |
-| `mailjet-rest` | Email notification service |
+| `numpy` | Numerical calculations (technical indicators, timeframe aggregation) |
+| `matplotlib` | Chart generation and visualization (optional) |
+| `mailjet-rest` | Email notification service (optional) |
 
 Install all dependencies with:
 ```bash
 pip install -r requirements.txt
 ```
+
+**Note:** The bot is fully self-contained with no external API costs beyond Coinbase trading. No AI/ML APIs required.
 
 ## Contributing
 
@@ -668,10 +736,12 @@ This project is open source and available for educational purposes.
 - Cryptocurrency trading involves **significant financial risk**
 - You should only trade with money you can **afford to lose completely**
 - Past performance does not guarantee future results
-- The bot's recommendations are not financial advice
+- The MTF strategy is a mechanical trading system, not financial advice
+- No trading strategy is profitable 100% of the time
+- Market conditions can change and invalidate historical patterns
 - The author is **not responsible** for any financial losses incurred while using this bot
 - Always do your own research and consult with financial professionals
-- Test thoroughly in simulation mode before risking real capital
+- Test thoroughly in simulation mode (minimum 2 weeks) before risking real capital
 - **Use at your own risk**
 
 ## Support
@@ -681,6 +751,7 @@ For issues, questions, or feature requests, please open an issue on the GitHub r
 ## Acknowledgments
 
 - Built with [Coinbase Advanced Trade API](https://docs.cloud.coinbase.com/advanced-trade-api/docs)
-- Market analysis powered by [OpenAI GPT-4o Vision](https://openai.com/index/gpt-4o-vision/)
-- Historical 5-minute candle data from [Coinbase Advanced Trade API](https://docs.cloud.coinbase.com/advanced-trade-api/docs/welcome)
+- 5-minute candle data from [Coinbase Advanced Trade API](https://docs.cloud.coinbase.com/advanced-trade-api/docs/welcome)
+- Technical indicators implementation based on standard TA-Lib formulas
 - Email notifications via [Mailjet](https://www.mailjet.com/)
+- Inspired by classic momentum breakout strategies (Bollinger Band squeeze, volatility expansion)
