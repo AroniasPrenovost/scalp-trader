@@ -29,6 +29,7 @@ import statistics
 from utils.file_helpers import get_property_values_from_crypto_file
 from utils.coinbase import get_asset_price, get_last_order_from_local_json_ledger, detect_stored_coinbase_order_type
 from utils.momentum_divergence_strategy import check_divergence_signal
+from utils.mtf_momentum_breakout_strategy import check_mtf_breakout_signal
 from utils.price_helpers import calculate_rsi
 
 
@@ -144,14 +145,16 @@ def score_volatility_component(prices):
 def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current_price, range_percentage_from_min,
                      entry_fee_pct=0.6, exit_fee_pct=0.6, tax_rate_pct=37.0, all_asset_data=None):
     """
-    Score a single asset's trade opportunity quality using Momentum Divergence Strategy.
+    Score a single asset's trade opportunity quality using Multi-Timeframe Momentum Breakout Strategy.
 
     Strategy Flow:
-    1. Calculate composite market return (average across all assets)
-    2. Calculate divergence between market and this asset
-    3. Calculate correlation between market and this asset
-    4. Generate LONG signal if asset is lagging a strong market move
-    5. Score based on divergence strength and correlation
+    1. Check Daily trend filter (price > 200-MA)
+    2. Detect 4H Bollinger Band squeeze (consolidation)
+    3. Confirm 4H breakout above upper BB
+    4. Verify volume spike (2.0x average)
+    5. Check RSI momentum (50-70 range)
+    6. Confirm MACD histogram (positive and increasing)
+    7. Calculate entry/stop/target based on ATR
 
     Args:
         symbol: Asset symbol (e.g. 'BTC-USD')
@@ -163,24 +166,24 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
         entry_fee_pct: Entry fee percentage (default: 0.6%)
         exit_fee_pct: Exit fee percentage (default: 0.6%)
         tax_rate_pct: Tax rate percentage (default: 37%)
-        all_asset_data: Dict of {symbol: [prices]} for all enabled assets (required for divergence calculation)
+        all_asset_data: Dict of {symbol: [prices]} for all enabled assets (legacy param, unused in MTF strategy)
 
     Returns:
         Dictionary with:
         {
             'symbol': 'BTC-USD',
             'score': 85.5,  # 0-100, higher = better opportunity
-            'strategy': 'momentum_divergence',
-            'strategy_type': 'momentum_divergence_long',
+            'strategy': 'mtf_momentum_breakout',
+            'strategy_type': 'mtf_momentum_breakout',
             'signal': 'buy' or 'no_signal',
             'confidence': 'high' or 'medium' or 'low',
-            'reasoning': 'MOMENTUM DIVERGENCE (LONG): Market moved +2.5%...',
+            'reasoning': 'MTF MOMENTUM BREAKOUT (LONG): 4H squeeze breakout...',
             'entry_price': 50000.0,
-            'stop_loss': 49500.0,  # -1% stop
-            'profit_target': 51250.0,  # +2.5% target
+            'stop_loss': 48000.0,  # 2x ATR below entry
+            'profit_target': 53750.0,  # +7.5% target
             'risk_reward_ratio': 2.5,
             'can_trade': True,  # False if position already open
-            'scalp_metrics': {...}  # Divergence metrics
+            'scalp_metrics': {...}  # MTF metrics (daily_trend, bb_squeeze, volume_confirmed, etc.)
         }
     """
 
@@ -188,8 +191,8 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
     result = {
         'symbol': symbol,
         'score': 0,
-        'strategy': 'momentum_divergence',
-        'strategy_type': None,  # Will be: 'momentum_divergence_long'
+        'strategy': 'mtf_momentum_breakout',
+        'strategy_type': None,
         'signal': 'no_signal',
         'confidence': 'low',
         'reasoning': '',
@@ -198,7 +201,7 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
         'profit_target': None,
         'risk_reward_ratio': None,
         'can_trade': True,
-        'scalp_metrics': None,  # Divergence metrics (market_return, asset_return, divergence, correlation)
+        'scalp_metrics': None,
         'analysis_price': current_price  # Current price for delta tracking
     }
 
@@ -258,57 +261,109 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
 
         # Don't return early - we still want to score it to see if it would be a good opportunity
 
-    # Insufficient data check (need at least lookback window + 1)
-    momentum_divergence_config = config.get('momentum_divergence', {})
-    lookback_window = momentum_divergence_config.get('lookback_window', 6)
+    # ========================================
+    # MULTI-TIMEFRAME MOMENTUM BREAKOUT DETECTION
+    # ========================================
+    # Check for MTF momentum breakout signals
+    # Requires 5-minute candle data (aggregated to 4H and Daily)
+    mtf_config = config.get('mtf_momentum_breakout', {})
 
-    if not coin_prices_list or len(coin_prices_list) < lookback_window + 1:
-        result['reasoning'] = f"Insufficient price data ({len(coin_prices_list) if coin_prices_list else 0} points, need {lookback_window + 1}+)"
+    if not mtf_config.get('enabled', False):
+        # Fall back to legacy momentum divergence strategy if MTF is disabled
+        momentum_divergence_config = config.get('momentum_divergence', {})
+        lookback_window = momentum_divergence_config.get('lookback_window', 6)
+
+        if not coin_prices_list or len(coin_prices_list) < lookback_window + 1:
+            result['reasoning'] = f"Insufficient price data ({len(coin_prices_list) if coin_prices_list else 0} points, need {lookback_window + 1}+)"
+            return result
+
+        if not all_asset_data:
+            result['reasoning'] = "Missing all_asset_data for divergence calculation"
+            return result
+
+        divergence_signal = check_divergence_signal(
+            symbol=symbol,
+            asset_prices=coin_prices_list,
+            all_asset_data=all_asset_data,
+            current_price=current_price,
+            lookback_window=lookback_window,
+            entry_threshold=momentum_divergence_config.get('entry_threshold', 0.02),
+            divergence_threshold=momentum_divergence_config.get('divergence_threshold', 0.01),
+            correlation_min=momentum_divergence_config.get('correlation_min', 0.6),
+            stop_loss_pct=momentum_divergence_config.get('stop_loss', -0.01),
+            take_profit_pct=momentum_divergence_config.get('take_profit', 0.025),
+            entry_fee_pct=entry_fee_pct,
+            exit_fee_pct=exit_fee_pct,
+            tax_rate_pct=tax_rate_pct
+        )
+
+        if not divergence_signal:
+            result['reasoning'] = "Failed to analyze momentum divergence"
+            return result
+
+        result['scalp_metrics'] = divergence_signal.get('metrics', {})
+        result['reasoning'] = divergence_signal.get('reason', divergence_signal.get('reasoning', ''))
+
+        if divergence_signal['signal'] == 'buy':
+            result['signal'] = 'buy'
+            result['strategy'] = 'momentum_divergence'
+            result['strategy_type'] = divergence_signal.get('strategy', 'momentum_divergence_long')
+            result['confidence'] = divergence_signal.get('confidence', 'medium')
+            result['entry_price'] = divergence_signal.get('entry_price')
+            result['stop_loss'] = divergence_signal.get('stop_loss')
+            result['profit_target'] = divergence_signal.get('profit_target')
+
+            if result['entry_price'] and result['stop_loss'] and result['profit_target']:
+                risk = result['entry_price'] - result['stop_loss']
+                reward = result['profit_target'] - result['entry_price']
+                if risk > 0:
+                    result['risk_reward_ratio'] = reward / risk
+
+            base_score = 60
+            if result['confidence'] == 'high':
+                base_score += 25
+            elif result['confidence'] == 'medium':
+                base_score += 15
+            elif result['confidence'] == 'low':
+                base_score += 5
+
+            result['score'] = min(100, base_score)
+        else:
+            result['signal'] = 'no_signal'
+            result['score'] = 0
+
         return result
 
-    # Validate all_asset_data is provided
-    if not all_asset_data:
-        result['reasoning'] = "Missing all_asset_data for divergence calculation"
-        return result
-
-    # ========================================
-    # MOMENTUM DIVERGENCE DETECTION
-    # ========================================
-    # Check for momentum divergence signals (laggard on market moves)
-    # Requires data from ALL assets to calculate composite market return
-    divergence_signal = check_divergence_signal(
+    # MTF Momentum Breakout Strategy (primary strategy when enabled)
+    mtf_signal = check_mtf_breakout_signal(
         symbol=symbol,
-        asset_prices=coin_prices_list,
-        all_asset_data=all_asset_data,
+        data_directory='coinbase-data',
         current_price=current_price,
-        lookback_window=lookback_window,
-        entry_threshold=momentum_divergence_config.get('entry_threshold', 0.02),
-        divergence_threshold=momentum_divergence_config.get('divergence_threshold', 0.01),
-        correlation_min=momentum_divergence_config.get('correlation_min', 0.6),
-        stop_loss_pct=momentum_divergence_config.get('stop_loss', -0.01),
-        take_profit_pct=momentum_divergence_config.get('take_profit', 0.025),
         entry_fee_pct=entry_fee_pct,
         exit_fee_pct=exit_fee_pct,
-        tax_rate_pct=tax_rate_pct
+        tax_rate_pct=tax_rate_pct,
+        atr_stop_multiplier=mtf_config.get('atr_stop_multiplier', 2.0),
+        target_profit_pct=mtf_config.get('target_profit_pct', 7.5),
+        max_age_hours=720  # 30 days of data
     )
 
-    if not divergence_signal:
-        result['reasoning'] = "Failed to analyze momentum divergence"
+    if not mtf_signal:
+        result['reasoning'] = "Failed to analyze MTF momentum breakout"
         return result
 
-    # Store divergence metrics for display
-    result['scalp_metrics'] = divergence_signal.get('metrics', {})
-    result['reasoning'] = divergence_signal.get('reason', divergence_signal.get('reasoning', ''))
+    # Store MTF metrics for display
+    result['scalp_metrics'] = mtf_signal.get('metrics', {})
+    result['reasoning'] = mtf_signal.get('reasoning', '')
 
     # Check if we have a BUY signal
-    if divergence_signal['signal'] == 'buy':
-        # Valid divergence setup found!
+    if mtf_signal['signal'] == 'buy':
+        # Valid MTF breakout setup found!
         result['signal'] = 'buy'
-        result['strategy_type'] = divergence_signal.get('strategy', 'momentum_divergence_long')
-        result['confidence'] = divergence_signal.get('confidence', 'medium')
-        result['entry_price'] = divergence_signal.get('entry_price')
-        result['stop_loss'] = divergence_signal.get('stop_loss')
-        result['profit_target'] = divergence_signal.get('profit_target')
+        result['strategy_type'] = 'mtf_momentum_breakout'
+        result['confidence'] = mtf_signal.get('confidence', 'medium')
+        result['entry_price'] = mtf_signal.get('entry_price')
+        result['stop_loss'] = mtf_signal.get('stop_loss')
+        result['profit_target'] = mtf_signal.get('profit_target')
 
         # Calculate risk/reward ratio
         if result['entry_price'] and result['stop_loss'] and result['profit_target']:
@@ -317,38 +372,29 @@ def score_opportunity(symbol, config, coinbase_client, coin_prices_list, current
             if risk > 0:
                 result['risk_reward_ratio'] = reward / risk
 
-        # Calculate score based on divergence quality
-        # Base score starts at 60
-        base_score = 60
+        # Calculate score based on MTF signal quality
+        # Base score starts at 65 (higher than divergence due to multi-timeframe confirmation)
+        base_score = 65
 
         # Bonus for confidence level
         if result['confidence'] == 'high':
-            base_score += 25  # High correlation + strong divergence
+            base_score += 25  # All confirmations strong
         elif result['confidence'] == 'medium':
-            base_score += 15  # Good correlation or moderate divergence
+            base_score += 15  # Most confirmations met
         elif result['confidence'] == 'low':
             base_score += 5  # Minimum requirements met
 
-        # Bonus for strong correlation (from metrics)
-        if result['scalp_metrics']:
-            correlation = result['scalp_metrics'].get('correlation', 0)
-            if correlation >= 0.8:
-                base_score += 10  # Very strong follower
-            elif correlation >= 0.7:
-                base_score += 5  # Strong follower
+        # Bonus for strong daily trend (from metrics)
+        if result['scalp_metrics'] and result['scalp_metrics'].get('daily_trend') == 'bullish':
+            base_score += 5  # Daily trend aligned
 
-        # Bonus for large divergence (from metrics)
-        if result['scalp_metrics']:
-            divergence = abs(result['scalp_metrics'].get('divergence', 0))
-            divergence_threshold = momentum_divergence_config.get('divergence_threshold', 0.01) * 100
-            if divergence >= divergence_threshold * 2:  # 2x the threshold
-                base_score += 10  # Significant lag
-            elif divergence >= divergence_threshold * 1.5:  # 1.5x the threshold
-                base_score += 5  # Moderate lag
+        # Bonus for good risk/reward
+        if result.get('risk_reward_ratio', 0) >= 2.5:
+            base_score += 5  # Excellent risk/reward
 
         result['score'] = min(100, base_score)
     else:
-        # No signal - waiting for divergence setup
+        # No signal - waiting for MTF setup
         result['signal'] = 'no_signal'
         result['score'] = 0
 

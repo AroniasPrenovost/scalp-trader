@@ -43,7 +43,7 @@
         "enabled": true,
         "ready_to_trade": false,
         "starting_capital_usd": 4500,
-        "comment": ""
+        "comment": "Highest liquidity - recommended for live trading"
       },
       {
         "title": "ETH",
@@ -51,7 +51,7 @@
         "enabled": true,
         "ready_to_trade": false,
         "starting_capital_usd": 4500,
-        "comment": ""
+        "comment": "High liquidity - recommended for live trading"
       },
       {
         "title": "SOL",
@@ -59,7 +59,7 @@
         "enabled": true,
         "ready_to_trade": false,
         "starting_capital_usd": 4500,
-        "comment": ""
+        "comment": "High liquidity - recommended for live trading"
       },
       {
         "title": "AVAX",
@@ -67,7 +67,7 @@
         "enabled": true,
         "ready_to_trade": false,
         "starting_capital_usd": 4500,
-        "comment": ""
+        "comment": "L1 blockchain - high volatility (10-20% moves), good for MTF momentum strategy"
       },
       {
         "title": "LINK",
@@ -75,31 +75,71 @@
         "enabled": true,
         "ready_to_trade": false,
         "starting_capital_usd": 4500,
-        "comment": ""
+        "comment": "DeFi oracle standard - strong momentum patterns and reliable trends"
       },
       {
-        "title": "UNI",
-        "symbol": "UNI-USD",
+        "title": "ADA",
+        "symbol": "ADA-USD",
         "enabled": true,
         "ready_to_trade": false,
         "starting_capital_usd": 4500,
-        "comment": ""
+        "comment": "High-liquidity major alt - excellent trend-following behavior for MTF strategy"
       },
       {
-        "title": "XRP",
-        "symbol": "XRP-USD",
+        "title": "LTC",
+        "symbol": "LTC-USD",
         "enabled": true,
         "ready_to_trade": false,
         "starting_capital_usd": 4500,
-        "comment": ""
+        "comment": "Proven liquidity major - reliable technical patterns and 200-MA respect"
+      },
+      {
+        "title": "ATOM",
+        "symbol": "ATOM-USD",
+        "enabled": true,
+        "ready_to_trade": false,
+        "starting_capital_usd": 4500,
+        "comment": "Cosmos ecosystem - strong trend-following and 5-15% swing potential"
       },
       {
         "title": "NEAR",
         "symbol": "NEAR-USD",
-        "enabled": true,
+        "enabled": false,
         "ready_to_trade": false,
         "starting_capital_usd": 4500,
-        "comment": ""
+        "comment": "Optional 9th coin - high volatility, good BB squeeze patterns"
+      },
+      {
+        "title": "UNI",
+        "symbol": "UNI-USD",
+        "enabled": false,
+        "ready_to_trade": false,
+        "starting_capital_usd": 4500,
+        "comment": "Optional 10th coin - DeFi DEX leader, strong momentum patterns"
+      },
+      {
+        "title": "ALGO",
+        "symbol": "ALGO-USD",
+        "enabled": false,
+        "ready_to_trade": false,
+        "starting_capital_usd": 4500,
+        "comment": "REMOVED - Insufficient volatility for 7.5% targets"
+      },
+      {
+        "title": "XRP",
+        "symbol": "XRP-USD",
+        "enabled": false,
+        "ready_to_trade": false,
+        "starting_capital_usd": 4500,
+        "comment": "REMOVED - News-driven rather than technical, choppy patterns"
+      },
+      {
+        "title": "DOGE",
+        "symbol": "DOGE-USD",
+        "enabled": false,
+        "ready_to_trade": false,
+        "starting_capital_usd": 4500,
+        "comment": "REMOVED - Meme coin with unreliable BB squeeze patterns"
       }
     ]
 }
