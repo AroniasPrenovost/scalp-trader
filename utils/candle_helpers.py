@@ -1,8 +1,105 @@
 """
-Candle Data Collection Helpers
+5-Minute Candle Data Collection Helpers
 
 Functions for fetching and storing 5-minute candle data from Coinbase Advanced API.
 Designed to integrate with the main index.py loop.
+
+OVERVIEW
+========
+Your trading bot collects 5-minute candles from Coinbase Advanced API instead of 30-second ticker snapshots.
+
+Benefits:
+- Better correlation calculations (consistent intervals)
+- Lower API usage (5 min vs 30 sec = 90% reduction)
+- Perfect alignment with momentum divergence strategy
+
+DATA FLOW
+=========
+1. BACKFILL (One-time or as needed)
+   backfill_coinbase_candles.py --days 90
+   → Populates /coinbase-data/*.json with historical data
+
+2. LIVE COLLECTION (Continuous via index.py)
+   Every 5 minutes, index.py fetches latest candle
+   → Appends to same /coinbase-data/*.json files
+   → Auto-deduplicates (skips existing timestamps)
+   → Auto-cleanup (keeps only max_hours from config)
+
+3. STRATEGY EXECUTION (index.py uses this data)
+   Your momentum divergence strategy reads candles
+   → Calculates correlations over LOOKBACK_WINDOW
+   → Identifies divergence opportunities
+   → Executes trades
+
+USAGE IN INDEX.PY
+=================
+from utils.candle_helpers import fetch_latest_5min_candle, candle_to_data_entry
+
+for product_id in enabled_wallets:
+    # Fetch most recent completed 5-minute candle
+    candle = fetch_latest_5min_candle(coinbase_client, product_id)
+
+    # Transform to same format as before
+    data_entry = candle_to_data_entry(candle, product_id)
+    # → {timestamp, product_id, price, volume_24h}
+
+    # Append to /coinbase-data/{product_id}.json
+    append_crypto_data_to_file(coinbase_data_directory, product_id, data_entry)
+
+DATA FORMAT
+===========
+Each /coinbase-data/{ASSET}.json file contains:
+[
+  {
+    "timestamp": 1768690800.0,        # Unix timestamp in seconds (5-min intervals)
+    "product_id": "BTC-USD",
+    "price": "95095.97",              # Close price of the 5-minute candle
+    "volume_24h": "10.84506839"       # Volume in base currency
+  },
+  ...
+]
+
+CONFIGURATION
+=============
+In config.json:
+{
+  "data_retention": {
+    "max_hours": 4380,        // Keep 6 months (auto-cleanup)
+    "interval_seconds": 300   // 5 minutes = 300 seconds
+  },
+  "momentum_divergence": {
+    "lookback_window": 6      // 6 candles = 30 minutes
+  }
+}
+
+COMMANDS
+========
+# Backfill historical data
+python3 backfill_coinbase_candles.py --days 90
+
+# Run live trading (auto-collects candles every 5 minutes)
+python3 index.py
+
+# Test integration
+python3 test_candle_collection.py
+
+TROUBLESHOOTING
+===============
+"No candles returned"
+  - Asset might be delisted or disabled
+  - Check Coinbase status: https://status.coinbase.com/
+
+"Duplicate candle"
+  - Normal! index.py skips candles that already exist
+  - Prevents data corruption from overlapping runs
+
+"File not found"
+  - Run backfill first: python3 backfill_coinbase_candles.py
+  - Or wait for index.py to collect first candle (5 min)
+
+Missing candles (coverage < 95%)
+  - Some gaps are normal (Coinbase API limits, network issues)
+  - Re-run backfill to fill gaps
 """
 
 import time
