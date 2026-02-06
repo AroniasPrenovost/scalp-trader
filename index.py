@@ -21,6 +21,9 @@ from utils.profit_calculator import calculate_net_profit_from_price_move
 # Wallet metrics helpers
 from utils.wallet_helpers import calculate_wallet_metrics
 
+# Display helpers for periodic summary and position breakdown
+from utils.display_helpers import print_periodic_summary, print_position_breakdown
+
 # Matplotlib for charting
 from utils.matplotlib import plot_graph, plot_coinbase_metrics_chart
 
@@ -160,7 +163,31 @@ def load_last_screenshot_cleanup_time():
         return 0
 
 #
+# Periodic summary timestamp persistence
 #
+PERIODIC_SUMMARY_TIMESTAMP_FILE = 'local-state/last_periodic_summary.json'
+
+def save_last_periodic_summary_time(timestamp):
+    """Save the last periodic summary timestamp to a file"""
+    try:
+        with open(PERIODIC_SUMMARY_TIMESTAMP_FILE, 'w') as file:
+            json.dump({'last_periodic_summary': timestamp}, file, indent=4)
+    except Exception as e:
+        print(f"Warning: Failed to save periodic summary timestamp: {e}")
+
+def load_last_periodic_summary_time():
+    """Load the last periodic summary timestamp from file, return 0 if file doesn't exist"""
+    try:
+        if os.path.exists(PERIODIC_SUMMARY_TIMESTAMP_FILE):
+            with open(PERIODIC_SUMMARY_TIMESTAMP_FILE, 'r') as file:
+                data = json.load(file)
+                return data.get('last_periodic_summary', 0)
+        else:
+            return 0
+    except Exception as e:
+        print(f"Warning: Failed to load periodic summary timestamp: {e}")
+        return 0
+
 #
 #
 
@@ -216,6 +243,15 @@ if LAST_SCREENSHOT_CLEANUP_TIME > 0:
     hours_since = (time.time() - LAST_SCREENSHOT_CLEANUP_TIME) / 3600
     print(f"Loaded last screenshot cleanup timestamp: {hours_since:.2f} hours ago\n")
 
+# Load last periodic summary time from file (for crash recovery)
+LAST_PERIODIC_SUMMARY_TIME = load_last_periodic_summary_time()
+if LAST_PERIODIC_SUMMARY_TIME > 0:
+    hours_since = (time.time() - LAST_PERIODIC_SUMMARY_TIME) / 3600
+    print(f"Loaded last periodic summary timestamp: {hours_since:.2f} hours ago\n")
+
+# Track bot start time for uptime display
+BOT_START_TIME = time.time()
+
 def iterate_wallets(data_collection_interval_seconds):
     # Ensure screenshots directory exists
     os.makedirs('screenshots', exist_ok=True)
@@ -237,6 +273,7 @@ def iterate_wallets(data_collection_interval_seconds):
         global LAST_EXCEPTION_ERROR_COUNT
         global LAST_DATA_COLLECTION_TIME
         global LAST_SCREENSHOT_CLEANUP_TIME
+        global LAST_PERIODIC_SUMMARY_TIME
 
         # Load config at the start of each iteration (fast operation)
         config = load_config('config.json')
@@ -253,10 +290,12 @@ def iterate_wallets(data_collection_interval_seconds):
             federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
             fee_rates = get_current_fee_rates(coinbase_client)
             # NOTE: Using TAKER fees because we place MARKET orders (not limit orders)
-            # Maker = adds liquidity to order book (lower fee: 0.125%) - used for limit orders
-            # Taker = takes liquidity from order book (higher fee: 0.250%) - used for market orders
+            # Maker = adds liquidity to order book (lower fee: ~0.125%) - used for limit orders
+            # Taker = takes liquidity from order book (higher fee: ~0.250%) - used for market orders
             coinbase_spot_taker_fee = fee_rates['taker_fee'] if fee_rates else 0.250  # Fallback: 0.250% taker fee
-            coinbase_spot_maker_fee = fee_rates['maker_fee'] if fee_rates else 0.125  # Fallback: 0.125% maker fee (not used)
+            coinbase_spot_maker_fee = fee_rates['maker_fee'] if fee_rates else 0.125  # Fallback: 0.125% maker fee
+            # Use taker fee for all calculations (market orders)
+            coinbase_spot_fee = coinbase_spot_taker_fee
 
             # Extract wallet and trading settings from config
             enabled_wallets = [wallet['symbol'] for wallet in config['wallets'] if wallet['enabled']]
@@ -313,10 +352,9 @@ def iterate_wallets(data_collection_interval_seconds):
         # SCREENSHOT CLEANUP: Run periodically based on config
         #
         screenshot_config = config.get('screenshot', {})
-        screenshot_cleanup_enabled = screenshot_config.get('enabled', True)
         screenshot_cleanup_interval_hours = 6  # Run cleanup every 6 hours
 
-        if screenshot_cleanup_enabled:
+        if True:  # Always run cleanup (buy/sell screenshots accumulate regardless)
             time_since_last_cleanup = current_time - LAST_SCREENSHOT_CLEANUP_TIME
             should_run_screenshot_cleanup = time_since_last_cleanup >= (screenshot_cleanup_interval_hours * 3600)
 
@@ -337,6 +375,32 @@ def iterate_wallets(data_collection_interval_seconds):
                         print(f"{Colors.GREEN}✓ Screenshot cleanup completed: No files to delete{Colors.ENDC}\n")
                 except Exception as e:
                     print(f"{Colors.RED}Error during screenshot cleanup: {e}{Colors.ENDC}\n")
+
+        #
+        # PERIODIC SUMMARY: Print performance table every N hours
+        #
+        logging_config = config.get('logging', {})
+        periodic_summary_enabled = logging_config.get('asset_performance_table', False)
+        periodic_summary_interval_hours = logging_config.get('periodic_summary_interval_hours', 6)
+
+        if periodic_summary_enabled:
+            time_since_last_summary = current_time - LAST_PERIODIC_SUMMARY_TIME
+            should_run_periodic_summary = time_since_last_summary >= (periodic_summary_interval_hours * 3600)
+
+            if should_run_periodic_summary:
+                try:
+                    # Get fee rates for summary (may already be loaded if data collection ran)
+                    if not should_run_data_collection:
+                        federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
+                        fee_rates = get_current_fee_rates(coinbase_client)
+                        coinbase_spot_fee = fee_rates['taker_fee'] if fee_rates else 0.250
+
+                    print_periodic_summary(config, coinbase_client, coinbase_spot_fee, federal_tax_rate, bot_start_time=BOT_START_TIME)
+
+                    LAST_PERIODIC_SUMMARY_TIME = time.time()
+                    save_last_periodic_summary_time(LAST_PERIODIC_SUMMARY_TIME)
+                except Exception as e:
+                    print(f"{Colors.RED}Error during periodic summary: {e}{Colors.ENDC}\n")
 
         #
         #
@@ -370,7 +434,7 @@ def iterate_wallets(data_collection_interval_seconds):
                                 pending_order_symbols.append(symbol)
     
                     if market_rotation_enabled:
-                        from utils.mtf_opportunity_scorer import find_best_opportunity, find_best_opportunities, print_opportunity_report, score_opportunity
+                        from utils.rsi_opportunity_scorer import find_best_opportunity, find_best_opportunities, print_opportunity_report, score_opportunity
     
                         rotation_mode = market_rotation_config.get('mode', 'single_best_opportunity')
                         max_concurrent_orders = market_rotation_config.get('max_concurrent_orders', 5)
@@ -406,8 +470,8 @@ def iterate_wallets(data_collection_interval_seconds):
                                 min_score=min_score,
                                 return_multiple=True,
                                 max_opportunities=max_concurrent_orders,
-                                entry_fee_pct=coinbase_spot_taker_fee,
-                                exit_fee_pct=coinbase_spot_taker_fee,
+                                entry_fee_pct=coinbase_spot_fee,
+                                exit_fee_pct=coinbase_spot_fee,
                                 tax_rate_pct=federal_tax_rate
                             )
                             best_opportunity = racing_opportunities[0] if racing_opportunities else None
@@ -420,8 +484,8 @@ def iterate_wallets(data_collection_interval_seconds):
                                 interval_seconds=INTERVAL_SECONDS,
                                 data_retention_hours=DATA_RETENTION_HOURS,
                                 min_score=min_score,
-                                entry_fee_pct=coinbase_spot_taker_fee,
-                                exit_fee_pct=coinbase_spot_taker_fee,
+                                entry_fee_pct=coinbase_spot_fee,
+                                exit_fee_pct=coinbase_spot_fee,
                                 tax_rate_pct=federal_tax_rate
                             )
     
@@ -464,7 +528,7 @@ def iterate_wallets(data_collection_interval_seconds):
                                     continue
     
                             trading_capital = market_rotation_config.get('total_trading_capital_usd', 100)
-                            print_opportunity_report(all_opportunities, best_opportunity, racing_opportunities, current_prices, coinbase_spot_taker_fee, federal_tax_rate, trading_capital, config)
+                            print_opportunity_report(all_opportunities, best_opportunity, racing_opportunities, current_prices, coinbase_spot_fee, federal_tax_rate, trading_capital, config)
     
                         if best_opportunity:
                             best_opportunity_symbol = best_opportunity['symbol']
@@ -636,35 +700,33 @@ def iterate_wallets(data_collection_interval_seconds):
                         # Note: last_order and last_order_type already retrieved above (before volatility check)
                         entry_price = 0
                         # print(f"[MAIN] Last order type detected: '{last_order_type}'")
-    
-                        # ITERATION SCREENSHOTS: Take screenshot if enabled (moved before analysis check)
+
+                        # ITERATION SCREENSHOTS: Debug/monitoring charts (controlled by screenshot.enabled in config)
                         screenshot_config = config.get('screenshot', {})
-                        if screenshot_config.get('enabled', False):
+                        if screenshot_config.get('enabled', False) and (READY_TO_TRADE or has_open_position):
                             # Use ALL available data points for iteration screenshots
                             if coin_prices_LIST and len(coin_prices_LIST) > 0:
                                 try:
                                     iteration_chart_min = min(coin_prices_LIST)
                                     iteration_chart_max = max(coin_prices_LIST)
                                     iteration_chart_range_pct = calculate_percentage_from_min(iteration_chart_min, iteration_chart_max)
-                                    # print(f"DEBUG: Calculated chart params - min: {iteration_chart_min}, max: {iteration_chart_max}, range: {iteration_chart_range_pct}%")
-    
+
                                     # Determine entry price for chart (if in position)
                                     chart_entry_price = entry_price if last_order_type in ['placeholder', 'buy'] else 0
-    
+
                                     # Calculate timeframe label based on total data span
                                     total_hours = (len(coin_prices_LIST) * INTERVAL_SAVE_DATA_EVERY_X_MINUTES) / 60
-                                    if total_hours >= 8760:  # 1 year or more
+                                    if total_hours >= 8760:
                                         timeframe_label = f"{int(total_hours / 8760)}y"
-                                    elif total_hours >= 720:  # 1 month or more
+                                    elif total_hours >= 720:
                                         timeframe_label = f"{int(total_hours / 720)}mo"
-                                    elif total_hours >= 168:  # 1 week or more
+                                    elif total_hours >= 168:
                                         timeframe_label = f"{int(total_hours / 168)}w"
-                                    elif total_hours >= 24:  # 1 day or more
+                                    elif total_hours >= 24:
                                         timeframe_label = f"{int(total_hours / 24)}d"
                                     else:
                                         timeframe_label = f"{int(total_hours)}h"
-    
-                                    # print(f"DEBUG: Calling plot_graph for {symbol} with {len(coin_prices_LIST)} data points, timeframe: {timeframe_label}")
+
                                     iteration_screenshot_path = plot_graph(
                                         time.time(),
                                         INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
@@ -674,21 +736,16 @@ def iterate_wallets(data_collection_interval_seconds):
                                         iteration_chart_max,
                                         iteration_chart_range_pct,
                                         chart_entry_price,
-                                        analysis=None,  # Don't include analysis on iteration screenshots
+                                        analysis=None,
                                         event_type=None,
                                         screenshot_type='iteration',
                                         timeframe_label=timeframe_label
                                     )
-    
-                                    print(f"DEBUG: plot_graph returned: {iteration_screenshot_path}")
+
                                     if iteration_screenshot_path:
                                         print(f"📸 Iteration screenshot saved: {iteration_screenshot_path}")
-                                    else:
-                                        pass
-                                        # print(f"DEBUG: plot_graph returned None for {symbol}")
-    
+
                                     # COINBASE METRICS SCREENSHOT: Generate correlation chart
-                                    # Get all Coinbase metrics data for correlation analysis
                                     coin_volume_24h_LIST = get_property_values_from_crypto_file(
                                         coinbase_data_directory, symbol, 'volume_24h', max_age_hours=DATA_RETENTION_HOURS
                                     )
@@ -698,13 +755,9 @@ def iterate_wallets(data_collection_interval_seconds):
                                     coin_volume_pct_change_24h_LIST = get_property_values_from_crypto_file(
                                         coinbase_data_directory, symbol, 'volume_percentage_change_24h', max_age_hours=DATA_RETENTION_HOURS
                                     )
-    
-                                    # Generate metrics correlation chart if we have data
-                                    print(f"DEBUG: Metrics data lengths - volume_24h: {len(coin_volume_24h_LIST) if coin_volume_24h_LIST else 0}, price_pct: {len(coin_price_pct_change_24h_LIST) if coin_price_pct_change_24h_LIST else 0}, volume_pct: {len(coin_volume_pct_change_24h_LIST) if coin_volume_pct_change_24h_LIST else 0}")
+
                                     if (coin_volume_24h_LIST and coin_price_pct_change_24h_LIST and
                                         coin_volume_pct_change_24h_LIST and len(coin_prices_LIST) > 0):
-    
-                                        print(f"DEBUG: Calling plot_coinbase_metrics_chart for {symbol}")
                                         metrics_screenshot_path = plot_coinbase_metrics_chart(
                                             time.time(),
                                             INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
@@ -717,21 +770,11 @@ def iterate_wallets(data_collection_interval_seconds):
                                             screenshot_type='iteration',
                                             timeframe_label=timeframe_label
                                         )
-    
-                                        print(f"DEBUG: plot_coinbase_metrics_chart returned: {metrics_screenshot_path}")
                                         if metrics_screenshot_path:
                                             print(f"📊 Metrics correlation screenshot saved: {metrics_screenshot_path}")
-                                        else:
-                                            print(f"DEBUG: plot_coinbase_metrics_chart returned None for {symbol}")
-                                    else:
-                                        print(f"DEBUG: Skipping metrics screenshot - missing data for {symbol}")
                                 except Exception as e:
                                     print(f"{Colors.RED}Error generating screenshots for {symbol}: {e}{Colors.ENDC}")
-                                    import traceback
-                                    traceback.print_exc()
-                            else:
-                                print(f"DEBUG: Skipping screenshot for {symbol} - no price data available")
-    
+
                         #
                         #
                         #
@@ -776,12 +819,13 @@ def iterate_wallets(data_collection_interval_seconds):
                                     'source': 'market_rotation',
                                     'strategy': opp_data.get('strategy', 'momentum_scalping'),
                                     'strategy_type': opp_data.get('strategy_type', 'unknown'),
-                                    'entry_price': opp_data.get('entry_price'),  # For scalping mode
-                                    'stop_loss': opp_data.get('stop_loss'),       # For scalping mode
-                                    'profit_target': opp_data.get('profit_target'),  # For scalping mode
+                                    'entry_price': opp_data.get('entry_price'),
+                                    'stop_loss': opp_data.get('stop_loss'),
+                                    'profit_target': opp_data.get('profit_target'),
                                     'confidence_level': opp_data.get('confidence', 'high'),
                                     'recommendation': 'buy',
-                                    'reasoning': opp_data.get('reasoning', '')
+                                    'reasoning': opp_data.get('reasoning', ''),
+                                    'metrics': opp_data.get('metrics', {})
                                 }
                             else:
                                 # Fallback if opportunity data is missing
@@ -1069,14 +1113,14 @@ def iterate_wallets(data_collection_interval_seconds):
                                         # So: subtotal * (1 + fee_rate/100) = buy_amount
                                         # Therefore: subtotal = buy_amount / (1 + fee_rate/100)
     
-                                        fee_multiplier = 1 + (coinbase_spot_taker_fee / 100)
+                                        fee_multiplier = 1 + (coinbase_spot_fee / 100)
                                         subtotal_amount = buy_amount / fee_multiplier
                                         shares_calculation = subtotal_amount / current_price
     
                                         if shares_calculation >= 1:
                                             shares_to_buy = math.floor(shares_calculation)  # Round down to whole shares
                                             estimated_subtotal = shares_to_buy * current_price
-                                            estimated_fee = calculate_exchange_fee(current_price, shares_to_buy, coinbase_spot_taker_fee)
+                                            estimated_fee = calculate_exchange_fee(current_price, shares_to_buy, coinbase_spot_fee)
                                             estimated_total = estimated_subtotal + estimated_fee
                                             print(f"Calculated shares to buy: {shares_to_buy} whole shares")
                                             print(f"  Subtotal: ${estimated_subtotal:.2f} + Fee: ${estimated_fee:.2f} = Total: ${estimated_total:.2f} (target: ${buy_amount:.2f})")
@@ -1084,7 +1128,7 @@ def iterate_wallets(data_collection_interval_seconds):
                                             # Round fractional shares to 8 decimal places (satoshi precision)
                                             shares_to_buy = round(shares_calculation, 8)
                                             estimated_subtotal = shares_to_buy * current_price
-                                            estimated_fee = calculate_exchange_fee(current_price, shares_to_buy, coinbase_spot_taker_fee)
+                                            estimated_fee = calculate_exchange_fee(current_price, shares_to_buy, coinbase_spot_fee)
                                             estimated_total = estimated_subtotal + estimated_fee
                                             print(f"Calculated shares to buy: {shares_to_buy} fractional shares")
                                             print(f"  Subtotal: ${estimated_subtotal:.2f} + Fee: ${estimated_fee:.2f} = Total: ${estimated_total:.2f} (target: ${buy_amount:.2f})")
@@ -1279,69 +1323,14 @@ def iterate_wallets(data_collection_interval_seconds):
                                 entry_price=entry_price,
                                 exit_price=current_price,
                                 shares=number_of_shares,
-                                entry_fee_pct=coinbase_spot_taker_fee,
-                                exit_fee_pct=coinbase_spot_taker_fee,
+                                entry_fee_pct=coinbase_spot_fee,
+                                exit_fee_pct=coinbase_spot_fee,
                                 tax_rate_pct=federal_tax_rate,
                                 cost_basis_usd=entry_position_value_after_fees  # Use actual cost basis from order
                             )
     
-                            print(f"\n{Colors.BOLD}{'='*80}")
-                            print(f"📊 PROFITABILITY BREAKDOWN - {symbol}")
-                            print(f"{'='*80}{Colors.ENDC}\n")
-    
-                            # Position Details
-                            print(f"{Colors.BOLD}POSITION DETAILS:{Colors.ENDC}")
-                            print(f"  Shares: {number_of_shares:.8f}")
-                            print(f"  Entry Price: ${entry_price:.4f}")
-                            print(f"  Current Price: ${current_price:.4f}")
-                            print(f"  Price Change: {profit_calc['price_change_pct']:+.2f}%")
-                            print()
-    
-                            # Entry Costs
-                            print(f"{Colors.BOLD}ENTRY COSTS:{Colors.ENDC}")
-                            print(f"  Entry Value: ${profit_calc['entry_value_usd']:.2f}")
-                            print(f"    ({number_of_shares:.8f} shares × ${entry_price:.4f})")
-                            print(f"  Entry Fee ({coinbase_spot_taker_fee}%): ${profit_calc['entry_fee_usd']:.2f}")
-                            print(f"  {Colors.YELLOW}Total Cost Basis: ${profit_calc['cost_basis_usd']:.2f}{Colors.ENDC}")
-                            print()
-    
-                            # Current Value
-                            print(f"{Colors.BOLD}CURRENT VALUE:{Colors.ENDC}")
-                            print(f"  Market Value: ${profit_calc['exit_value_usd']:.2f}")
-                            print(f"    ({number_of_shares:.8f} shares × ${current_price:.4f})")
-                            print()
-    
-                            # Exit Costs (if sold now)
-                            print(f"{Colors.BOLD}EXIT COSTS (if sold now):{Colors.ENDC}")
-                            print(f"  Exit Fee ({coinbase_spot_taker_fee}%): ${profit_calc['exit_fee_usd']:.2f}")
-                            print(f"  Proceeds After Fee: ${profit_calc['exit_proceeds_usd']:.2f}")
-                            print()
-    
-                            # Profit Before Tax
-                            gross_profit_color = Colors.GREEN if profit_calc['gross_profit_usd'] >= 0 else Colors.RED
-                            print(f"{Colors.BOLD}PROFIT (before tax):{Colors.ENDC}")
-                            print(f"  {gross_profit_color}Gross Profit: ${profit_calc['gross_profit_usd']:+.2f}{Colors.ENDC}")
-                            print(f"    (${profit_calc['exit_proceeds_usd']:.2f} proceeds - ${profit_calc['cost_basis_usd']:.2f} cost)")
-                            print()
-    
-                            # Taxes
-                            print(f"{Colors.BOLD}TAXES:{Colors.ENDC}")
-                            if profit_calc['capital_gain_usd'] > 0:
-                                print(f"  Capital Gain: ${profit_calc['capital_gain_usd']:.2f}")
-                                print(f"  Tax Rate: {federal_tax_rate}%")
-                                print(f"  Tax Owed: ${profit_calc['tax_usd']:.2f}")
-                            else:
-                                print(f"  Capital Gain: ${profit_calc['capital_gain_usd']:.2f}")
-                                print(f"  Tax Owed: $0.00 (no tax on losses)")
-                            print()
-    
-                            # NET PROFIT (Final Take-Home)
-                            net_profit_color = Colors.GREEN if profit_calc['net_profit_usd'] >= 0 else Colors.RED
-                            print(f"{Colors.BOLD}{'='*80}")
-                            print(f"{net_profit_color}💰 NET PROFIT (Your Take-Home): ${profit_calc['net_profit_usd']:+.2f} ({profit_calc['net_profit_pct']:+.2f}%){Colors.ENDC}")
-                            print(f"{Colors.BOLD}{'='*80}{Colors.ENDC}")
-                            print(f"\n{Colors.CYAN}Formula: Market Value - Cost Basis - Exit Fee - Taxes")
-                            print(f"  ${profit_calc['exit_value_usd']:.2f} - ${profit_calc['cost_basis_usd']:.2f} - ${profit_calc['exit_fee_usd']:.2f} - ${profit_calc['tax_usd']:.2f} = ${profit_calc['net_profit_usd']:+.2f}{Colors.ENDC}\n")
+                            # Compact position breakdown (fees, taxes, net P&L)
+                            print_position_breakdown(symbol, order_data, current_price, profit_calc, coinbase_spot_fee, federal_tax_rate, analysis=analysis)
     
                             # Store values for later use
                             current_position_value_usd = profit_calc['exit_value_usd']
@@ -1533,9 +1522,141 @@ def iterate_wallets(data_collection_interval_seconds):
                                     else:
                                         print(f"{Colors.CYAN}🔒 TRAILING STOP: ${trailing_stop_price:.4f} (current: ${current_price:.4f}, buffer: ${current_price - trailing_stop_price:.4f}){Colors.ENDC}")
 
-                            # INTELLIGENT ROTATION: Check if we should exit a profitable position for a better opportunity
+                            # ============================================================
+                            # RSI MEAN REVERSION EXIT CHECK
+                            # ============================================================
+                            # For RSI mean reversion positions, check RSI-based exits:
+                            #   3. RSI full recovery (RSI >= rsi_exit)
+                            #   4. RSI partial recovery + profitable (RSI >= rsi_partial_exit AND profit > 0)
+                            # (Disaster stop handled by stop_loss above, trailing stop above, max hold by time_based_exit)
+                            if analysis and analysis.get('strategy') == 'rsi_mean_reversion':
+                                rsi_mr_config = config.get('rsi_mean_reversion', {})
+                                rsi_mr_symbols = rsi_mr_config.get('symbols', {})
+                                rsi_mr_symbol_params = rsi_mr_symbols.get(symbol, {})
+                                rsi_mr_symbol_params['rsi_period'] = rsi_mr_config.get('rsi_period', 14)
+
+                                # Also pull params from the stored analysis metrics (set at buy time)
+                                stored_metrics = analysis.get('metrics', {})
+                                if not rsi_mr_symbol_params:
+                                    # Fallback to stored metrics if symbol removed from config
+                                    rsi_mr_symbol_params = {
+                                        'rsi_period': stored_metrics.get('rsi_period', 14),
+                                        'rsi_exit': stored_metrics.get('rsi_exit_threshold', 48),
+                                        'rsi_partial_exit': stored_metrics.get('rsi_partial_exit_threshold', 35),
+                                        'timeframe_minutes': stored_metrics.get('timeframe_minutes', 15),
+                                    }
+
+                                from utils.rsi_mean_reversion_strategy import check_rsi_exit_signal
+
+                                rsi_exit_result = check_rsi_exit_signal(
+                                    symbol=symbol,
+                                    timeframe_minutes=rsi_mr_symbol_params.get('timeframe_minutes', stored_metrics.get('timeframe_minutes', 15)),
+                                    config_params=rsi_mr_symbol_params,
+                                    entry_price=entry_price,
+                                    current_price=current_price,
+                                    data_directory='coinbase-data',
+                                    max_age_hours=DATA_RETENTION_HOURS
+                                )
+
+                                rsi_current = rsi_exit_result.get('rsi_value')
+                                if rsi_current is not None:
+                                    print(f"\n{Colors.CYAN}RSI EXIT CHECK: RSI = {rsi_current:.1f} | {rsi_exit_result['reason']}{Colors.ENDC}")
+
+                                if rsi_exit_result.get('should_exit'):
+                                    print(f"{Colors.YELLOW}RSI EXIT TRIGGERED: {rsi_exit_result['reason']}{Colors.ENDC}")
+
+                                    if READY_TO_TRADE:
+                                        print('~ RSI MEAN REVERSION EXIT ~')
+
+                                        # Generate sell chart
+                                        sell_chart_hours = 2160
+                                        sell_chart_data_points = int((sell_chart_hours * 60) / INTERVAL_SAVE_DATA_EVERY_X_MINUTES)
+                                        sell_chart_prices = coin_prices_LIST[-sell_chart_data_points:] if len(coin_prices_LIST) > sell_chart_data_points else coin_prices_LIST
+                                        sell_chart_min = min(sell_chart_prices)
+                                        sell_chart_max = max(sell_chart_prices)
+                                        sell_chart_range_pct = calculate_percentage_from_min(sell_chart_min, sell_chart_max)
+
+                                        plot_graph(
+                                            time.time(),
+                                            INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                                            symbol,
+                                            sell_chart_prices,
+                                            sell_chart_min,
+                                            sell_chart_max,
+                                            sell_chart_range_pct,
+                                            entry_price,
+                                            analysis=analysis,
+                                            event_type='sell'
+                                        )
+
+                                        place_market_sell_order(coinbase_client, symbol, number_of_shares, net_profit_after_all_costs_usd, net_profit_percentage)
+
+                                        save_transaction_record(
+                                            symbol=symbol,
+                                            buy_price=entry_price,
+                                            sell_price=current_price,
+                                            gross_profit=gross_profit_before_exit_costs,
+                                            exchange_fees=exit_exchange_fee_usd,
+                                            taxes=capital_gains_tax_usd,
+                                            total_profit=net_profit_after_all_costs_usd,
+                                            last_order=order_data,
+                                            exit_reason='rsi_mean_reversion_exit'
+                                        )
+
+                                        clear_order_ledger(symbol)
+                                        print(f"{Colors.GREEN}RSI exit completed: {rsi_exit_result['reason']}{Colors.ENDC}\n")
+                                        continue  # Skip rest of sell logic
+                                    else:
+                                        print('STATUS: Trading disabled')
+
+                            # RSI CEILING ROTATION: Exit approaching-ceiling trade for fresh signal
                             should_rotate_position = False
                             rotation_reason = None
+
+                            rsi_ceiling_config = market_rotation_config.get('rsi_ceiling_rotation', {})
+                            ceiling_rotation_enabled = rsi_ceiling_config.get('enabled', False)
+
+                            if (ceiling_rotation_enabled and not should_rotate_position
+                                and analysis and analysis.get('strategy') == 'rsi_mean_reversion'
+                                and rsi_current is not None and best_opportunity):
+
+                                rsi_entry_threshold = rsi_mr_symbol_params.get('rsi_entry', 20)
+                                rsi_exit_threshold = rsi_mr_symbol_params.get('rsi_exit', 48)
+                                rsi_range = rsi_exit_threshold - rsi_entry_threshold
+
+                                recovery_pct = ((rsi_current - rsi_entry_threshold) / rsi_range) * 100 if rsi_range > 0 else 0
+
+                                min_recovery = rsi_ceiling_config.get('rsi_recovery_pct', 50)
+                                min_profit = rsi_ceiling_config.get('min_profit_pct', 0.1)
+                                min_new_score = rsi_ceiling_config.get('min_new_opportunity_score', 75)
+
+                                best_opp_symbol = best_opportunity.get('symbol')
+                                best_opp_score = best_opportunity.get('score', 0)
+
+                                print(f"\n{Colors.CYAN}RSI CEILING CHECK: RSI {rsi_current:.1f} = {recovery_pct:.0f}% recovered (threshold: {min_recovery}%){Colors.ENDC}")
+
+                                if (recovery_pct >= min_recovery
+                                    and net_profit_percentage >= min_profit
+                                    and best_opp_symbol and best_opp_symbol != symbol
+                                    and best_opp_score >= min_new_score):
+
+                                    should_rotate_position = True
+                                    rotation_reason = (
+                                        f"RSI ceiling rotation: RSI {rsi_current:.1f} ({recovery_pct:.0f}% recovered), "
+                                        f"exiting +{net_profit_percentage:.2f}% for {best_opp_symbol} (score {best_opp_score:.0f})"
+                                    )
+                                    print(f"{Colors.GREEN}-> ROTATING: {rotation_reason}{Colors.ENDC}")
+                                else:
+                                    if recovery_pct < min_recovery:
+                                        print(f"  RSI not recovered enough ({recovery_pct:.0f}% < {min_recovery}%)")
+                                    if net_profit_percentage < min_profit:
+                                        print(f"  Profit too low ({net_profit_percentage:.2f}% < {min_profit}%)")
+                                    if not best_opp_symbol or best_opp_symbol == symbol:
+                                        print(f"  No alternative opportunity")
+                                    elif best_opp_score < min_new_score:
+                                        print(f"  New opp score too low ({best_opp_score:.0f} < {min_new_score})")
+
+                            # INTELLIGENT ROTATION: Check if we should exit a profitable position for a better opportunity
     
                             intelligent_rotation_config = market_rotation_config.get('intelligent_rotation', {})
                             intelligent_rotation_enabled = intelligent_rotation_config.get('enabled', False)
@@ -1795,8 +1916,15 @@ def iterate_wallets(data_collection_interval_seconds):
                             # Execute rotation if triggered (either intelligent or early profit)
                             if should_rotate_position:
                                 # Determine rotation type for logging
-                                rotation_type = 'early_profit_rotation' if 'Early profit' in rotation_reason else 'intelligent_rotation'
-                                rotation_emoji = '💰' if rotation_type == 'early_profit_rotation' else '🔄'
+                                if 'RSI ceiling' in rotation_reason:
+                                    rotation_type = 'rsi_ceiling_rotation'
+                                    rotation_emoji = '🔄'
+                                elif 'Early profit' in rotation_reason:
+                                    rotation_type = 'early_profit_rotation'
+                                    rotation_emoji = '💰'
+                                else:
+                                    rotation_type = 'intelligent_rotation'
+                                    rotation_emoji = '🔄'
     
                                 print(f'{Colors.BOLD}{Colors.CYAN}{rotation_emoji} ROTATION TRIGGERED{Colors.ENDC}')
                                 print(f'{Colors.CYAN}Reason: {rotation_reason}{Colors.ENDC}')
@@ -1912,8 +2040,8 @@ def iterate_wallets(data_collection_interval_seconds):
                                         interval_seconds=INTERVAL_SECONDS,
                                         data_retention_hours=DATA_RETENTION_HOURS,
                                         min_score=min_score,
-                                        entry_fee_pct=coinbase_spot_taker_fee,
-                                        exit_fee_pct=coinbase_spot_taker_fee,
+                                        entry_fee_pct=coinbase_spot_fee,
+                                        exit_fee_pct=coinbase_spot_fee,
                                         tax_rate_pct=federal_tax_rate
                                     )
                                     if best_opportunity:
@@ -2180,122 +2308,6 @@ def iterate_wallets(data_collection_interval_seconds):
     
                         print('\n')
     
-    
-                    #
-                    #
-                    # ASSET PERFORMANCE SUMMARY: Show all assets ranked by P&L
-                    # Only display if enabled in config
-                    if config.get('logging', {}).get('asset_performance_table', False):
-                        # Collect data for all assets
-                        asset_performance = []
-                        for summary_symbol in enabled_wallets:
-                            summary_order = get_last_order_from_local_json_ledger(summary_symbol)
-                            summary_order_type = detect_stored_coinbase_order_type(summary_order)
-                            summary_has_position = summary_order_type in ['placeholder', 'buy']
-    
-                            summary_price = get_asset_price(coinbase_client, summary_symbol)
-    
-                            # Skip assets where price fetch failed
-                            if summary_price is None:
-                                continue
-    
-                            # Get wallet metrics to calculate cumulative P&L from transaction history
-                            wallet_config = next((w for w in config.get('wallets', []) if w['symbol'] == summary_symbol), None)
-                            if wallet_config:
-                                summary_starting_capital = wallet_config['starting_capital_usd']
-                            else:
-                                summary_starting_capital = 3250.0  # Default fallback
-    
-                            summary_wallet_metrics = calculate_wallet_metrics(summary_symbol, summary_starting_capital)
-                            pnl_pct = summary_wallet_metrics.get('percentage_gain', 0.0)
-                            total_profit_usd = summary_wallet_metrics.get('total_profit', 0.0)
-                            gross_profit_usd = summary_wallet_metrics.get('gross_profit', 0.0)
-                            total_trades = 0
-                            wins = 0
-    
-                            # Count total trades and wins from transaction history
-                            from utils.wallet_helpers import load_transaction_history
-                            summary_transactions = load_transaction_history(summary_symbol)
-                            total_trades = len(summary_transactions)
-                            wins = len([t for t in summary_transactions if t.get('total_profit', 0) > 0])
-    
-                            # Calculate total volume traded in USD (sum of all buy orders)
-                            total_volume_usd = 0
-                            for tx in summary_transactions:
-                                # Each transaction represents a completed buy/sell cycle
-                                # Use buy_price and a standard position size to estimate volume
-                                buy_price = tx.get('buy_price', 0)
-                                # Assuming each trade uses the starting capital
-                                if buy_price > 0:
-                                    total_volume_usd += summary_starting_capital
-    
-                            # Determine status
-                            status = "NO POSITION"
-                            if summary_has_position:
-                                if summary_order_type == 'placeholder':
-                                    status = "PENDING ORDER"
-                                elif summary_order_type == 'buy':
-                                    order_data = summary_order.get('order', summary_order)
-                                    if 'average_filled_price' in order_data:
-                                        entry_price = float(order_data['average_filled_price'])
-                                        unrealized_pct = ((summary_price - entry_price) / entry_price) * 100
-                                        status = f"OPEN ({unrealized_pct:+.1f}%)"
-    
-                            asset_performance.append({
-                                'symbol': summary_symbol,
-                                'price': summary_price,
-                                'pnl_pct': pnl_pct,
-                                'total_profit_usd': total_profit_usd,
-                                'gross_profit_usd': gross_profit_usd,
-                                'status': status,
-                                'has_position': summary_has_position,
-                                'total_trades': total_trades,
-                                'wins': wins,
-                                'total_volume_usd': total_volume_usd
-                            })
-    
-                        # Sort by P&L percentage (highest to lowest), then by total profit USD as tie-breaker
-                        asset_performance.sort(key=lambda x: (x['pnl_pct'], x['total_profit_usd']), reverse=True)
-    
-                        # Display header with actual count
-                        print(f"\n{Colors.BOLD}{Colors.CYAN}{'='*100}")
-                        print(f"  📊 ASSET PERFORMANCE SUMMARY - {len(asset_performance)} ASSETS")
-                        print(f"{'='*100}{Colors.ENDC}")
-    
-                        # Display ranked summary (one line per asset)
-                        for idx, asset in enumerate(asset_performance, 1):
-                                pnl_color = Colors.GREEN if asset['pnl_pct'] > 0 else (Colors.RED if asset['pnl_pct'] < 0 else Colors.YELLOW)
-                                position_indicator = "🔥" if asset['has_position'] else "  "
-    
-                                # Calculate win rate
-                                if asset['total_trades'] > 0:
-                                    win_pct = (asset['wins'] / asset['total_trades']) * 100
-                                    win_rate_str = f"{asset['wins']}/{asset['total_trades']} ({win_pct:>3.0f}%)"
-                                else:
-                                    win_rate_str = f"0/0 (  0%)"
-    
-                                profit_color = Colors.GREEN if asset['total_profit_usd'] > 0 else (Colors.RED if asset['total_profit_usd'] < 0 else Colors.YELLOW)
-                                gross_profit_color = Colors.GREEN if asset['gross_profit_usd'] > 0 else (Colors.RED if asset['gross_profit_usd'] < 0 else Colors.YELLOW)
-    
-                                # Format columns with consistent width
-                                symbol_col = f"{asset['symbol']:<10s}"
-                                profit_col = f"{profit_color}${asset['total_profit_usd']:>+8.2f}{Colors.ENDC}"
-                                gross_profit_col = f"{gross_profit_color}${asset['gross_profit_usd']:>+8.2f}{Colors.ENDC}"
-                                volume_col = f"${asset['total_volume_usd']:>8,.0f}"
-                                pnl_col = f"{pnl_color}{asset['pnl_pct']:>+6.2f}%{Colors.ENDC}"
-                                win_col = f"{win_rate_str:>12s}"
-                                status_col = f"{asset['status']:<20s}"
-    
-                                print(f"  {position_indicator} {idx:2d}. {symbol_col} | Net: {profit_col} | Gross: {gross_profit_col} | Vol: {volume_col} | P&L: {pnl_col} | W/L: {win_col} | {status_col}")
-    
-                        # Calculate and display lifetime total
-                        total_lifetime_profit = sum(asset['total_profit_usd'] for asset in asset_performance)
-                        total_lifetime_gross_profit = sum(asset['gross_profit_usd'] for asset in asset_performance)
-                        lifetime_color = Colors.GREEN if total_lifetime_profit > 0 else (Colors.RED if total_lifetime_profit < 0 else Colors.YELLOW)
-                        lifetime_gross_color = Colors.GREEN if total_lifetime_gross_profit > 0 else (Colors.RED if total_lifetime_gross_profit < 0 else Colors.YELLOW)
-                        print(f"{Colors.CYAN}{'-'*100}{Colors.ENDC}")
-                        print(f"  {Colors.BOLD}LIFETIME TOTAL:      | Net: {lifetime_color}${total_lifetime_profit:>+8.2f}{Colors.ENDC}{Colors.BOLD} | Gross: {lifetime_gross_color}${total_lifetime_gross_profit:>+8.2f}{Colors.ENDC}{Colors.BOLD}{Colors.ENDC}")
-                        print(f"{Colors.CYAN}{'='*100}{Colors.ENDC}\n")
     
                     #
                     #
