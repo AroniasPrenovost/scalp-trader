@@ -528,7 +528,7 @@ def iterate_wallets(data_collection_interval_seconds):
                                     continue
     
                             trading_capital = market_rotation_config.get('total_trading_capital_usd', 100)
-                            print_opportunity_report(all_opportunities, best_opportunity, racing_opportunities, current_prices, coinbase_spot_fee, federal_tax_rate, trading_capital, config)
+                            print_opportunity_report(all_opportunities, best_opportunity, racing_opportunities, current_prices, coinbase_spot_fee, federal_tax_rate, trading_capital, config, coinbase_client)
     
                         if best_opportunity:
                             best_opportunity_symbol = best_opportunity['symbol']
@@ -1523,21 +1523,29 @@ def iterate_wallets(data_collection_interval_seconds):
                                         print(f"{Colors.CYAN}🔒 TRAILING STOP: ${trailing_stop_price:.4f} (current: ${current_price:.4f}, buffer: ${current_price - trailing_stop_price:.4f}){Colors.ENDC}")
 
                             # ============================================================
-                            # RSI MEAN REVERSION EXIT CHECK
+                            # RSI-BASED STRATEGY EXIT CHECK
                             # ============================================================
-                            # For RSI mean reversion positions, check RSI-based exits:
-                            #   3. RSI full recovery (RSI >= rsi_exit)
-                            #   4. RSI partial recovery + profitable (RSI >= rsi_partial_exit AND profit > 0)
-                            # (Disaster stop handled by stop_loss above, trailing stop above, max hold by time_based_exit)
-                            if analysis and analysis.get('strategy') == 'rsi_mean_reversion':
-                                rsi_mr_config = config.get('rsi_mean_reversion', {})
+                            # For RSI-based positions (rsi_mean_reversion, rsi_regime, co_revert):
+                            #   rsi_mean_reversion/rsi_regime: RSI full recovery OR RSI partial + profitable
+                            #   co_revert: RSI recovery + min profit threshold
+                            # (Disaster stop/stop_loss handled above, trailing stop above, max hold by time_based_exit)
+                            active_strategy = analysis.get('strategy', '') if analysis else ''
+                            rsi_mr_symbol_params = {}  # Will be set by strategy-specific blocks below
+                            rsi_current = None  # Will be set by exit check blocks below
+
+                            if active_strategy in ('rsi_mean_reversion', 'rsi_regime'):
+                                # Both use same exit logic, just different config sections
+                                config_key = 'rsi_regime' if active_strategy == 'rsi_regime' else 'rsi_mean_reversion'
+                                rsi_mr_config = config.get(config_key, {})
                                 rsi_mr_symbols = rsi_mr_config.get('symbols', {})
                                 rsi_mr_symbol_params = rsi_mr_symbols.get(symbol, {})
+                                if rsi_mr_symbol_params:
+                                    rsi_mr_symbol_params = dict(rsi_mr_symbol_params)
                                 rsi_mr_symbol_params['rsi_period'] = rsi_mr_config.get('rsi_period', 14)
 
                                 # Also pull params from the stored analysis metrics (set at buy time)
                                 stored_metrics = analysis.get('metrics', {})
-                                if not rsi_mr_symbol_params:
+                                if not rsi_mr_symbols.get(symbol):
                                     # Fallback to stored metrics if symbol removed from config
                                     rsi_mr_symbol_params = {
                                         'rsi_period': stored_metrics.get('rsi_period', 14),
@@ -1560,13 +1568,13 @@ def iterate_wallets(data_collection_interval_seconds):
 
                                 rsi_current = rsi_exit_result.get('rsi_value')
                                 if rsi_current is not None:
-                                    print(f"\n{Colors.CYAN}RSI EXIT CHECK: RSI = {rsi_current:.1f} | {rsi_exit_result['reason']}{Colors.ENDC}")
+                                    print(f"\n{Colors.CYAN}RSI EXIT CHECK [{active_strategy}]: RSI = {rsi_current:.1f} | {rsi_exit_result['reason']}{Colors.ENDC}")
 
                                 if rsi_exit_result.get('should_exit'):
                                     print(f"{Colors.YELLOW}RSI EXIT TRIGGERED: {rsi_exit_result['reason']}{Colors.ENDC}")
 
                                     if READY_TO_TRADE:
-                                        print('~ RSI MEAN REVERSION EXIT ~')
+                                        print(f'~ {active_strategy.upper()} EXIT ~')
 
                                         # Generate sell chart
                                         sell_chart_hours = 2160
@@ -1600,11 +1608,91 @@ def iterate_wallets(data_collection_interval_seconds):
                                             taxes=capital_gains_tax_usd,
                                             total_profit=net_profit_after_all_costs_usd,
                                             last_order=order_data,
-                                            exit_reason='rsi_mean_reversion_exit'
+                                            exit_reason=f'{active_strategy}_exit'
                                         )
 
                                         clear_order_ledger(symbol)
                                         print(f"{Colors.GREEN}RSI exit completed: {rsi_exit_result['reason']}{Colors.ENDC}\n")
+                                        continue  # Skip rest of sell logic
+                                    else:
+                                        print('STATUS: Trading disabled')
+
+                            elif active_strategy == 'co_revert':
+                                co_config = config.get('co_revert', {})
+                                co_symbols = co_config.get('symbols', {})
+                                co_symbol_params = co_symbols.get(symbol, {})
+                                if co_symbol_params:
+                                    co_symbol_params = dict(co_symbol_params)
+                                co_symbol_params['rsi_period'] = co_config.get('rsi_period', 14)
+                                rsi_mr_symbol_params = co_symbol_params  # For ceiling rotation compatibility
+
+                                stored_metrics = analysis.get('metrics', {})
+                                if not co_symbols.get(symbol):
+                                    co_symbol_params = {
+                                        'rsi_period': stored_metrics.get('rsi_period', 14),
+                                        'rsi_exit': stored_metrics.get('rsi_exit_threshold', 45),
+                                        'min_profit_for_rsi_exit': stored_metrics.get('min_profit_for_rsi_exit', 0.3),
+                                        'timeframe_minutes': stored_metrics.get('timeframe_minutes', 30),
+                                    }
+
+                                from utils.co_revert_strategy import check_co_revert_exit_signal
+
+                                rsi_exit_result = check_co_revert_exit_signal(
+                                    symbol=symbol,
+                                    timeframe_minutes=co_symbol_params.get('timeframe_minutes', stored_metrics.get('timeframe_minutes', 30)),
+                                    config_params=co_symbol_params,
+                                    entry_price=entry_price,
+                                    current_price=current_price,
+                                    data_directory='coinbase-data',
+                                    max_age_hours=DATA_RETENTION_HOURS
+                                )
+
+                                rsi_current = rsi_exit_result.get('rsi_value')
+                                if rsi_current is not None:
+                                    print(f"\n{Colors.CYAN}RSI EXIT CHECK [co_revert]: RSI = {rsi_current:.1f} | {rsi_exit_result['reason']}{Colors.ENDC}")
+
+                                if rsi_exit_result.get('should_exit'):
+                                    print(f"{Colors.YELLOW}CO_REVERT RSI EXIT TRIGGERED: {rsi_exit_result['reason']}{Colors.ENDC}")
+
+                                    if READY_TO_TRADE:
+                                        print('~ CO_REVERT EXIT ~')
+
+                                        sell_chart_hours = 2160
+                                        sell_chart_data_points = int((sell_chart_hours * 60) / INTERVAL_SAVE_DATA_EVERY_X_MINUTES)
+                                        sell_chart_prices = coin_prices_LIST[-sell_chart_data_points:] if len(coin_prices_LIST) > sell_chart_data_points else coin_prices_LIST
+                                        sell_chart_min = min(sell_chart_prices)
+                                        sell_chart_max = max(sell_chart_prices)
+                                        sell_chart_range_pct = calculate_percentage_from_min(sell_chart_min, sell_chart_max)
+
+                                        plot_graph(
+                                            time.time(),
+                                            INTERVAL_SAVE_DATA_EVERY_X_MINUTES,
+                                            symbol,
+                                            sell_chart_prices,
+                                            sell_chart_min,
+                                            sell_chart_max,
+                                            sell_chart_range_pct,
+                                            entry_price,
+                                            analysis=analysis,
+                                            event_type='sell'
+                                        )
+
+                                        place_market_sell_order(coinbase_client, symbol, number_of_shares, net_profit_after_all_costs_usd, net_profit_percentage)
+
+                                        save_transaction_record(
+                                            symbol=symbol,
+                                            buy_price=entry_price,
+                                            sell_price=current_price,
+                                            gross_profit=gross_profit_before_exit_costs,
+                                            exchange_fees=exit_exchange_fee_usd,
+                                            taxes=capital_gains_tax_usd,
+                                            total_profit=net_profit_after_all_costs_usd,
+                                            last_order=order_data,
+                                            exit_reason='co_revert_exit'
+                                        )
+
+                                        clear_order_ledger(symbol)
+                                        print(f"{Colors.GREEN}CO_REVERT exit completed: {rsi_exit_result['reason']}{Colors.ENDC}\n")
                                         continue  # Skip rest of sell logic
                                     else:
                                         print('STATUS: Trading disabled')
@@ -1617,7 +1705,7 @@ def iterate_wallets(data_collection_interval_seconds):
                             ceiling_rotation_enabled = rsi_ceiling_config.get('enabled', False)
 
                             if (ceiling_rotation_enabled and not should_rotate_position
-                                and analysis and analysis.get('strategy') == 'rsi_mean_reversion'
+                                and analysis and active_strategy in ('rsi_mean_reversion', 'rsi_regime', 'co_revert')
                                 and rsi_current is not None and best_opportunity):
 
                                 rsi_entry_threshold = rsi_mr_symbol_params.get('rsi_entry', 20)

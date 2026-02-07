@@ -1,21 +1,49 @@
 """
-RSI Mean Reversion Opportunity Scorer
+Multi-Strategy Opportunity Scorer
 
-Scans configured RSI mean reversion symbols and ranks them based on
-RSI oversold conditions. Drop-in replacement for mtf_opportunity_scorer.
+Scans configured symbols across all enabled strategies and ranks them based on
+RSI oversold conditions. Supports three strategies:
+  - rsi_mean_reversion: Pure RSI oversold entry with trailing stop exits
+  - rsi_regime: RSI oversold + EMA regime filter (prevents freefall entries)
+  - co_revert: RSI oversold + Bollinger Band filter with fixed profit/stop
 
 Scoring:
   - RSI <= 15: score 95 (deeply oversold)
   - RSI <= 20: score 90 (oversold - primary entry)
   - RSI 20-25: score 75-85 (approaching oversold)
   - RSI > 25: no signal (score 0)
-
-Only scores symbols listed in config.rsi_mean_reversion.symbols.
 """
 
 from typing import Dict, List, Optional
 from utils.rsi_mean_reversion_strategy import check_rsi_mean_reversion_signal
-from utils.coinbase import get_asset_price
+from utils.rsi_regime_strategy import check_rsi_regime_signal
+from utils.co_revert_strategy import check_co_revert_signal
+from utils.coinbase import get_asset_price, get_volume_and_fee_summary
+
+
+# Strategy name -> (config_key, signal_checker_function)
+STRATEGY_REGISTRY = {
+    'rsi_mean_reversion': ('rsi_mean_reversion', check_rsi_mean_reversion_signal),
+    'rsi_regime': ('rsi_regime', check_rsi_regime_signal),
+    'co_revert': ('co_revert', check_co_revert_signal),
+}
+
+
+def _get_all_strategy_symbols(config: Dict) -> List[tuple]:
+    """
+    Get all (symbol, strategy_name) pairs from all enabled strategy configs.
+
+    Returns:
+        List of (symbol, strategy_name) tuples
+    """
+    pairs = []
+    for strategy_name, (config_key, _) in STRATEGY_REGISTRY.items():
+        strategy_config = config.get(config_key, {})
+        if strategy_config.get('enabled', False):
+            symbols = strategy_config.get('symbols', {})
+            for symbol in symbols:
+                pairs.append((symbol, strategy_name))
+    return pairs
 
 
 def score_rsi_opportunity(
@@ -25,7 +53,10 @@ def score_rsi_opportunity(
     current_price: float = None
 ) -> Dict:
     """
-    Score a single asset based on RSI Mean Reversion strategy.
+    Score a single asset across all configured strategies.
+
+    Checks which strategies this symbol is configured for and returns
+    the highest-scoring opportunity.
 
     Args:
         symbol: Product ID (e.g., 'ATOM-USD')
@@ -36,9 +67,6 @@ def score_rsi_opportunity(
     Returns:
         Opportunity dictionary with score, signal, and strategy details
     """
-    rsi_config = config.get('rsi_mean_reversion', {})
-    symbols_config = rsi_config.get('symbols', {})
-    rsi_period = rsi_config.get('rsi_period', 14)
     data_retention_config = config.get('data_retention', {})
     max_age_hours = data_retention_config.get('max_hours', 5040)
 
@@ -47,7 +75,7 @@ def score_rsi_opportunity(
         'score': 0,
         'signal': 'no_signal',
         'confidence': 'low',
-        'strategy': 'rsi_mean_reversion',
+        'strategy': 'none',
         'entry_price': None,
         'stop_loss': None,
         'profit_target': None,
@@ -57,16 +85,6 @@ def score_rsi_opportunity(
         'error': None,
         'risk_reward_ratio': None
     }
-
-    # Check if this symbol is configured for RSI strategy
-    if not rsi_config.get('enabled', False) or symbol not in symbols_config:
-        return {
-            **error_result,
-            'reasoning': f"{symbol} not configured for RSI mean reversion strategy"
-        }
-
-    symbol_params = symbols_config[symbol]
-    symbol_params['rsi_period'] = rsi_period  # Inject global RSI period
 
     # Get current price if not provided
     if current_price is None:
@@ -79,77 +97,96 @@ def score_rsi_opportunity(
                 'error': str(e)
             }
 
-    # Get RSI strategy signal
-    try:
-        signal_result = check_rsi_mean_reversion_signal(
-            symbol=symbol,
-            timeframe_minutes=symbol_params.get('timeframe_minutes', 15),
-            config_params=symbol_params,
-            data_directory='coinbase-data',
-            current_price=current_price,
-            max_age_hours=max_age_hours
-        )
-    except Exception as e:
-        return {
-            **error_result,
-            'reasoning': f"Error checking RSI signal: {e}",
-            'error': str(e)
-        }
+    best_result = None
+    best_score = -1
 
-    signal = signal_result.get('signal', 'no_signal')
-    confidence = signal_result.get('confidence', 'low')
-    entry_price = signal_result.get('entry_price')
-    stop_loss = signal_result.get('stop_loss')
-    profit_target = signal_result.get('profit_target')
-    reasoning = signal_result.get('reasoning', '')
-    metrics = signal_result.get('metrics', {})
+    # Check all strategies this symbol is configured for
+    for strategy_name, (config_key, signal_checker) in STRATEGY_REGISTRY.items():
+        strategy_config = config.get(config_key, {})
+        if not strategy_config.get('enabled', False):
+            continue
 
-    # Calculate score
-    score = 0
-    if signal == 'buy':
-        rsi_value = metrics.get('rsi', 50)
+        symbols_config = strategy_config.get('symbols', {})
+        if symbol not in symbols_config:
+            continue
 
-        if rsi_value <= 15:
-            score = 95
-        elif rsi_value <= 18:
-            score = 92
-        elif rsi_value <= 20:
-            score = 90
-        elif rsi_value <= 22:
-            score = 82
-        elif rsi_value <= 25:
-            score = 75
-        else:
-            score = 0
+        symbol_params = dict(symbols_config[symbol])  # Copy to avoid mutating config
+        symbol_params['rsi_period'] = strategy_config.get('rsi_period', 14)
 
-        # Confidence bonus
-        if confidence == 'high':
-            score = min(100, score + 3)
-        elif confidence == 'medium':
-            score = min(100, score + 1)
+        try:
+            signal_result = signal_checker(
+                symbol=symbol,
+                timeframe_minutes=symbol_params.get('timeframe_minutes', 15),
+                config_params=symbol_params,
+                data_directory='coinbase-data',
+                current_price=current_price,
+                max_age_hours=max_age_hours
+            )
+        except Exception as e:
+            continue
 
-    # Calculate risk/reward ratio
-    risk_reward = None
-    if entry_price and stop_loss and profit_target:
-        risk = entry_price - stop_loss
-        reward = profit_target - entry_price
-        if risk > 0:
-            risk_reward = reward / risk
+        signal = signal_result.get('signal', 'no_signal')
+        confidence = signal_result.get('confidence', 'low')
+        metrics = signal_result.get('metrics', {})
+
+        # Calculate score
+        score = 0
+        if signal == 'buy':
+            rsi_value = metrics.get('rsi', 50)
+
+            if rsi_value <= 15:
+                score = 95
+            elif rsi_value <= 18:
+                score = 92
+            elif rsi_value <= 20:
+                score = 90
+            elif rsi_value <= 22:
+                score = 82
+            elif rsi_value <= 25:
+                score = 75
+            else:
+                score = 70  # Valid signal above 25 (some strategies use higher thresholds)
+
+            if confidence == 'high':
+                score = min(100, score + 3)
+            elif confidence == 'medium':
+                score = min(100, score + 1)
+
+        if score > best_score:
+            best_score = score
+            entry_price = signal_result.get('entry_price')
+            stop_loss = signal_result.get('stop_loss')
+            profit_target = signal_result.get('profit_target')
+
+            risk_reward = None
+            if entry_price and stop_loss and profit_target:
+                risk = entry_price - stop_loss
+                reward = profit_target - entry_price
+                if risk > 0:
+                    risk_reward = reward / risk
+
+            best_result = {
+                'symbol': symbol,
+                'score': score,
+                'signal': signal,
+                'confidence': confidence,
+                'strategy': signal_result.get('strategy', strategy_name),
+                'entry_price': entry_price,
+                'stop_loss': stop_loss,
+                'profit_target': profit_target,
+                'reasoning': signal_result.get('reasoning', ''),
+                'metrics': metrics,
+                'has_signal': signal == 'buy',
+                'error': None,
+                'risk_reward_ratio': risk_reward
+            }
+
+    if best_result:
+        return best_result
 
     return {
-        'symbol': symbol,
-        'score': score,
-        'signal': signal,
-        'confidence': confidence,
-        'strategy': 'rsi_mean_reversion',
-        'entry_price': entry_price,
-        'stop_loss': stop_loss,
-        'profit_target': profit_target,
-        'reasoning': reasoning,
-        'metrics': metrics,
-        'has_signal': signal == 'buy',
-        'error': None,
-        'risk_reward_ratio': risk_reward
+        **error_result,
+        'reasoning': f"{symbol} not configured for any enabled strategy"
     }
 
 
@@ -161,7 +198,9 @@ def find_best_opportunities(
     exclude_symbols: List[str] = None
 ) -> List[Dict]:
     """
-    Scan all RSI-configured assets and return the best opportunities.
+    Scan all strategy-configured assets and return the best opportunities.
+
+    Scans across rsi_mean_reversion, rsi_regime, and co_revert strategies.
 
     Args:
         config: Full config dictionary
@@ -176,14 +215,12 @@ def find_best_opportunities(
     if exclude_symbols is None:
         exclude_symbols = []
 
-    rsi_config = config.get('rsi_mean_reversion', {})
-    symbols_config = rsi_config.get('symbols', {})
-
-    # Only scan symbols configured for RSI strategy
-    scan_symbols = [s for s in symbols_config.keys() if s not in exclude_symbols]
+    # Collect all unique symbols across all strategies
+    all_pairs = _get_all_strategy_symbols(config)
+    unique_symbols = set(sym for sym, _ in all_pairs if sym not in exclude_symbols)
 
     opportunities = []
-    for symbol in scan_symbols:
+    for symbol in unique_symbols:
         opp = score_rsi_opportunity(symbol, config, coinbase_client)
         opportunities.append(opp)
 
@@ -201,7 +238,7 @@ def find_best_opportunity(
     **kwargs
 ) -> Optional[Dict]:
     """
-    Find the single best RSI opportunity.
+    Find the single best opportunity across all strategies.
 
     Accepts **kwargs for backward compatibility with index.py calls that pass
     enabled_symbols, interval_seconds, data_retention_hours, entry_fee_pct,
@@ -222,18 +259,16 @@ def find_best_opportunity(
     max_opportunities = kwargs.get('max_opportunities', 2)
     enabled_symbols = kwargs.get('enabled_symbols')
 
-    # Build exclude list
     if exclude_symbols is None:
         exclude_symbols = []
 
-    # If enabled_symbols is provided, we still only scan RSI-configured symbols
-    # but we can use it to further filter
-    rsi_config = config.get('rsi_mean_reversion', {})
-    symbols_config = rsi_config.get('symbols', {})
+    # Get all configured symbols across all strategies
+    all_pairs = _get_all_strategy_symbols(config)
+    all_configured_symbols = set(sym for sym, _ in all_pairs)
 
     if enabled_symbols:
-        # Only scan RSI symbols that are also in the enabled wallets list
-        effective_exclude = [s for s in symbols_config.keys()
+        # Only scan strategy symbols that are also in the enabled wallets list
+        effective_exclude = [s for s in all_configured_symbols
                            if s not in enabled_symbols or s in exclude_symbols]
     else:
         effective_exclude = exclude_symbols
@@ -266,7 +301,7 @@ def score_opportunity(
     **kwargs
 ) -> Dict:
     """
-    Score a single opportunity. Alias for score_rsi_opportunity.
+    Score a single opportunity across all strategies. Alias for score_rsi_opportunity.
 
     Accepts **kwargs for backward compatibility with index.py calls that pass
     coin_prices_list, range_percentage_from_min, etc.
@@ -282,17 +317,17 @@ def print_opportunity_report(
     entry_fee_pct=None,
     tax_rate_pct=None,
     trading_capital=None,
-    config=None
+    config=None,
+    coinbase_client=None
 ):
     """
-    Print a report of all RSI opportunities.
+    Print a report of all opportunities across strategies.
 
     Accepts flexible arguments for backward compatibility with index.py.
     """
     if racing_opportunities is None:
         racing_opportunities = []
 
-    # Handle case where all_opportunities is a list of scored dicts
     selected_symbols = []
     if best_opportunity:
         if isinstance(best_opportunity, dict):
@@ -303,47 +338,58 @@ def print_opportunity_report(
         if isinstance(opp, dict):
             selected_symbols.append(opp.get('symbol'))
 
-    print("\n" + "=" * 100)
-    print("RSI MEAN REVERSION - OPPORTUNITY SCANNER")
-    print("=" * 100)
+    print("\n" + "=" * 110)
+    print("MULTI-STRATEGY OPPORTUNITY SCANNER")
+    print("=" * 110)
+
+    # Display fee tier and volume if client is available
+    if coinbase_client:
+        vol_summary = get_volume_and_fee_summary(coinbase_client)
+        if vol_summary:
+            vol = vol_summary['volume_30d']
+            tier = vol_summary['tier']
+            maker = vol_summary['maker_fee_pct']
+            taker = vol_summary['taker_fee_pct']
+            print(f"\nTier: {tier} | Fees: {maker:.2f}% maker / {taker:.2f}% taker | 30d Volume: ${vol:,.0f}")
+
     print()
 
-    # Sort all by score
     if isinstance(all_opportunities, list):
         all_opportunities.sort(key=lambda x: x.get('score', 0) if isinstance(x, dict) else 0, reverse=True)
 
-    print(f"{'Rank':<6} {'Symbol':<12} {'Score':<8} {'RSI':<8} {'Signal':<12} {'Confidence':<12} {'Status':<30}")
-    print("-" * 100)
+    print(f"{'Rank':<6} {'Symbol':<12} {'Strategy':<20} {'Score':<8} {'RSI':<8} {'Signal':<12} {'Confidence':<12} {'Status':<20}")
+    print("-" * 110)
 
     for i, opp in enumerate(all_opportunities, 1):
         if not isinstance(opp, dict):
             continue
         symbol = opp.get('symbol', '?')
         score = opp.get('score', 0)
+        strategy = opp.get('strategy', 'unknown')
         signal = opp.get('signal', 'no_signal').upper().replace('_', ' ')
         confidence = opp.get('confidence', 'low').upper()
         rsi = opp.get('metrics', {}).get('rsi')
         rsi_str = f"{rsi:.1f}" if rsi is not None else "-"
 
         if symbol in selected_symbols:
-            status = "SELECTED FOR ENTRY"
+            status = "SELECTED"
         elif opp.get('has_signal') and score > 0:
             status = f"Ready ({confidence.lower()})"
         elif opp.get('error'):
-            status = f"Error: {str(opp['error'])[:20]}"
+            status = f"Err: {str(opp['error'])[:15]}"
         else:
             status = "No Signal"
 
         score_str = f"{score:.1f}" if score > 0 else "-"
         prefix = "-> " if symbol in selected_symbols else "   "
-        print(f"{prefix}#{i:<4} {symbol:<12} {score_str:<8} {rsi_str:<8} {signal:<12} {confidence:<12} {status:<30}")
+        print(f"{prefix}#{i:<4} {symbol:<12} {strategy:<20} {score_str:<8} {rsi_str:<8} {signal:<12} {confidence:<12} {status:<20}")
 
     print()
 
     if best_opportunity and isinstance(best_opportunity, dict) and best_opportunity.get('has_signal'):
-        print("=" * 100)
-        print(f"SELECTED: {best_opportunity['symbol']}")
-        print("=" * 100)
+        print("=" * 110)
+        print(f"SELECTED: {best_opportunity['symbol']} [{best_opportunity.get('strategy', 'unknown')}]")
+        print("=" * 110)
         print(f"  Score: {best_opportunity['score']:.1f}/100")
         print(f"  RSI: {best_opportunity.get('metrics', {}).get('rsi', 0):.1f}")
         print(f"  Entry: ${best_opportunity['entry_price']:.4f}" if best_opportunity.get('entry_price') else "  Entry: N/A")
@@ -351,11 +397,11 @@ def print_opportunity_report(
         print(f"  Target: ${best_opportunity['profit_target']:.4f}" if best_opportunity.get('profit_target') else "  Target: N/A")
         print(f"\n  {best_opportunity.get('reasoning', '')[:200]}")
     elif not any(o.get('has_signal') for o in all_opportunities if isinstance(o, dict)):
-        print("=" * 100)
-        print("NO OPPORTUNITIES - RSI not oversold on any configured symbol")
-        print("=" * 100)
-        print("  Waiting for RSI to drop below entry threshold")
+        print("=" * 110)
+        print("NO OPPORTUNITIES - No oversold signals on any configured symbol")
+        print("=" * 110)
+        print("  Waiting for RSI to drop below entry thresholds")
 
     print()
-    print("=" * 100)
+    print("=" * 110)
     print()

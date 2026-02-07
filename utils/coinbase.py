@@ -207,6 +207,52 @@ def get_current_fee_rates(client):
         return None
 
 
+def get_volume_and_fee_summary(client):
+    """
+    Fetch 30-day trading volume and fee tier information from Coinbase.
+
+    Returns:
+        dict: {
+            'volume_30d': float (30-day trading volume in USD),
+            'fees_30d': float (total fees paid in last 30 days),
+            'tier': str (current tier name),
+            'maker_fee_pct': float (maker fee as percentage),
+            'taker_fee_pct': float (taker fee as percentage),
+            'target_volume': float (volume needed for Advanced 2),
+            'volume_remaining': float (volume still needed),
+            'progress_pct': float (progress toward target as percentage)
+        }
+        or None if there's an error
+    """
+    try:
+        summary = client.get_transaction_summary()
+        if hasattr(summary, 'to_dict'):
+            summary = summary.to_dict()
+
+        fee_tier = summary.get('fee_tier', {})
+        volume_30d = float(summary.get('advanced_trade_only_volume', 0))
+        fees_30d = float(summary.get('advanced_trade_only_fees', 0))
+
+        # Target: Advanced 2 tier requires $75K volume
+        target_volume = 75000.0
+        volume_remaining = max(0, target_volume - volume_30d)
+        progress_pct = min(100.0, (volume_30d / target_volume) * 100)
+
+        return {
+            'volume_30d': volume_30d,
+            'fees_30d': fees_30d,
+            'tier': fee_tier.get('pricing_tier', 'Unknown'),
+            'maker_fee_pct': float(fee_tier.get('maker_fee_rate', 0)) * 100,
+            'taker_fee_pct': float(fee_tier.get('taker_fee_rate', 0)) * 100,
+            'target_volume': target_volume,
+            'volume_remaining': volume_remaining,
+            'progress_pct': progress_pct
+        }
+    except Exception as e:
+        print(f"Error fetching volume summary: {e}")
+        return None
+
+
 #
 #
 #
