@@ -16,7 +16,7 @@ from utils.candle_helpers import fetch_latest_5min_candle, candle_to_data_entry,
 from utils.coinbase import get_coinbase_client, get_coinbase_order_by_order_id, place_market_buy_order, place_market_sell_order, get_asset_price, calculate_exchange_fee, save_order_data_to_local_json_ledger, get_last_order_from_local_json_ledger, reset_json_ledger_file, detect_stored_coinbase_order_type, save_transaction_record, get_current_fee_rates, cancel_order, clear_order_ledger
 coinbase_client = get_coinbase_client()
 # profit calculator for standardized profitability calculations
-from utils.profit_calculator import calculate_net_profit_from_price_move
+from utils.profit_calculator import calculate_net_profit_from_price_move, is_position_profitable
 
 # Wallet metrics helpers
 from utils.wallet_helpers import calculate_wallet_metrics
@@ -477,10 +477,12 @@ def iterate_wallets(data_collection_interval_seconds):
                             best_opportunity = racing_opportunities[0] if racing_opportunities else None
                         else:
                             # Single best mode or we already have positions
+                            # Exclude symbols we already hold to find the next-best opportunity
                             best_opportunity = find_best_opportunity(
                                 config=config,
                                 coinbase_client=coinbase_client,
                                 enabled_symbols=enabled_wallets,
+                                exclude_symbols=active_position_symbols,
                                 interval_seconds=INTERVAL_SECONDS,
                                 data_retention_hours=DATA_RETENTION_HOURS,
                                 min_score=min_score,
@@ -535,23 +537,30 @@ def iterate_wallets(data_collection_interval_seconds):
                             min_score = market_rotation_config.get('min_score_for_entry', 50)
     
                             if best_opportunity['score'] >= min_score:
-                                if active_position_symbols:
+                                # Check if we've reached max concurrent positions or already in this position
+                                at_max_positions = len(active_position_symbols) >= max_concurrent_orders
+                                already_in_position = best_opportunity_symbol in active_position_symbols
+
+                                if at_max_positions or already_in_position:
                                     # Get current price for distance calculation
                                     current_price = get_asset_price(coinbase_client, best_opportunity_symbol)
-    
+
                                     # Calculate distance from entry
                                     distance_str = ""
                                     if current_price and best_opportunity['entry_price']:
                                         distance_pct = ((current_price - best_opportunity['entry_price']) / best_opportunity['entry_price']) * 100
                                         color = Colors.GREEN if distance_pct <= 0 else Colors.YELLOW
                                         distance_str = f" | Current: ${current_price:.4f} ({color}{distance_pct:+.2f}%{Colors.ENDC} from entry)"
-    
+
                                     print(f"{Colors.BOLD}{Colors.GREEN}🎯 BEST NEXT OPPORTUNITY: {best_opportunity_symbol}{Colors.ENDC}")
                                     print(f"   Score: {best_opportunity['score']:.1f}/100 | Strategy: {best_opportunity['strategy'].replace('_', ' ').title()}")
                                     print(f"   Entry: ${best_opportunity['entry_price']:.4f} | Stop: ${best_opportunity['stop_loss']:.4f} | Target: ${best_opportunity['profit_target']:.4f}{distance_str}")
-                                    print(f"   {Colors.YELLOW}⏸  Waiting for active position(s) to close: {', '.join(active_position_symbols)}{Colors.ENDC}")
-                                    print(f"   {Colors.CYAN}→ Will trade {best_opportunity_symbol} immediately after exit{Colors.ENDC}\n")
-                                    best_opportunity_symbol = None  # Don't enter new trade while position open
+                                    if already_in_position:
+                                        print(f"   {Colors.YELLOW}⏸  Already in position for {best_opportunity_symbol}{Colors.ENDC}\n")
+                                    else:
+                                        print(f"   {Colors.YELLOW}⏸  At max positions ({len(active_position_symbols)}/{max_concurrent_orders}): {', '.join(active_position_symbols)}{Colors.ENDC}")
+                                        print(f"   {Colors.CYAN}→ Will trade {best_opportunity_symbol} after a position closes{Colors.ENDC}\n")
+                                    best_opportunity_symbol = None  # Don't enter new trade
                                     racing_opportunities = []  # Clear racing opportunities
                                 else:
                                     # Show appropriate message based on mode
@@ -860,9 +869,9 @@ def iterate_wallets(data_collection_interval_seconds):
                             TRADE_RECOMMENDATION = 'buy'
                             CONFIDENCE_LEVEL = analysis.get('confidence_level', 'high')
                             if show_detailed_logs:
-                                print('--- SCALPING STRATEGY (ALGO) ---')
+                                print(f"--- {analysis.get('strategy_type', 'scalp').upper()} STRATEGY ---")
                                 print(f"entry: ${BUY_AT_PRICE:.4f}, stop_loss: ${STOP_LOSS_PRICE:.4f}, target: {PROFIT_PERCENTAGE:.2f}%")
-                                print(f"strategy: {analysis.get('strategy_type', 'unknown')}, confidence: {CONFIDENCE_LEVEL}")
+                                print(f"confidence: {CONFIDENCE_LEVEL}")
                         else:
                             BUY_AT_PRICE = None
                             STOP_LOSS_PRICE = None
@@ -999,7 +1008,7 @@ def iterate_wallets(data_collection_interval_seconds):
                                     # Now replace the entire ledger with the filled order (including preserved data)
                                     # This prevents the ledger from accumulating multiple entries
                                     import json
-                                    file_name = f"coinbase-orders/{symbol}_orders.json"
+                                    file_name = f"active-coinbase-orders/{symbol}_orders.json"
                                     with open(file_name, 'w') as file:
                                         json.dump([full_order_dict], file, indent=4)
                                     print('STATUS: Updated ledger with filled order data (analysis preserved until sell)')
@@ -1036,7 +1045,7 @@ def iterate_wallets(data_collection_interval_seconds):
                             if has_open_position:
                                 print(f"{Colors.RED}⚠️  SAFETY CHECK FAILED: Detected open position but last_order_type='{last_order_type}'{Colors.ENDC}")
                                 print(f"{Colors.RED}   This indicates a ledger inconsistency. Skipping buy logic to prevent double-position.{Colors.ENDC}")
-                                print(f"{Colors.YELLOW}   Please review the ledger file: coinbase-orders/{symbol}_orders.json{Colors.ENDC}\n")
+                                print(f"{Colors.YELLOW}   Please review the ledger file: active-coinbase-orders/{symbol}_orders.json{Colors.ENDC}\n")
                                 continue
     
                             # Check all buy conditions
@@ -1101,9 +1110,14 @@ def iterate_wallets(data_collection_interval_seconds):
     
                                     # Scalping strategy: use opportunity data and rotation capital
                                     if current_opportunity and is_selected_opportunity:
-                                        buy_amount = market_rotation_config.get('total_trading_capital_usd', STARTING_CAPITAL_USD)
+                                        # Use capital_per_position for multi_position mode, total for single position
+                                        rotation_mode = market_rotation_config.get('mode', 'single_best')
+                                        if rotation_mode == 'multi_position':
+                                            buy_amount = market_rotation_config.get('capital_per_position', STARTING_CAPITAL_USD)
+                                        else:
+                                            buy_amount = market_rotation_config.get('total_trading_capital_usd', STARTING_CAPITAL_USD)
                                         target_price = current_opportunity.get('entry_price', current_price)
-                                        print(f"Using buy amount: ${buy_amount} (from scalping capital)")
+                                        print(f"Using buy amount: ${buy_amount} (from {'per-position' if rotation_mode == 'multi_position' else 'total'} capital)")
                                         print(f"Target entry price: ${target_price:.4f} (from opportunity scorer)")
     
                                     if buy_amount and target_price:
@@ -1253,7 +1267,7 @@ def iterate_wallets(data_collection_interval_seconds):
                                                     }
                                                 # Re-save the ledger with both the screenshot path and analysis
                                                 import json
-                                                file_name = f"coinbase-orders/{symbol}_orders.json"
+                                                file_name = f"active-coinbase-orders/{symbol}_orders.json"
                                                 with open(file_name, 'w') as file:
                                                     json.dump([last_order], file, indent=4)
                                                 print(f"✓ Stored buy screenshot and trade data in ledger")
@@ -1341,7 +1355,11 @@ def iterate_wallets(data_collection_interval_seconds):
                             capital_gains_tax_usd = profit_calc['tax_usd']
                             net_profit_after_all_costs_usd = profit_calc['net_profit_usd']
                             net_profit_percentage = profit_calc['net_profit_pct']
-    
+
+                            # Minimum profit threshold check (from config)
+                            MIN_PROFIT_USD = market_rotation_config['min_profit_usd']
+                            meets_min_profit_threshold = net_profit_after_all_costs_usd >= MIN_PROFIT_USD
+
                             # Use the maximum of calculated target and configured minimum
                             effective_profit_target = max(PROFIT_PERCENTAGE, min_profit_target_percentage)
                             print(f"effective_profit_target: {effective_profit_target}% (Calculated: {PROFIT_PERCENTAGE}%, Min: {min_profit_target_percentage}%)")
@@ -1349,7 +1367,8 @@ def iterate_wallets(data_collection_interval_seconds):
                             print(f"--- POSITION STATUS ---")
                             print(f"Entry price: ${entry_price:.2f}")
                             print(f"Current price: ${current_price:.2f}")
-                            print(f"Current profit: ${net_profit_after_all_costs_usd:.2f} ({net_profit_percentage:.4f}%)")
+                            min_profit_status = f"{Colors.GREEN}✓{Colors.ENDC}" if meets_min_profit_threshold else f"{Colors.RED}✗ (need ${MIN_PROFIT_USD}){Colors.ENDC}"
+                            print(f"Current profit: ${net_profit_after_all_costs_usd:.2f} ({net_profit_percentage:.4f}%) {min_profit_status}")
                             print(f"Stop loss: ${STOP_LOSS_PRICE:.2f} | Profit target: {effective_profit_target:.2f}%")
 
                             # ============================================================
@@ -1449,7 +1468,7 @@ def iterate_wallets(data_collection_interval_seconds):
 
                                     # Save updated order data
                                     import json
-                                    file_name = f"coinbase-orders/{symbol}_orders.json"
+                                    file_name = f"active-coinbase-orders/{symbol}_orders.json"
                                     with open(file_name, 'w') as file:
                                         json.dump([order_data], file, indent=4)
 
@@ -1465,7 +1484,7 @@ def iterate_wallets(data_collection_interval_seconds):
 
                                         # Save updated order data
                                         import json
-                                        file_name = f"coinbase-orders/{symbol}_orders.json"
+                                        file_name = f"active-coinbase-orders/{symbol}_orders.json"
                                         with open(file_name, 'w') as file:
                                             json.dump([order_data], file, indent=4)
 
@@ -1725,6 +1744,7 @@ def iterate_wallets(data_collection_interval_seconds):
 
                                 if (recovery_pct >= min_recovery
                                     and net_profit_percentage >= min_profit
+                                    and meets_min_profit_threshold
                                     and best_opp_symbol and best_opp_symbol != symbol
                                     and best_opp_score >= min_new_score):
 
@@ -1737,7 +1757,9 @@ def iterate_wallets(data_collection_interval_seconds):
                                 else:
                                     if recovery_pct < min_recovery:
                                         print(f"  RSI not recovered enough ({recovery_pct:.0f}% < {min_recovery}%)")
-                                    if net_profit_percentage < min_profit:
+                                    if not meets_min_profit_threshold:
+                                        print(f"  Below $3 minimum (${net_profit_after_all_costs_usd:.2f})")
+                                    elif net_profit_percentage < min_profit:
                                         print(f"  Profit too low ({net_profit_percentage:.2f}% < {min_profit}%)")
                                     if not best_opp_symbol or best_opp_symbol == symbol:
                                         print(f"  No alternative opportunity")
@@ -1757,10 +1779,10 @@ def iterate_wallets(data_collection_interval_seconds):
                                     print(f"\n{Colors.CYAN}🔄 ROTATION CHECK: Skipping - intelligent rotation disabled in config{Colors.ENDC}\n")
     
                             if market_rotation_enabled and intelligent_rotation_enabled and best_opportunity:
-                                # Only consider rotation if we're currently profitable
+                                # Only consider rotation if we're currently profitable and meet $3 minimum
                                 min_profit_for_rotation = intelligent_rotation_config.get('min_profit_to_consider_rotation', 0.5)
-    
-                                if net_profit_percentage >= min_profit_for_rotation:
+
+                                if net_profit_percentage >= min_profit_for_rotation and meets_min_profit_threshold:
                                     # We're in profit - check if there's a significantly better opportunity
                                     current_symbol_score = 0
     
@@ -1843,8 +1865,11 @@ def iterate_wallets(data_collection_interval_seconds):
     
                                     print()  # Blank line for readability
                                 else:
-                                    # Profit is below rotation threshold
-                                    print(f"\n{Colors.CYAN}🔄 ROTATION CHECK: Skipping - profit {net_profit_percentage:.2f}% below threshold ({min_profit_for_rotation}%){Colors.ENDC}\n")
+                                    # Profit is below rotation threshold or $3 minimum
+                                    if not meets_min_profit_threshold:
+                                        print(f"\n{Colors.CYAN}🔄 ROTATION CHECK: Skipping - below $3 minimum (${net_profit_after_all_costs_usd:.2f}){Colors.ENDC}\n")
+                                    else:
+                                        print(f"\n{Colors.CYAN}🔄 ROTATION CHECK: Skipping - profit {net_profit_percentage:.2f}% below threshold ({min_profit_for_rotation}%){Colors.ENDC}\n")
     
                             # EARLY PROFIT ROTATION: Take profits early when good opportunities appear
                             # This prevents the scenario where position goes: negative → +$6 → negative
@@ -1920,24 +1945,27 @@ def iterate_wallets(data_collection_interval_seconds):
                                         # CRITICAL: Only act if we're actually profitable
                                         min_profit_pct = early_profit_config.get('min_profit_percentage', 0.45)
     
-                                        # If downturn triggered, allow exit with any profit > $0 (bypass percentage check)
-                                        # Otherwise, require min_profit_percentage
+                                        # If downturn triggered, allow exit with $3 minimum (bypass percentage check)
+                                        # Otherwise, require min_profit_percentage AND $3 minimum
                                         if require_downturn and downturn_triggered:
-                                            # Downturn mode: only require net profit > $0 to preserve gains
-                                            if net_profit_after_all_costs_usd <= 0:
-                                                print(f"  {Colors.RED}✗ Cannot exit - position at loss (${net_profit_after_all_costs_usd:.2f}){Colors.ENDC}")
-                                                print(f"  {Colors.YELLOW}→ Downturn exit requires net profit > $0{Colors.ENDC}")
+                                            # Downturn mode: require $3 minimum to preserve gains
+                                            if not meets_min_profit_threshold:
+                                                print(f"  {Colors.RED}✗ Cannot exit - below $3 minimum (${net_profit_after_all_costs_usd:.2f}){Colors.ENDC}")
+                                                print(f"  {Colors.YELLOW}→ Downturn exit requires net profit >= ${MIN_PROFIT_USD}{Colors.ENDC}")
                                             else:
-                                                # Allow exit even with small profit to preserve gains from downturn
+                                                # Allow exit even with small percentage to preserve gains from downturn
                                                 print(f"  {Colors.GREEN}✓ Downturn detected with profit ${net_profit_after_all_costs_usd:.2f} ({net_profit_percentage:.2f}%){Colors.ENDC}")
                                                 if net_profit_percentage < min_profit_pct:
                                                     print(f"  {Colors.YELLOW}⚠ Profit below normal minimum ({min_profit_pct}%) but exiting to preserve gains from downturn{Colors.ENDC}")
+                                        elif not meets_min_profit_threshold:
+                                            print(f"  {Colors.RED}✗ Cannot exit - below $3 minimum (${net_profit_after_all_costs_usd:.2f}){Colors.ENDC}")
+                                            print(f"  {Colors.YELLOW}→ Early profit exit requires net profit >= ${MIN_PROFIT_USD}{Colors.ENDC}")
                                         elif net_profit_percentage < min_profit_pct:
                                             print(f"  {Colors.RED}✗ Cannot exit - profit {net_profit_percentage:.2f}% below minimum ({min_profit_pct}%){Colors.ENDC}")
                                             print(f"  {Colors.YELLOW}→ Early profit exit requires net profit >= {min_profit_pct}%{Colors.ENDC}")
-    
-                                        # Proceed with exit logic if checks passed
-                                        if (require_downturn and downturn_triggered and net_profit_after_all_costs_usd > 0) or (net_profit_percentage >= min_profit_pct):
+
+                                        # Proceed with exit logic if checks passed (must meet $3 minimum)
+                                        if meets_min_profit_threshold and ((require_downturn and downturn_triggered) or (net_profit_percentage >= min_profit_pct)):
                                             # If downturn triggered, exit even without opportunity
                                             if require_downturn and downturn_triggered:
                                                 if has_valid_opportunity:
@@ -1963,9 +1991,9 @@ def iterate_wallets(data_collection_interval_seconds):
                                         if require_downturn and downturn_triggered and not has_valid_opportunity:
                                             # Exit to preserve profit even without better opportunity
                                             min_profit_pct = early_profit_config.get('min_profit_percentage', 0.45)
-    
-                                            # For downturn exits, only require net profit > $0 (bypass percentage requirement)
-                                            if net_profit_after_all_costs_usd > 0:
+
+                                            # For downturn exits, require $3 minimum (bypass percentage requirement)
+                                            if meets_min_profit_threshold:
                                                 print(f"  {Colors.GREEN}✓ Current profit: ${net_profit_after_all_costs_usd:.2f} ({net_profit_percentage:.2f}%){Colors.ENDC}")
                                                 if net_profit_percentage < min_profit_pct:
                                                     print(f"  {Colors.YELLOW}⚠ Profit below normal minimum ({min_profit_pct}%) but exiting to preserve gains from downturn{Colors.ENDC}")
@@ -1974,8 +2002,8 @@ def iterate_wallets(data_collection_interval_seconds):
                                                 should_rotate_position = True
                                                 rotation_reason = f"Early profit exit (downturn): Secured ${net_profit_after_all_costs_usd:.2f} profit, exiting to prevent further decline"
                                             else:
-                                                print(f"  {Colors.RED}✗ Cannot exit - position at loss (${net_profit_after_all_costs_usd:.2f}){Colors.ENDC}")
-                                                print(f"  {Colors.YELLOW}→ Downturn exit requires net profit > $0{Colors.ENDC}")
+                                                print(f"  {Colors.RED}✗ Cannot exit - below $3 minimum (${net_profit_after_all_costs_usd:.2f}){Colors.ENDC}")
+                                                print(f"  {Colors.YELLOW}→ Downturn exit requires net profit >= ${MIN_PROFIT_USD}{Colors.ENDC}")
                                         elif has_valid_opportunity:
                                             # Check profit advantage for rotation
                                             new_opp_entry = best_opportunity.get('entry_price', 0)
@@ -1987,11 +2015,11 @@ def iterate_wallets(data_collection_interval_seconds):
     
                                                 print(f"  Current remaining upside: {current_remaining_upside:.2f}%")
                                                 print(f"  New opportunity upside: {new_opp_upside:.2f}%")
-    
-                                                # CRITICAL: Only rotate if we're in positive net profit
-                                                if net_profit_after_all_costs_usd <= 0:
-                                                    print(f"  {Colors.RED}✗ Cannot rotate - position at loss (${net_profit_after_all_costs_usd:.2f}){Colors.ENDC}")
-                                                    print(f"  {Colors.YELLOW}→ Rotation only allowed when net profit > $0{Colors.ENDC}")
+
+                                                # CRITICAL: Only rotate if we meet $3 minimum
+                                                if not meets_min_profit_threshold:
+                                                    print(f"  {Colors.RED}✗ Cannot rotate - below $3 minimum (${net_profit_after_all_costs_usd:.2f}){Colors.ENDC}")
+                                                    print(f"  {Colors.YELLOW}→ Rotation requires net profit >= ${MIN_PROFIT_USD}{Colors.ENDC}")
                                                 elif new_opp_upside >= current_remaining_upside:
                                                     print(f"  {Colors.GREEN}✓ New opportunity has equal or better upside{Colors.ENDC}")
                                                     should_rotate_position = True
@@ -2270,8 +2298,10 @@ def iterate_wallets(data_collection_interval_seconds):
                                 else:
                                     print('STATUS: Trading disabled')
     
-                            # Check for profit target
-                            elif net_profit_percentage >= effective_profit_target:
+                            # Check for profit target (must also meet $3 minimum)
+                            elif net_profit_percentage >= effective_profit_target and not meets_min_profit_threshold:
+                                print(f'{Colors.YELLOW}~ PROFIT TARGET REACHED but below $3 minimum (${net_profit_after_all_costs_usd:.2f}) - HOLDING ~{Colors.ENDC}')
+                            elif net_profit_percentage >= effective_profit_target and meets_min_profit_threshold:
                                 print('~ POTENTIAL SELL OPPORTUNITY (profit % target reached) ~')
                                 # Filter data to match snapshot chart (3 months = 2160 hours)
                                 sell_chart_hours = 2160  # 90 days

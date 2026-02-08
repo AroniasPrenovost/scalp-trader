@@ -19,7 +19,7 @@ def save_order_data_to_local_json_ledger(symbol, order_data):
     """
     Save order data to a local file specific to the symbol.
     """
-    file_name = f"coinbase-orders/{symbol}_orders.json"
+    file_name = f"active-coinbase-orders/{symbol}_orders.json"
     try:
         # Load existing data if the file exists and is not empty
         if os.path.exists(file_name) and os.path.getsize(file_name) > 0:
@@ -53,7 +53,7 @@ def save_order_data_to_local_json_ledger(symbol, order_data):
 
 def reset_json_ledger_file(symbol):
     # Construct the file name based on the symbol
-    file_name = f"coinbase-orders/{symbol}_orders.json"
+    file_name = f"active-coinbase-orders/{symbol}_orders.json"
 
     print(f"Resetting file: {file_name}")
 
@@ -132,6 +132,24 @@ federal_tax_rate = float(os.environ.get('FEDERAL_TAX_RATE'))
 
 def get_coinbase_client():
     return RESTClient(api_key=coinbase_api_key, api_secret=coinbase_api_secret)
+
+
+def get_usd_balance(client):
+    """
+    Get the available USD balance from Coinbase account.
+    Returns the available balance as a float, or None if unable to retrieve.
+    """
+    try:
+        accounts = client.get_accounts()
+        accounts_list = convert_products_to_dicts(accounts.get('accounts', []))
+        for account in accounts_list:
+            if account.get('currency') == 'USD':
+                available_balance = account.get('available_balance', {})
+                return float(available_balance.get('value', 0))
+        return 0.0
+    except Exception as e:
+        print(f"Error getting USD balance: {e}")
+        return None
 
 
 def calculate_exchange_fee(price, number_of_shares, fee_rate):
@@ -302,7 +320,7 @@ def clear_order_ledger(symbol):
     Args:
         symbol: Trading pair (e.g., 'BTC-USD')
     """
-    file_name = f"coinbase-orders/{symbol}_orders.json"
+    file_name = f"active-coinbase-orders/{symbol}_orders.json"
     try:
         if os.path.exists(file_name):
             with open(file_name, 'w') as file:
@@ -420,7 +438,7 @@ def place_market_sell_order(client, symbol, base_size, potential_profit, potenti
 # save_transaction_record
 #
 
-def save_transaction_record(symbol, buy_price, sell_price, potential_profit_percentage, gross_profit, taxes, exchange_fees, total_profit, buy_timestamp, buy_screenshot_path=None, analysis=None, entry_market_conditions=None, exit_trigger=None, position_sizing_data=None):
+def save_transaction_record(symbol, buy_price, sell_price, potential_profit_percentage=None, gross_profit=None, taxes=None, exchange_fees=None, total_profit=None, buy_timestamp=None, buy_screenshot_path=None, analysis=None, entry_market_conditions=None, exit_trigger=None, position_sizing_data=None, last_order=None, time_held_minutes=None, exit_reason=None):
     """
     Store/append successful transaction records to /transactions/data.json
 
@@ -433,13 +451,38 @@ def save_transaction_record(symbol, buy_price, sell_price, potential_profit_perc
         taxes: Taxes owed
         exchange_fees: Exchange fees
         total_profit: Net profit after all costs
-        buy_timestamp: Timestamp when position was opened
+        buy_timestamp: Timestamp when position was opened (or extracted from last_order)
         buy_screenshot_path: Optional path to the buy event screenshot
         analysis: Optional dict containing analysis data (support, resistance, reasoning, etc.)
         entry_market_conditions: Optional dict with market context at entry (volatility, trend, etc.)
         exit_trigger: Optional string indicating what triggered the exit ('profit_target', 'stop_loss', 'manual')
         position_sizing_data: Optional dict with position sizing decisions (amount, allocation %, etc.)
+        last_order: Optional order data dict (for extracting buy_timestamp and position_sizing)
+        time_held_minutes: Optional time held in minutes (alternative to calculating from timestamps)
+        exit_reason: Optional alias for exit_trigger
     """
+    # Handle exit_reason as alias for exit_trigger
+    if exit_reason and not exit_trigger:
+        exit_trigger = exit_reason
+
+    # Extract data from last_order if provided
+    if last_order:
+        order_data = last_order.get('order', last_order)
+        if not buy_timestamp:
+            buy_timestamp = order_data.get('created_time') or order_data.get('buy_timestamp')
+        if not position_sizing_data:
+            filled_size = float(order_data.get('filled_size', 0))
+            filled_value = float(order_data.get('filled_value', 0))
+            if filled_size > 0 and filled_value > 0:
+                position_sizing_data = {
+                    'buy_amount_usd': filled_value,
+                    'actual_shares': filled_size,
+                    'entry_position_value': filled_value,
+                }
+
+    # Calculate potential_profit_percentage if not provided
+    if potential_profit_percentage is None and buy_price and sell_price:
+        potential_profit_percentage = ((sell_price - buy_price) / buy_price) * 100
     import datetime
 
     # Calculate time held position
@@ -447,7 +490,13 @@ def save_transaction_record(symbol, buy_price, sell_price, potential_profit_perc
 
     # Parse buy timestamp and calculate time held
     time_held_seconds = None
-    if buy_timestamp:
+    time_held_position = "unknown"
+
+    # Use time_held_minutes if provided directly
+    if time_held_minutes is not None:
+        time_held_seconds = time_held_minutes * 60
+        time_held_position = f"{time_held_minutes / 60:.2f} hours"
+    elif buy_timestamp:
         try:
             buy_time = datetime.datetime.fromisoformat(buy_timestamp.replace('Z', '+00:00'))
             sell_time = datetime.datetime.now(datetime.timezone.utc)
@@ -455,9 +504,6 @@ def save_transaction_record(symbol, buy_price, sell_price, potential_profit_perc
             time_held_position = f"{time_held_seconds / 3600:.2f} hours"
         except Exception as e:
             print(f"Error calculating time held: {e}")
-            time_held_position = "unknown"
-    else:
-        time_held_position = "unknown"
 
     # Create base transaction record
     transaction_record = {
@@ -576,7 +622,7 @@ def get_last_order_from_local_json_ledger(symbol, verbose=False):
     :param symbol: The trading symbol (e.g., 'BTC-USD')
     :param verbose: Whether to print "No orders found" message (default: True)
     """
-    file_name = f"coinbase-orders/{symbol}_orders.json"
+    file_name = f"active-coinbase-orders/{symbol}_orders.json"
     try:
         if os.path.exists(file_name) and os.path.getsize(file_name) > 0:
             with open(file_name, 'r') as file:

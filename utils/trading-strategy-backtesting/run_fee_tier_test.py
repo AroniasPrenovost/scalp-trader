@@ -1,9 +1,17 @@
 #!/usr/bin/env python3
-"""Backtest + walk-forward for active RSI symbols with correct per-symbol params."""
+"""
+Backtest + walk-forward for active RSI symbols with correct per-symbol params.
+
+Run from project root: python3 utils/trading-strategy-backtesting/run_fee_tier_test.py
+"""
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Add project root to path for imports (two levels up)
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, PROJECT_ROOT)
+os.chdir(PROJECT_ROOT)
 
 from backtest import (
     run_backtest, walk_forward_test, print_result, FEE_TIERS, STRATEGY_MAP

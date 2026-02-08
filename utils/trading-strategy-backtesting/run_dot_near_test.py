@@ -1,8 +1,17 @@
 #!/usr/bin/env python3
-"""Test DOT and NEAR with clock-aligned aggregation at 30min."""
+"""
+Test DOT and NEAR with clock-aligned aggregation at 30min.
 
-import sys, os
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+Run from project root: python3 utils/trading-strategy-backtesting/run_dot_near_test.py
+"""
+
+import sys
+import os
+
+# Add project root to path for imports (two levels up)
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, PROJECT_ROOT)
+os.chdir(PROJECT_ROOT)
 
 from backtest import run_backtest, walk_forward_test, print_result, STRATEGY_MAP
 

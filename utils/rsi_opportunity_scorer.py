@@ -18,7 +18,8 @@ from typing import Dict, List, Optional
 from utils.rsi_mean_reversion_strategy import check_rsi_mean_reversion_signal
 from utils.rsi_regime_strategy import check_rsi_regime_signal
 from utils.co_revert_strategy import check_co_revert_signal
-from utils.coinbase import get_asset_price, get_volume_and_fee_summary
+from utils.coinbase import get_asset_price, get_volume_and_fee_summary, get_last_order_from_local_json_ledger, detect_stored_coinbase_order_type
+from utils.wallet_helpers import load_transaction_history, calculate_wallet_metrics
 
 
 # Strategy name -> (config_key, signal_checker_function)
@@ -338,9 +339,20 @@ def print_opportunity_report(
         if isinstance(opp, dict):
             selected_symbols.append(opp.get('symbol'))
 
-    print("\n" + "=" * 110)
+    # Detect active positions by checking order ledger for each symbol
+    active_position_symbols = set()
+    for opp in all_opportunities:
+        if isinstance(opp, dict):
+            symbol = opp.get('symbol')
+            if symbol:
+                last_order = get_last_order_from_local_json_ledger(symbol)
+                order_type = detect_stored_coinbase_order_type(last_order)
+                if order_type in ['buy', 'placeholder']:
+                    active_position_symbols.add(symbol)
+
+    print("\n" + "=" * 150)
     print("MULTI-STRATEGY OPPORTUNITY SCANNER")
-    print("=" * 110)
+    print("=" * 150)
 
     # Display fee tier and volume if client is available
     if coinbase_client:
@@ -357,8 +369,8 @@ def print_opportunity_report(
     if isinstance(all_opportunities, list):
         all_opportunities.sort(key=lambda x: x.get('score', 0) if isinstance(x, dict) else 0, reverse=True)
 
-    print(f"{'Rank':<6} {'Symbol':<12} {'Strategy':<20} {'Score':<8} {'RSI':<8} {'Signal':<12} {'Confidence':<12} {'Status':<20}")
-    print("-" * 110)
+    print(f"{'Rank':<6} {'Symbol':<12} {'Strategy':<20} {'Score':<8} {'RSI':<8} {'Gross PnL':<12} {'Net PnL':<12} {'Win Rate':<12} {'Volume':<12} {'Position':<10} {'Status':<16}")
+    print("-" * 150)
 
     for i, opp in enumerate(all_opportunities, 1):
         if not isinstance(opp, dict):
@@ -371,6 +383,26 @@ def print_opportunity_report(
         rsi = opp.get('metrics', {}).get('rsi')
         rsi_str = f"{rsi:.1f}" if rsi is not None else "-"
 
+        # Load historical performance data for this symbol
+        transactions = load_transaction_history(symbol)
+        trades = len(transactions)
+        wins = len([t for t in transactions if t.get('total_profit', 0) > 0])
+        losses = trades - wins
+
+        # Calculate metrics using wallet_helpers (use 0 starting capital since we only need gross/net)
+        metrics = calculate_wallet_metrics(symbol, 0)
+        gross_pnl = metrics.get('gross_profit', 0)
+        net_pnl = metrics.get('total_profit', 0)
+
+        # Calculate total trading volume (sum of all trade values)
+        total_volume = sum(t.get('position_sizing', {}).get('buy_amount_usd', 0) for t in transactions)
+
+        # Format PnL strings with color indicators
+        gross_str = f"${gross_pnl:+.2f}" if trades > 0 else "-"
+        net_str = f"${net_pnl:+.2f}" if trades > 0 else "-"
+        win_rate_str = f"{wins}/{trades}" if trades > 0 else "-"
+        volume_str = f"${total_volume:,.0f}" if total_volume > 0 else "-"
+
         if symbol in selected_symbols:
             status = "SELECTED"
         elif opp.get('has_signal') and score > 0:
@@ -380,16 +412,20 @@ def print_opportunity_report(
         else:
             status = "No Signal"
 
+        # Position indicator
+        has_position = symbol in active_position_symbols
+        position_str = "* ACTIVE *" if has_position else "-"
+
         score_str = f"{score:.1f}" if score > 0 else "-"
-        prefix = "-> " if symbol in selected_symbols else "   "
-        print(f"{prefix}#{i:<4} {symbol:<12} {strategy:<20} {score_str:<8} {rsi_str:<8} {signal:<12} {confidence:<12} {status:<20}")
+        prefix = "-> " if symbol in selected_symbols else ("** " if has_position else "   ")
+        print(f"{prefix}#{i:<4} {symbol:<12} {strategy:<20} {score_str:<8} {rsi_str:<8} {gross_str:<12} {net_str:<12} {win_rate_str:<12} {volume_str:<12} {position_str:<10} {status:<16}")
 
     print()
 
     if best_opportunity and isinstance(best_opportunity, dict) and best_opportunity.get('has_signal'):
-        print("=" * 110)
+        print("=" * 150)
         print(f"SELECTED: {best_opportunity['symbol']} [{best_opportunity.get('strategy', 'unknown')}]")
-        print("=" * 110)
+        print("=" * 150)
         print(f"  Score: {best_opportunity['score']:.1f}/100")
         print(f"  RSI: {best_opportunity.get('metrics', {}).get('rsi', 0):.1f}")
         print(f"  Entry: ${best_opportunity['entry_price']:.4f}" if best_opportunity.get('entry_price') else "  Entry: N/A")
@@ -397,11 +433,11 @@ def print_opportunity_report(
         print(f"  Target: ${best_opportunity['profit_target']:.4f}" if best_opportunity.get('profit_target') else "  Target: N/A")
         print(f"\n  {best_opportunity.get('reasoning', '')[:200]}")
     elif not any(o.get('has_signal') for o in all_opportunities if isinstance(o, dict)):
-        print("=" * 110)
+        print("=" * 150)
         print("NO OPPORTUNITIES - No oversold signals on any configured symbol")
-        print("=" * 110)
+        print("=" * 150)
         print("  Waiting for RSI to drop below entry thresholds")
 
     print()
-    print("=" * 110)
+    print("=" * 150)
     print()

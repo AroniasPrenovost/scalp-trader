@@ -244,6 +244,63 @@ def calculate_required_price_for_target_profit(
     }
 
 
+def is_position_profitable(
+    entry_price: float,
+    current_price: float,
+    shares: float,
+    entry_fee_pct: float,
+    exit_fee_pct: float,
+    tax_rate_pct: float,
+    min_profit_usd: float = 3.0,
+    cost_basis_usd: Optional[float] = None
+) -> Dict:
+    """
+    Check if a position is truly profitable after all costs (fees + taxes).
+
+    This is the SINGLE SOURCE OF TRUTH for profitability checks.
+    Use this function instead of simple price comparisons.
+
+    Args:
+        entry_price: Entry price per share
+        current_price: Current market price per share
+        shares: Number of shares held
+        entry_fee_pct: Entry fee percentage (e.g., 0.5 for 0.5%)
+        exit_fee_pct: Exit fee percentage (e.g., 0.5 for 0.5%)
+        tax_rate_pct: Tax rate percentage (e.g., 37 for 37%)
+        min_profit_usd: Minimum net profit in USD to be considered profitable (default $3)
+        cost_basis_usd: Optional pre-calculated cost basis (includes entry fee)
+
+    Returns:
+        {
+            'is_profitable': bool,  # True if net_profit_usd >= min_profit_usd
+            'net_profit_usd': float,  # Actual net profit after all costs
+            'net_profit_pct': float,  # Net profit as percentage
+            'price_change_pct': float,  # Raw price change (for display)
+            'min_profit_usd': float,  # The threshold used
+        }
+    """
+    profit_calc = calculate_net_profit_from_price_move(
+        entry_price=entry_price,
+        exit_price=current_price,
+        shares=shares,
+        entry_fee_pct=entry_fee_pct,
+        exit_fee_pct=exit_fee_pct,
+        tax_rate_pct=tax_rate_pct,
+        cost_basis_usd=cost_basis_usd
+    )
+
+    net_profit_usd = profit_calc['net_profit_usd']
+    is_profitable = net_profit_usd >= min_profit_usd
+
+    return {
+        'is_profitable': is_profitable,
+        'net_profit_usd': net_profit_usd,
+        'net_profit_pct': profit_calc['net_profit_pct'],
+        'price_change_pct': profit_calc['price_change_pct'],
+        'min_profit_usd': min_profit_usd,
+    }
+
+
 def calculate_breakeven_price(
     entry_price: float,
     entry_fee_pct: float,

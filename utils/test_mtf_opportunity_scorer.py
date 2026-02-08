@@ -7,7 +7,16 @@ This script tests the MTF opportunity scoring system to ensure it correctly:
 2. Scores each one based on MTF strategy signals
 3. Returns the best 1-2 opportunities
 4. Displays a clear report
+
+Run from project root: python3 utils/test_mtf_opportunity_scorer.py
 """
+
+import sys
+import os
+
+# Add project root to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import json
 from utils.mtf_opportunity_scorer import (

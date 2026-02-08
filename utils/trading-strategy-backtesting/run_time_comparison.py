@@ -1,8 +1,17 @@
 #!/usr/bin/env python3
-"""Compare backtest results at different data cutoffs to find when strategy broke."""
+"""
+Compare backtest results at different data cutoffs to find when strategy broke.
 
-import sys, os
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+Run from project root: python3 utils/trading-strategy-backtesting/run_time_comparison.py
+"""
+
+import sys
+import os
+
+# Add project root to path for imports (two levels up)
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, PROJECT_ROOT)
+os.chdir(PROJECT_ROOT)
 
 from datetime import datetime, timezone
 from backtest import run_backtest, STRATEGY_MAP

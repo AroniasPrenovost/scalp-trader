@@ -3,9 +3,17 @@
 Quick test to verify 5-minute candle collection works in index.py
 
 This simulates what happens in the index.py data collection loop.
+
+Run from project root: python3 utils/test_candle_helpers.py
 """
 
+import sys
 import os
+
+# Add project root to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import time
 from dotenv import load_dotenv
 from utils.coinbase import get_coinbase_client

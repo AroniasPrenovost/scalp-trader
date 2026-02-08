@@ -554,7 +554,7 @@ The bot uses a **Multi-Timeframe Momentum Breakout** approach:
 │   ├── BTC-USD_chart_buy_20251015120000.png
 │   └── (auto-generated)
 │
-├── coinbase-orders/                      # Per-symbol order ledgers (auto-generated)
+├── active-coinbase-orders/                      # Per-symbol order ledgers (auto-generated)
 │   ├── BTC-USD_orders.json               # Position tracking and order history
 │   ├── ETH-USD_orders.json
 │   └── {SYMBOL}_orders.json

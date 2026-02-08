@@ -2,7 +2,7 @@
 
 config.json
 
-coinbase-orders/*_orders.json
+active-coinbase-orders/*_orders.json
 /transactions/data.json
 
 /coinbase-data
