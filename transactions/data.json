@@ -2278,5 +2278,159 @@
       "starting_capital": 4800,
       "wallet_allocation_pct": 62.50303125
     }
+  },
+  {
+    "symbol": "ICP-USD",
+    "buy_price": 2.41438227,
+    "sell_price": 2.437,
+    "potential_profit_percentage": 0.936791587688386,
+    "timestamp": "2026-02-08T22:17:59.943421+00:00",
+    "gross_profit": 8.674629866774922,
+    "taxes": 2.081911168025981,
+    "exchange_fees": 5.0384975,
+    "total_profit": 6.592718698748941,
+    "time_held_position": "0.68 hours",
+    "time_held_seconds": 2450.842085,
+    "buy_timestamp": "2026-02-08T21:37:09.101390Z",
+    "buy_screenshot_path": null,
+    "exit_analysis": {
+      "exit_trigger": "rsi_regime_exit",
+      "profit_target_percentage": null,
+      "actual_profit_percentage": 0.936791587688386
+    },
+    "position_sizing": {
+      "buy_amount_usd": 1996.69413729,
+      "actual_shares": 827.0,
+      "entry_position_value": 1996.69413729
+    }
+  },
+  {
+    "symbol": "TAO-USD",
+    "buy_price": 162.9634345,
+    "sell_price": 167.18,
+    "potential_profit_percentage": 2.5874304336657814,
+    "timestamp": "2026-02-08T23:08:55.427461+00:00",
+    "gross_profit": 40.694482965000134,
+    "taxes": 9.766675911600032,
+    "exchange_fees": 5.0154000000000005,
+    "total_profit": 30.9278070534001,
+    "time_held_position": "1.44 hours",
+    "time_held_seconds": 5191.173543,
+    "buy_timestamp": "2026-02-08T21:42:24.253952Z",
+    "buy_screenshot_path": null,
+    "exit_analysis": {
+      "exit_trigger": "rsi_mean_reversion_exit",
+      "profit_target_percentage": null,
+      "actual_profit_percentage": 2.5874304336657814
+    },
+    "position_sizing": {
+      "buy_amount_usd": 1955.561214,
+      "actual_shares": 12.0,
+      "entry_position_value": 1955.561214
+    }
+  },
+  {
+    "symbol": "ICP-USD",
+    "buy_price": 2.4349288112,
+    "sell_price": 2.446,
+    "potential_profit_percentage": 0.45468223748784536,
+    "timestamp": "2026-02-09T05:10:37.566769+00:00",
+    "gross_profit": -0.9320537798716941,
+    "taxes": 0.0,
+    "exchange_fees": 5.038760000000001,
+    "total_profit": -0.9320537798716941,
+    "time_held_position": "0.25 hours",
+    "time_held_seconds": 916.049932,
+    "buy_timestamp": "2026-02-09T04:55:21.516859Z",
+    "buy_screenshot_path": null,
+    "exit_analysis": {
+      "exit_trigger": "rsi_regime_exit",
+      "profit_target_percentage": null,
+      "actual_profit_percentage": 0.45468223748784536
+    },
+    "position_sizing": {
+      "buy_amount_usd": 2006.3813404288,
+      "actual_shares": 824.0,
+      "entry_position_value": 2006.3813404288
+    }
+  },
+  {
+    "symbol": "ICP-USD",
+    "buy_price": 2.4196672542,
+    "sell_price": 2.34,
+    "potential_profit_percentage": -3.7748197395365453,
+    "timestamp": "2026-02-09T10:41:42.464775+00:00",
+    "gross_profit": -76.0001305384651,
+    "taxes": 0.0,
+    "exchange_fees": 4.855499999999999,
+    "total_profit": -76.0001305384651,
+    "time_held_position": "2.21 hours",
+    "time_held_seconds": 7941.164581,
+    "buy_timestamp": "2026-02-09T08:29:21.300218Z",
+    "buy_screenshot_path": "./screenshots/ICP-USD_5m_buy_20260209002919.png",
+    "market_context_at_entry": {
+      "volatility_range_pct": 6.476352790796767,
+      "confidence_level": "high",
+      "entry_reasoning": "RSI REGIME (LONG): RSI(14) = 9.6 <= 20 (oversold) + regime OK. Entry: $2.4200, Disaster stop: $2.3474 (-3.0%), RSI exit: 50, Partial: 40. Timeframe: 5min, Max hold: 36 bars."
+    },
+    "technical_signals_at_entry": {
+      "major_support": null,
+      "minor_support": null,
+      "major_resistance": null,
+      "minor_resistance": null,
+      "buy_in_price_target": null,
+      "actual_entry_price": 2.4196672542,
+      "stop_loss_set": 2.3474,
+      "profit_target_percentage": null,
+      "actual_profit_percentage": -3.7748197395365453,
+      "risk_reward_ratio": null
+    },
+    "ai_model_data": {
+      "model_used": null,
+      "analyzed_at": 1770625759.702817,
+      "confidence_level": "high",
+      "trade_recommendation": null,
+      "market_trend": null,
+      "volume_confirmation": null,
+      "reasoning": "RSI REGIME (LONG): RSI(14) = 9.6 <= 20 (oversold) + regime OK. Entry: $2.4200, Disaster stop: $2.3474 (-3.0%), RSI exit: 50, Partial: 40. Timeframe: 5min, Max hold: 36 bars.",
+      "trade_invalidation_price": null
+    },
+    "exit_analysis": {
+      "exit_trigger": "stop_loss",
+      "profit_target_percentage": null,
+      "actual_profit_percentage": -3.7748197395365453
+    },
+    "position_sizing": {
+      "buy_amount_usd": 2013.344630538465,
+      "actual_shares": 830.0,
+      "entry_position_value": 2013.344630538465,
+      "starting_capital": 4125,
+      "wallet_allocation_pct": 48.80835467972036
+    }
+  },
+  {
+    "symbol": "ZEC-USD",
+    "buy_price": 236.6174581137,
+    "sell_price": 234.11,
+    "potential_profit_percentage": -1.0597096823240713,
+    "timestamp": "2026-02-09T13:43:49.230854+00:00",
+    "gross_profit": -29.474214071873803,
+    "taxes": 0.0,
+    "exchange_fees": 4.682200000000001,
+    "total_profit": -29.474214071873803,
+    "time_held_position": "6.35 hours",
+    "time_held_seconds": 22843.239435,
+    "buy_timestamp": "2026-02-09T07:23:05.991442Z",
+    "buy_screenshot_path": null,
+    "exit_analysis": {
+      "exit_trigger": "rsi_mean_reversion_exit",
+      "profit_target_percentage": null,
+      "actual_profit_percentage": -1.0597096823240713
+    },
+    "position_sizing": {
+      "buy_amount_usd": 1892.9396649096,
+      "actual_shares": 8.0,
+      "entry_position_value": 1892.9396649096
+    }
   }
 ]

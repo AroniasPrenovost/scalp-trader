@@ -395,7 +395,8 @@ def print_opportunity_report(
         net_pnl = metrics.get('total_profit', 0)
 
         # Calculate total trading volume (sum of all trade values)
-        total_volume = sum(t.get('position_sizing', {}).get('buy_amount_usd', 0) for t in transactions)
+        # Use 'or 0' to handle explicit null values in JSON
+        total_volume = sum((t.get('position_sizing', {}).get('buy_amount_usd') or 0) for t in transactions)
 
         # Format PnL strings with color indicators
         gross_str = f"${gross_pnl:+.2f}" if trades > 0 else "-"
