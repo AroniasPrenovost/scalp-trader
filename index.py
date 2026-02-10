@@ -62,9 +62,15 @@ def format_wallet_metrics(symbol, metrics):
     print(f"{Colors.BOLD}Exchange Fees:{Colors.ENDC}       {Colors.YELLOW}${metrics['exchange_fees']:,.2f}{Colors.ENDC}")
     print(f"{Colors.BOLD}Taxes:{Colors.ENDC}               {Colors.YELLOW}${metrics['taxes']:,.2f}{Colors.ENDC}")
 
-    # Total profit
+    # Total profit - show if includes unrealized
     total_color = Colors.GREEN if metrics['total_profit'] >= 0 else Colors.RED
-    print(f"{Colors.BOLD}Net Profit:{Colors.ENDC}          {total_color}${metrics['total_profit']:,.2f}{Colors.ENDC}")
+    has_open = metrics.get('has_open_position', False)
+    unrealized = metrics.get('unrealized_pnl', 0)
+    if has_open:
+        unrealized_color = Colors.GREEN if unrealized >= 0 else Colors.RED
+        print(f"{Colors.BOLD}Net Profit:{Colors.ENDC}          {total_color}${metrics['total_profit']:,.2f}{Colors.ENDC}  {Colors.DIM}(incl. {unrealized_color}${unrealized:+,.2f}{Colors.ENDC}{Colors.DIM} unrealized){Colors.ENDC}")
+    else:
+        print(f"{Colors.BOLD}Net Profit:{Colors.ENDC}          {total_color}${metrics['total_profit']:,.2f}{Colors.ENDC}")
 
     print(f"\n{Colors.CYAN}{'='*50}{Colors.ENDC}\n")
 
@@ -1590,9 +1596,14 @@ def iterate_wallets(data_collection_interval_seconds):
                                     print(f"\n{Colors.CYAN}RSI EXIT CHECK [{active_strategy}]: RSI = {rsi_current:.1f} | {rsi_exit_result['reason']}{Colors.ENDC}")
 
                                 if rsi_exit_result.get('should_exit'):
-                                    print(f"{Colors.YELLOW}RSI EXIT TRIGGERED: {rsi_exit_result['reason']}{Colors.ENDC}")
+                                    # For partial RSI exits, require minimum profit threshold
+                                    is_partial_exit = 'partial' in rsi_exit_result.get('reason', '').lower()
+                                    if is_partial_exit and not meets_min_profit_threshold:
+                                        print(f"{Colors.YELLOW}RSI PARTIAL EXIT BLOCKED: Need ${MIN_PROFIT_USD} min profit (have ${net_profit_after_all_costs_usd:.2f}){Colors.ENDC}")
+                                    else:
+                                        print(f"{Colors.YELLOW}RSI EXIT TRIGGERED: {rsi_exit_result['reason']}{Colors.ENDC}")
 
-                                    if READY_TO_TRADE:
+                                    if READY_TO_TRADE and (not is_partial_exit or meets_min_profit_threshold):
                                         print(f'~ {active_strategy.upper()} EXIT ~')
 
                                         # Generate sell chart

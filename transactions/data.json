@@ -2432,5 +2432,80 @@
       "actual_shares": 8.0,
       "entry_position_value": 1892.9396649096
     }
+  },
+  {
+    "symbol": "NEAR-USD",
+    "buy_price": 0.99735547,
+    "sell_price": 1.008,
+    "potential_profit_percentage": 1.0672754419244308,
+    "timestamp": "2026-02-09T16:02:31.012163+00:00",
+    "gross_profit": 11.33548748722501,
+    "taxes": 2.720516996934002,
+    "exchange_fees": 5.072760000000001,
+    "total_profit": 8.614970490291007,
+    "time_held_position": "2.31 hours",
+    "time_held_seconds": 8325.247394,
+    "buy_timestamp": "2026-02-09T13:43:45.764800Z",
+    "buy_screenshot_path": null,
+    "exit_analysis": {
+      "exit_trigger": "rsi_mean_reversion_exit",
+      "profit_target_percentage": null,
+      "actual_profit_percentage": 1.0672754419244308
+    },
+    "position_sizing": {
+      "buy_amount_usd": 2007.67656111,
+      "actual_shares": 2013.0,
+      "entry_position_value": 2007.67656111
+    }
+  },
+  {
+    "symbol": "TAO-USD",
+    "buy_price": 159.4554326063,
+    "sell_price": 159.75,
+    "potential_profit_percentage": 0.1847333696226504,
+    "timestamp": "2026-02-09T16:47:35.528270+00:00",
+    "gross_profit": -6.041354253788995,
+    "taxes": 0.0,
+    "exchange_fees": 4.7925,
+    "total_profit": -6.041354253788995,
+    "time_held_position": "6.69 hours",
+    "time_held_seconds": 24093.579976,
+    "buy_timestamp": "2026-02-09T10:06:01.948318Z",
+    "buy_screenshot_path": null,
+    "exit_analysis": {
+      "exit_trigger": "rsi_mean_reversion_exit",
+      "profit_target_percentage": null,
+      "actual_profit_percentage": 0.1847333696226504
+    },
+    "position_sizing": {
+      "buy_amount_usd": 1913.4651912756,
+      "actual_shares": 12.0,
+      "entry_position_value": 1913.4651912756
+    }
+  },
+  {
+    "symbol": "ICP-USD",
+    "buy_price": 2.4081076014,
+    "sell_price": 2.399,
+    "potential_profit_percentage": -0.3782057493903054,
+    "timestamp": "2026-02-10T04:33:49.337550+00:00",
+    "gross_profit": -17.0692992860279,
+    "taxes": 0.0,
+    "exchange_fees": 4.84598,
+    "total_profit": -17.0692992860279,
+    "time_held_position": "1.43 hours",
+    "time_held_seconds": 5137.794509,
+    "buy_timestamp": "2026-02-10T03:08:11.543066Z",
+    "buy_screenshot_path": null,
+    "exit_analysis": {
+      "exit_trigger": "rsi_regime_exit",
+      "profit_target_percentage": null,
+      "actual_profit_percentage": -0.3782057493903054
+    },
+    "position_sizing": {
+      "buy_amount_usd": 1945.7509419312,
+      "actual_shares": 808.0,
+      "entry_position_value": 1945.7509419312
+    }
   }
 ]

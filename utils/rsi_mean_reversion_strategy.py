@@ -271,9 +271,11 @@ def check_rsi_exit_signal(
         }
 
     # Check RSI partial recovery + profitable
+    # Note: index.py also enforces min_profit_usd threshold before allowing partial exits
+    profit_pct = ((current_price - entry_price) / entry_price) * 100
     is_profitable = current_price > entry_price
+
     if rsi_value >= rsi_partial_exit and is_profitable:
-        profit_pct = ((current_price - entry_price) / entry_price) * 100
         return {
             'should_exit': True,
             'reason': f'RSI partial recovery: {rsi_value:.1f} >= {rsi_partial_exit} AND profitable (+{profit_pct:.2f}%)',
