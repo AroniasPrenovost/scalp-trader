@@ -214,14 +214,16 @@ def check_rsi_exit_signal(
     entry_price: float,
     current_price: float,
     data_directory: str = 'coinbase-data',
-    max_age_hours: int = 5040
+    max_age_hours: int = 5040,
+    min_profit_usd: float = 0.0,
+    net_profit_usd: float = 0.0
 ) -> Dict:
     """
     Check if an open RSI mean reversion position should be exited based on RSI recovery.
 
     This handles exit conditions 3 and 4 from the strategy:
-      3. RSI full recovery (RSI >= rsi_exit)
-      4. RSI partial recovery + profitable (RSI >= rsi_partial AND profit > 0)
+      3. RSI full recovery (RSI >= rsi_exit AND net_profit_usd >= min_profit_usd)
+      4. RSI partial recovery + profitable (RSI >= rsi_partial AND net_profit_usd >= min_profit_usd)
 
     Conditions 1 (disaster stop), 2 (trailing stop), and 5 (max hold) are
     handled by existing index.py logic.
@@ -234,6 +236,8 @@ def check_rsi_exit_signal(
         current_price: Current market price
         data_directory: Directory containing price data
         max_age_hours: Maximum data age
+        min_profit_usd: Minimum net profit in USD required for RSI exits
+        net_profit_usd: Current net profit in USD (after fees/taxes)
 
     Returns:
         Dict with 'should_exit', 'reason', 'rsi_value'
@@ -241,6 +245,7 @@ def check_rsi_exit_signal(
     rsi_period = config_params.get('rsi_period', 14)
     rsi_exit = config_params.get('rsi_exit', 48)
     rsi_partial_exit = config_params.get('rsi_partial_exit', 35)
+    meets_min_profit = net_profit_usd >= min_profit_usd
 
     closes = get_property_values_from_crypto_file(
         data_directory, symbol, 'price', max_age_hours=max_age_hours
@@ -262,28 +267,35 @@ def check_rsi_exit_signal(
     if rsi_value is None:
         return {'should_exit': False, 'reason': 'RSI calculation failed', 'rsi_value': None}
 
-    # Check RSI full recovery
-    if rsi_value >= rsi_exit:
-        return {
-            'should_exit': True,
-            'reason': f'RSI full recovery: {rsi_value:.1f} >= {rsi_exit} (exit threshold)',
-            'rsi_value': rsi_value
-        }
-
-    # Check RSI partial recovery + profitable
-    # Note: index.py also enforces min_profit_usd threshold before allowing partial exits
+    # Calculate profit metrics
     profit_pct = ((current_price - entry_price) / entry_price) * 100
-    is_profitable = current_price > entry_price
 
-    if rsi_value >= rsi_partial_exit and is_profitable:
-        return {
-            'should_exit': True,
-            'reason': f'RSI partial recovery: {rsi_value:.1f} >= {rsi_partial_exit} AND profitable (+{profit_pct:.2f}%)',
-            'rsi_value': rsi_value
-        }
+    # Check RSI full recovery - requires min_profit_usd threshold
+    if rsi_value >= rsi_exit:
+        if meets_min_profit:
+            return {
+                'should_exit': True,
+                'reason': f'RSI full recovery: {rsi_value:.1f} >= {rsi_exit} (exit threshold) AND profit ${net_profit_usd:.2f} >= ${min_profit_usd:.2f}',
+                'rsi_value': rsi_value
+            }
+        else:
+            return {
+                'should_exit': False,
+                'reason': f'RSI full recovery: {rsi_value:.1f} >= {rsi_exit} BUT profit ${net_profit_usd:.2f} < ${min_profit_usd:.2f} min',
+                'rsi_value': rsi_value
+            }
+
+    # Check RSI partial recovery - also requires min_profit_usd threshold
+    if rsi_value >= rsi_partial_exit:
+        if meets_min_profit:
+            return {
+                'should_exit': True,
+                'reason': f'RSI partial recovery: {rsi_value:.1f} >= {rsi_partial_exit} AND profit ${net_profit_usd:.2f} >= ${min_profit_usd:.2f}',
+                'rsi_value': rsi_value
+            }
 
     return {
         'should_exit': False,
-        'reason': f'RSI = {rsi_value:.1f} (exit: {rsi_exit}, partial: {rsi_partial_exit}, profitable: {is_profitable})',
+        'reason': f'RSI = {rsi_value:.1f} (exit: {rsi_exit}, partial: {rsi_partial_exit}, profit: ${net_profit_usd:.2f}/${min_profit_usd:.2f})',
         'rsi_value': rsi_value
     }

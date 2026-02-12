@@ -1588,7 +1588,9 @@ def iterate_wallets(data_collection_interval_seconds):
                                     entry_price=entry_price,
                                     current_price=current_price,
                                     data_directory='coinbase-data',
-                                    max_age_hours=DATA_RETENTION_HOURS
+                                    max_age_hours=DATA_RETENTION_HOURS,
+                                    min_profit_usd=MIN_PROFIT_USD,
+                                    net_profit_usd=net_profit_after_all_costs_usd
                                 )
 
                                 rsi_current = rsi_exit_result.get('rsi_value')
@@ -1596,14 +1598,10 @@ def iterate_wallets(data_collection_interval_seconds):
                                     print(f"\n{Colors.CYAN}RSI EXIT CHECK [{active_strategy}]: RSI = {rsi_current:.1f} | {rsi_exit_result['reason']}{Colors.ENDC}")
 
                                 if rsi_exit_result.get('should_exit'):
-                                    # For partial RSI exits, require minimum profit threshold
-                                    is_partial_exit = 'partial' in rsi_exit_result.get('reason', '').lower()
-                                    if is_partial_exit and not meets_min_profit_threshold:
-                                        print(f"{Colors.YELLOW}RSI PARTIAL EXIT BLOCKED: Need ${MIN_PROFIT_USD} min profit (have ${net_profit_after_all_costs_usd:.2f}){Colors.ENDC}")
-                                    else:
-                                        print(f"{Colors.YELLOW}RSI EXIT TRIGGERED: {rsi_exit_result['reason']}{Colors.ENDC}")
+                                    # min_profit_usd check is now handled in check_rsi_exit_signal
+                                    print(f"{Colors.YELLOW}RSI EXIT TRIGGERED: {rsi_exit_result['reason']}{Colors.ENDC}")
 
-                                    if READY_TO_TRADE and (not is_partial_exit or meets_min_profit_threshold):
+                                    if READY_TO_TRADE:
                                         print(f'~ {active_strategy.upper()} EXIT ~')
 
                                         # Generate sell chart

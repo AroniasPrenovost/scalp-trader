@@ -1688,6 +1688,7 @@ class RSIOnlyStrategy(VectorizedStrategy):
         'max_hold_bars': 48,
         'trailing_activate_pct': 0.5,
         'trailing_stop_pct': 0.3,
+        'min_net_profit_pct': 0.3,  # Min net profit % for RSI exits
         'bb_period': 20,
         'bb_std': 2.0,
         'ema_periods': [9, 21, 50],
@@ -1713,6 +1714,8 @@ class RSIOnlyStrategy(VectorizedStrategy):
         trailing_activate = self.params.get('trailing_activate_pct', 0.5) / 100.0
         trailing_pct = self.params.get('trailing_stop_pct', 0.3) / 100.0
         cooldown = self.params.get('min_cooldown_bars', 4)
+        min_net_profit = self.params.get('min_net_profit_pct', 0.3) / 100.0
+        fee_pct = self.params.get('round_trip_fee_pct', 0.25) / 100.0
 
         i = warmup
         last_exit_bar = 0
@@ -1761,19 +1764,23 @@ class RSIOnlyStrategy(VectorizedStrategy):
                             exit_reason = 'trailing_stop'
                             break
 
-                    # 3. RSI full recovery exit (primary signal)
+                    # 3. RSI full recovery exit - requires min net profit
                     if rsi[j] is not None and rsi[j] >= rsi_exit:
-                        exit_bar = j
-                        exit_price = current_price
-                        exit_reason = 'rsi_exit'
-                        break
+                        net_pnl = current_pnl - fee_pct
+                        if net_pnl >= min_net_profit:
+                            exit_bar = j
+                            exit_price = current_price
+                            exit_reason = 'rsi_exit'
+                            break
 
-                    # 4. RSI partial recovery + profitable (time-decay exit)
-                    if rsi[j] is not None and rsi[j] >= rsi_partial and current_pnl > 0:
-                        exit_bar = j
-                        exit_price = current_price
-                        exit_reason = 'rsi_partial'
-                        break
+                    # 4. RSI partial recovery - also requires min net profit
+                    if rsi[j] is not None and rsi[j] >= rsi_partial:
+                        net_pnl = current_pnl - fee_pct
+                        if net_pnl >= min_net_profit:
+                            exit_bar = j
+                            exit_price = current_price
+                            exit_reason = 'rsi_partial'
+                            break
 
                 if exit_bar is None:
                     exit_bar = min(i + max_hold, n - 1)
@@ -1781,14 +1788,14 @@ class RSIOnlyStrategy(VectorizedStrategy):
                     exit_reason = 'max_hold'
 
                 gross_pnl_pct = ((exit_price - entry_price) / entry_price) * 100.0
-                fee_pct = self.params.get('round_trip_fee_pct', 0.25)
-                net_pnl_pct = gross_pnl_pct - fee_pct
+                fee_pct_final = self.params.get('round_trip_fee_pct', 0.25)
+                net_pnl_pct = gross_pnl_pct - fee_pct_final
 
                 trades.append(Trade(
                     symbol='', entry_time=entry_time, entry_price=entry_price,
                     exit_time=timestamps[exit_bar], exit_price=exit_price,
                     direction='long', exit_reason=exit_reason,
-                    gross_pnl_pct=gross_pnl_pct, fee_pct=fee_pct,
+                    gross_pnl_pct=gross_pnl_pct, fee_pct=fee_pct_final,
                     net_pnl_pct=net_pnl_pct, net_pnl_usd=0,
                     hold_bars=exit_bar - entry_bar,
                 ))
@@ -2225,6 +2232,7 @@ class RSIRegimeStrategy(VectorizedStrategy):
         'max_hold_bars': 24,
         'trailing_activate_pct': 0.3,
         'trailing_stop_pct': 0.2,
+        'min_net_profit_pct': 0.3,   # Min net profit % for RSI exits (matches ~$1.50 on $500 position after fees)
         # Regime filter params
         'regime_ema': 50,            # EMA to use for regime detection
         'max_below_ema_pct': 5.0,    # Max % price can be below EMA to still enter
@@ -2258,6 +2266,8 @@ class RSIRegimeStrategy(VectorizedStrategy):
         trailing_activate = self.params.get('trailing_activate_pct', 0.3) / 100.0
         trailing_pct = self.params.get('trailing_stop_pct', 0.2) / 100.0
         cooldown = self.params.get('min_cooldown_bars', 3)
+        min_net_profit = self.params.get('min_net_profit_pct', 0.3) / 100.0
+        fee_pct = self.params.get('round_trip_fee_pct', 0.25) / 100.0
         max_below_ema = self.params.get('max_below_ema_pct', 5.0) / 100.0
         slope_bars = self.params.get('ema_slope_bars', 10)
         max_decline = self.params.get('max_ema_decline_pct', 3.0) / 100.0
@@ -2328,19 +2338,23 @@ class RSIRegimeStrategy(VectorizedStrategy):
                             exit_reason = 'trailing_stop'
                             break
 
-                    # 3. RSI full recovery
+                    # 3. RSI full recovery - requires min net profit
                     if rsi[j] is not None and rsi[j] >= rsi_exit:
-                        exit_bar = j
-                        exit_price = current_price
-                        exit_reason = 'rsi_exit'
-                        break
+                        net_pnl = current_pnl - fee_pct
+                        if net_pnl >= min_net_profit:
+                            exit_bar = j
+                            exit_price = current_price
+                            exit_reason = 'rsi_exit'
+                            break
 
-                    # 4. RSI partial + profitable
-                    if rsi[j] is not None and rsi[j] >= rsi_partial and current_pnl > 0:
-                        exit_bar = j
-                        exit_price = current_price
-                        exit_reason = 'rsi_partial'
-                        break
+                    # 4. RSI partial - also requires min net profit
+                    if rsi[j] is not None and rsi[j] >= rsi_partial:
+                        net_pnl = current_pnl - fee_pct
+                        if net_pnl >= min_net_profit:
+                            exit_bar = j
+                            exit_price = current_price
+                            exit_reason = 'rsi_partial'
+                            break
 
                 if exit_bar is None:
                     exit_bar = min(i + max_hold, n - 1)
@@ -2348,14 +2362,14 @@ class RSIRegimeStrategy(VectorizedStrategy):
                     exit_reason = 'max_hold'
 
                 gross_pnl_pct = ((exit_price - entry_price) / entry_price) * 100.0
-                fee_pct = self.params.get('round_trip_fee_pct', 0.25)
-                net_pnl_pct = gross_pnl_pct - fee_pct
+                fee_pct_final = self.params.get('round_trip_fee_pct', 0.25)
+                net_pnl_pct = gross_pnl_pct - fee_pct_final
 
                 trades.append(Trade(
                     symbol='', entry_time=entry_time, entry_price=entry_price,
                     exit_time=timestamps[exit_bar], exit_price=exit_price,
                     direction='long', exit_reason=exit_reason,
-                    gross_pnl_pct=gross_pnl_pct, fee_pct=fee_pct,
+                    gross_pnl_pct=gross_pnl_pct, fee_pct=fee_pct_final,
                     net_pnl_pct=net_pnl_pct, net_pnl_usd=0,
                     hold_bars=exit_bar - entry_bar,
                 ))
